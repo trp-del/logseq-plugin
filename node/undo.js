@@ -1,6 +1,6 @@
-/* NODE: what has just changed, and the way back. After a change the plugin makes to a node that a list shows as a line, that
-   line lights for a moment and then fades, and a faded arrow stands at its end: a press takes the change back with Logseq's
-   own Undo (the owner, 25 November 2026: a faded arrow beside what changed; a changed line lights, then fades).
+/* NODE: what has just changed, and the way back. After a change the plugin makes to a node that a list shows as a line, a
+   small faint arrow stands right after that line's words: a press takes the change back with Logseq's own Undo. Nothing
+   lights (the owner, 25 November 2026, chose the arrow as it was before 0.9 over a lit line with the arrow at its end).
    One arrow at a time. A new change's arrow takes the last one's place, and the arrow goes at the next change to the graph
    from anywhere, because Logseq's Undo would then take back that later change and not this one. Where no line shows the node
    any more (it was deleted, or it left the list), the arrow waits at the bottom right of the window.
@@ -33,10 +33,10 @@ function arrow(doc, docked) {
   return button;
 }
 function dress(row) {
-  if (!last || row.dataset.uuid !== last.uuid) { row.querySelector(':scope > .lk-line > .lk-undo')?.remove(); return; }
+  if (!last || row.dataset.uuid !== last.uuid) { row.querySelector(':scope > .lk-line .lk-undo')?.remove(); return; }
   const line = row.querySelector(':scope > .lk-line');
-  if (!line || line.querySelector(':scope > .lk-undo')) return;
-  line.appendChild(arrow(row.ownerDocument, false));
+  if (!line || line.querySelector('.lk-undo')) return;
+  (line.querySelector(':scope > .lk-words') || line).appendChild(arrow(row.ownerDocument, false));   // inside the words, so it follows the last of them wherever they end
   last.dock?.remove(); last.dock = null;
 }
 function mark(uuid, steps = 1) {
@@ -46,9 +46,9 @@ function mark(uuid, steps = 1) {
   const doc = G.host(), view = doc.defaultView;
   last = { uuid, steps: Math.max(1, Number(steps) || 1), timers: [], dock: null, offChanged: null };
   const mine = last, rows = () => [...doc.querySelectorAll(`.lk-row[data-uuid="${uuid}"]`)];
-  const light = () => { for (const row of rows()) { dress(row); row.classList.remove('lk-lit-now'); void row.offsetWidth; row.classList.add('lk-lit-now'); } };
+  const light = () => { for (const row of rows()) dress(row); };
   light();
-  // The lists read the graph again after the change: the row may be drawn anew, so it is lit once more when they have.
+  // The lists read the graph again after the change: the row may be drawn anew, so it is dressed once more when they have.
   mine.timers.push(view.setTimeout(() => { if (last === mine) light(); }, 900));
   // No line shows it any more: the arrow waits at the bottom right.
   mine.timers.push(view.setTimeout(() => { if (last !== mine || doc.querySelector('.lk-row .lk-undo')) return; mine.dock = arrow(doc, true); doc.body.appendChild(mine.dock); }, 1500));
@@ -58,11 +58,10 @@ function mark(uuid, steps = 1) {
 async function after(uuid, write) { const made = await write; mark(uuid, Number.isInteger(made) && made > 0 ? made : 1); return made; }   // a write that answers a number says how many steps it was
 G.undo = { after, mark, dress, clear };
 G.undo.CSS = `
-.lk-undo { flex: none; align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 22px; height: 24px; margin-left: 2px; padding: 0; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-text); font: inherit; opacity: .45; cursor: pointer; }
+.lk-undo { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 20px; height: 20px; margin: 0 0 0 4px; padding: 0; vertical-align: -4px; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-text); font: inherit; opacity: .45; cursor: pointer; }
+.lk-undo svg { width: 13px; height: 13px; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
-.lk-undo-dock { position: fixed; right: 64px; bottom: 20px; z-index: 9998; width: auto; height: 28px; padding: 0 12px 0 8px; border-radius: var(--lk-corner-round); background: var(--lk-paper); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); font-size: var(--lk-line-size); opacity: 1; }
-.lk-undo-dock:hover, .lk-undo-dock:focus-visible { background: var(--lk-paper); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-text); }
-.lk-row.lk-lit-now > .lk-line { animation: lk-lit-now 1.8s ease-out; }
-@keyframes lk-lit-now { from { background: var(--lk-lit); } 35% { background: var(--lk-lit); } to { background: transparent; } }
-@media (prefers-reduced-motion: reduce) { .lk-row.lk-lit-now > .lk-line { animation: none; } }`;
+.lk-undo-dock svg { width: 15px; height: 15px; }
+.lk-undo-dock { position: fixed; right: 64px; bottom: 20px; z-index: 9998; width: auto; height: 28px; padding: 0 12px 0 8px; border-radius: var(--lk-corner-round); background: var(--lk-paper); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); font-size: var(--lk-line-size); opacity: 1; margin: 0; vertical-align: 0; }
+.lk-undo-dock:hover, .lk-undo-dock:focus-visible { background: var(--lk-paper); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-text); }`;
 })();

@@ -84,15 +84,22 @@ function act(event, row, more) {
 }
 G.line = { html, act, menu };
 G.line.CSS = `
-/* A row: the fold arrow, the line, and the line's day at the right end, in every place (the owner, 25 November 2026). The line
-   reaches under the day, so the wash of a lit line holds both. */
-.lk-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); align-items: start; padding-left: calc(var(--lk-depth, 0) * 18px); }
-.lk-row > .lk-day { grid-column: 3; grid-row: 1; z-index: 1; overflow: hidden; white-space: nowrap; text-align: right; padding: 2px 6px 0 0; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; line-height: 24px; }
-.lk-row > .lk-day.lk-late { color: var(--lk-text); }   /* a task past its day says so in the ink: colour is kept for a change */
-.lk-row > .lk-day:empty, .lk-row[data-open="1"] > .lk-day { display: none; }
+/* A row: the fold arrow, then the line, whose day stands right after its bullet and before its words, in a column of its own,
+   as before 0.9 (the owner, 25 November 2026, of the lists on a page). The day is the row's own piece laid over room the
+   bullet keeps after it. A place whose view puts the day at the right end says so on a box round its rows (lk-day-end: Find,
+   and Todo, where a day that has passed is red); the line then reaches under the day, so its wash holds both. */
+.lk-row { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; padding-left: calc(var(--lk-depth, 0) * 18px); }
 .lk-row > .lk-fold { grid-column: 1; grid-row: 1; position: relative; z-index: 1; }   /* above the opened node, whose own margin reaches under it */
-.lk-row > .lk-line { grid-column: 2 / -1; grid-row: 1; min-width: 0; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
-.lk-row > .lk-open { grid-column: 2 / -1; min-width: 0; }
+.lk-row > .lk-line, .lk-row > .lk-open { grid-column: 2; grid-row: 1; min-width: 0; }
+.lk-row > .lk-day { grid-column: 2; grid-row: 1; justify-self: start; z-index: 1; width: var(--lk-daycol, 0px); margin-left: 16px; padding: 2px 0 0 4px; box-sizing: border-box; overflow: hidden; white-space: nowrap; pointer-events: none; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; line-height: 24px; }
+.lk-row > .lk-day:empty { display: none; }   /* an opened row keeps its day: the opened node's first words stand after it, where the line's stood (touch.OPENED) */
+.lk-row > .lk-line > .lk-bul { margin-right: var(--lk-daycol, 0px); }
+.lk-day-end .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
+.lk-day-end .lk-row > .lk-day { grid-column: 3; justify-self: stretch; width: auto; margin: 0; padding: 2px 6px 0 0; text-align: right; pointer-events: auto; }
+.lk-day-end .lk-row > .lk-day.lk-late { color: var(--lk-going); }
+.lk-day-end .lk-row > .lk-line { grid-column: 2 / -1; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
+.lk-day-end .lk-row > .lk-line > .lk-bul { margin-right: 0; }
+.lk-day-end .lk-row > .lk-open { grid-column: 2 / -1; }
 .lk-row[data-open="1"] > .lk-line { display: none; }
 .lk-row[data-open="soon"] > .lk-open { height: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole */
 .lk-fold { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
@@ -122,13 +129,11 @@ a.lk-tag:hover { color: var(--lk-text); }
 /* In a narrow place (the sidebar) the words get the whole width: the day stands under them, an outline steps in less, and an
    opened node takes the width of the list. */
 @container lk-list (max-width: 300px) {
-  .lk-row { grid-template-columns: 18px minmax(0, 1fr); padding-left: calc(var(--lk-depth, 0) * 12px); }
-  .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
-  .lk-row > .lk-line, .lk-row > .lk-open { grid-column: 2; grid-row: 1; }
-  .lk-row > .lk-line { padding-right: 6px; }
-  .lk-row > .lk-day { grid-column: 2; grid-row: 2; text-align: left; padding: 0 0 4px 20px; margin-top: -3px; line-height: 16px; font-size: var(--lk-label); }
-  .lk-row[data-status]:not([data-status=""]) > .lk-day { padding-left: 44px; }
-  .lk-row > .lk-day:empty, .lk-row[data-open="1"] > .lk-day { display: none; }
+  .lk-row { padding-left: calc(var(--lk-depth, 0) * 12px); }
+  .lk-rows:not(.lk-day-end *) > .lk-row > .lk-line > .lk-bul { margin-right: 0; }
+  .lk-rows:not(.lk-day-end *) > .lk-row[data-open="1"] > .lk-day { display: none; }
+  .lk-rows:not(.lk-day-end *) > .lk-row > .lk-day { grid-row: 2; width: auto; margin: -3px 0 0; padding: 0 0 4px 20px; line-height: 16px; font-size: var(--lk-label); pointer-events: auto; }
+  .lk-rows:not(.lk-day-end *) > .lk-row[data-status]:not([data-status=""]) > .lk-day { padding-left: 44px; }
   .lk-row[data-open="1"] { padding-left: 0; }
   .lk-more { margin-left: 34px; }
   .lk-open > .lk-rel { margin-left: 8px; }

@@ -8,7 +8,7 @@ G.part({
   start(base) {
     base.style('hides', G.touch.HIDES + `
 ${G.touch.PAGE} > .lk-rel { margin: 8px 0 32px; }
-${G.touch.PAGE} > .lk-rel:not(:empty)::before { content: "Linked"; font-weight: 600; margin-bottom: -6px; }`);   /* the lists stand under a title of their own (the owner, 25 November 2026) */
+${G.touch.PAGE} > .lk-rel:not(:empty)::before { content: "Relations"; color: var(--lk-quiet); font-size: var(--lk-line-size); line-height: 24px; margin-bottom: -4px; background: linear-gradient(var(--lk-hair), var(--lk-hair)) no-repeat 82px 55% / calc(100% - 82px) 1px; }`);   /* the lists stand under their own quiet word and a hairline, as before 0.9 (the owner, 25 November 2026) */
     const offs = new Map();   // the plugin's element on a page -> what takes its lists away
     const pass = () => {
       for (const [foot, off] of offs) if (!foot.isConnected) { off(); offs.delete(foot); }

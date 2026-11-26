@@ -16,6 +16,10 @@ G.part({
     base.style('find', `
 .lk-veil { position: fixed; inset: 0; z-index: 40; display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 0; background: color-mix(in srgb, var(--lk-paper) 40%, transparent); }
 .lk-find { width: min(1040px, 100%); height: min(86vh, 900px); display: flex; flex-direction: column; border-radius: var(--lk-corner-float); background: var(--lk-paper); color: var(--lk-text); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); overflow: hidden; }
+/* The moment it opens: the field alone, a capsule, with nothing under it until words are typed or a kind is taken (the owner, 25 November 2026). */
+.lk-find.lk-find-bare { height: auto; border-radius: var(--lk-corner-round); }
+.lk-find-bare .lk-find-top { border-bottom-color: transparent; padding-inline: 24px; }
+.lk-find-bare :is(.lk-find-body, .lk-find-foot) { display: none; }
 .lk-find-top { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--lk-hair); flex: none; }
 .lk-find-top .lk-piece { flex: none; font-size: var(--lk-words-size); line-height: 28px; }
 .lk-find-top .lk-field { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-words-size); line-height: 28px; padding: 0; box-shadow: none; }
@@ -58,7 +62,9 @@ G.part({
       if (!win || mine !== win.turn) return;
       win.pieceEl.hidden = !win.kind; win.pieceEl.textContent = win.kind?.title || '';
       win.field.placeholder = win.kind ? 'Words, a value, a day' : 'Find';
-      const kinds = win.kind ? [] : win.text.trim() ? F.kinds(tags, win.text).slice(0, 6).map(tag => ({ tag, depth: 0 })) : F.tree(tags);
+      const bare = !win.kind && !win.text.trim();
+      win.veil.firstElementChild.classList.toggle('lk-find-bare', bare);
+      const kinds = win.kind || bare ? [] : F.kinds(tags, win.text).slice(0, 6).map(tag => ({ tag, depth: 0 }));
       win.kindsEl.innerHTML = kinds.map(({ tag, depth }) => `<div class="lk-kind" data-id="${tag.id}" style="padding-left: ${8 + depth * 18}px"><span class="lk-tag">${G.esc(tag.title)}</span></div>`).join('');
       win.found = await nodesFor();
       if (!win || mine !== win.turn) return;
@@ -106,7 +112,7 @@ G.part({
     function open() {
       if (win) { win.field.focus(); win.field.select(); return; }
       const doc = G.host(), veil = doc.createElement('div'); veil.className = 'lk-veil';
-      veil.innerHTML = `<div class="lk-find" role="dialog" aria-label="Find"><div class="lk-find-top"><span class="lk-piece lk-tag" hidden></span><input class="lk-field" type="text" placeholder="Find" spellcheck="false" autocomplete="off" aria-label="Find"></div><div class="lk-find-body"><div class="lk-find-kinds"></div><div class="lk-find-rows lk-rel"></div><div class="lk-none" hidden>Nothing found</div></div><div class="lk-find-foot" hidden><button type="button" class="lk-find-new"></button><span class="lk-key">${/Mac/.test(doc.defaultView.navigator.platform) ? '⌘↩' : 'Ctrl ↩'}</span></div></div>`;
+      veil.innerHTML = `<div class="lk-find lk-find-bare lk-day-end" role="dialog" aria-label="Find"><div class="lk-find-top"><span class="lk-piece lk-tag" hidden></span><input class="lk-field" type="text" placeholder="Find" spellcheck="false" autocomplete="off" aria-label="Find"></div><div class="lk-find-body"><div class="lk-find-kinds"></div><div class="lk-find-rows lk-rel"></div><div class="lk-none" hidden>Nothing found</div></div><div class="lk-find-foot" hidden><button type="button" class="lk-find-new"></button><span class="lk-key">${/Mac/.test(doc.defaultView.navigator.platform) ? '⌘↩' : 'Ctrl ↩'}</span></div></div>`;
       doc.body.appendChild(veil);
       const q = sel => veil.querySelector(sel);
       win = { veil, field: q('.lk-field'), pieceEl: q('.lk-piece'), body: q('.lk-find-body'), kindsEl: q('.lk-find-kinds'), rowsEl: q('.lk-find-rows'), noneEl: q('.lk-none'), footEl: q('.lk-find-foot'), newEl: q('.lk-find-new'), kind: null, text: '', lit: 0, turn: 0, found: [], kindNodes: null, back: doc.activeElement, timer: 0 };

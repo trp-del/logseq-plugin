@@ -31,12 +31,25 @@ function mount(holder, uuid) {
   holder.dataset.k = k; holder.dataset.node = uuid;
   const rule = doc.createElement('style'), page = doc.createElement('div'), head = doc.createElement('div'), rel = doc.createElement('div');
   page.className = 'lk-editor'; head.className = 'lk-relhead'; head.textContent = 'Relations'; rel.className = 'lk-rel';
-  holder.append(rule, page, head, rel);
+  const tagRule = doc.createElement('style');
+  holder.append(rule, tagRule, page, head, rel);
+  // After a value that is a node, what that node is: its tag, as a line says it (before 0.9; the owner, 25 November 2026). Said
+  // by a rule of this holder's own, so nothing is put into Logseq's rows.
+  let saidFor = '';
+  const sayTags = async () => {
+    const uuids = G.touch.valued(page), key = uuids.join(' ');
+    if (key === saidFor) return;
+    saidFor = key;
+    const nodes = (await Promise.all(uuids.map(one => G.read.node(one)))).filter(Boolean), lines = await G.read.describe(nodes.map(node => node.id));
+    if (key !== saidFor || !holder.isConnected) return;
+    tagRule.textContent = G.touch.valueTags(nodes.map(node => [node.uuid, lines.get(node.id)?.tag]).filter(([, tag]) => tag));
+  };
   const dugs = new Map();   // the uuid of a value -> the holder of the node dug into
   const place = () => {
     if (!holder.isConnected) return;
     const wide = G.touch.names(page), col = wide ? Math.min(150, Math.max(56, wide)) + 'px' : '';
     if (page.style.getPropertyValue('--lk-keycol') !== col) page.style.setProperty('--lk-keycol', col);
+    sayTags();
     let css = '';
     for (const [value, dug] of dugs) {
       const seat = G.touch.seat(page, value);
@@ -219,8 +232,7 @@ function draw(state, made, names, statuses) {
     rowsEl.hidden = isFolded;
     const rows = L.shown(list.rows, state.all.has(list.key), state.few);
     const days = list.rows.some(row => row.dayShown), long = list.rows.some(row => row.dayShown && Math.floor(row.dayShown / 10000) !== Math.floor(today / 10000));
-    const late = list.rows.some(row => row.dayShown && row.late);
-    box.style.setProperty('--lk-daycol', days ? `${(long ? 92 : 56) + (late ? 56 : 0)}px` : '0px');
+    box.style.setProperty('--lk-daycol', days ? (long ? '92px' : '56px') : '0px');
     sync(rowsEl, rows, row => row.uuid, () => {
       const el = doc.createElement('div'); el.className = 'lk-row';
       el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold" aria-label="Open">${ARROW}</button><div class="lk-line" role="button" tabindex="0"></div>`;
@@ -228,9 +240,9 @@ function draw(state, made, names, statuses) {
     }, (el, row) => {
       el.dataset.uuid = row.uuid; el.dataset.status = row.status || ''; el.dataset.page = row.isPage ? '1' : '';
       el.style.setProperty('--lk-depth', String(row.depth || 0));   // an outline's row stands in by its depth
-      const said = D.short(row.dayShown, today), day = said && row.late ? `was due ${said}` : said, dayEl = el.firstElementChild;
+      const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
       if (dayEl.textContent !== day) dayEl.textContent = day;
-      dayEl.classList.toggle('lk-late', !!(said && row.late));
+      dayEl.classList.toggle('lk-late', !!(day && row.late));
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
       const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }), line = el.children[2];
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; }
@@ -337,7 +349,8 @@ G.node.CSS = `
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 @container lk-list (max-width: 300px) { .lk-span { display: none; } }
-.lk-more { margin: 2px 0 0 34px; padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-day-end .lk-more { margin-left: 34px; }
+.lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-more:hover { color: var(--lk-text); text-decoration-color: currentColor; }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
 .lk-add:has(+ .lk-ask) { position: static; }   /* a box open under it: it scrolls away with the rest, and never floats over the box */
@@ -350,6 +363,8 @@ G.node.CSS = `
    through, its rows starting where the value's words start, with a guide line down from the value's arrow. It takes its room
    in one move, once Logseq has drawn it. */
 .lk-row > .lk-open { background: color-mix(in srgb, var(--lk-text) 3.5%, transparent); border-radius: var(--lk-corner); padding: 0 8px 6px 0; }
+/* A line down the left side of the node opened from a row, from under its own line to its foot, as before 0.9. */
+.lk-row > .lk-open::before { content: ""; position: absolute; left: 9px; top: 28px; bottom: 8px; width: 1px; background: var(--lk-line); pointer-events: none; }
 .lk-dugopen { position: absolute; right: 0; margin: 0; padding: 0 0 6px; opacity: 0; pointer-events: none; }
 .lk-dugopen[data-whole] { opacity: 1; pointer-events: auto; transition: opacity .16s ease .04s; }
 .lk-dugopen.lk-flow { position: relative; margin: 2px 0 6px 28px; }

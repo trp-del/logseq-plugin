@@ -115,13 +115,25 @@ function pageFoot(el, name) {
 }
 
 // Under the title's own row and above the page's properties, inside the title's block.
-function pageHead(el, name) {
+function pageHead(el, name, above = false) {
   const row = el.querySelector(':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
   if (!row) return null;
   let head = [...row.parentElement.children].find(child => child.classList.contains(name));
-  if (!head) { head = host().createElement('div'); head.className = name; row.after(head); }
+  if (!head) { head = host().createElement('div'); head.className = name; if (above) row.before(head); else row.after(head); }
   return head;
 }
+// A column of the tables on a page left out by its name (a tag's own table says the tag on every row): the table is marked
+// with the column's place, and the sheet (CALM.table) hides that place in the head and in every row as it comes.
+function lessColumn(el, title) {
+  for (const table of el.querySelectorAll('.ls-table')) {
+    const cells = [...(table.querySelector('.ls-table-header > .flex-row:not(.sticky-columns)')?.children || [])];
+    const at = title ? cells.findIndex(cell => cell.textContent.trim() === title) + 1 : 0;
+    if ((table.dataset.lkLess || '0') !== String(at)) { if (at) table.dataset.lkLess = String(at); else delete table.dataset.lkLess; }
+  }
+}
+// The nodes an opened node's values name; and the sheet that says, after each of them, what that node is.
+const valued = editor => [...new Set([...editor.querySelectorAll(VALUE)].filter(a => a.closest('.lk-editor') === editor).map(a => a.dataset.uuid.toLowerCase()))];
+const valueTags = said => [...said].map(([uuid, tag]) => `.lk-editor ${VALUE.replace('[data-uuid]', `[data-uuid="${uuid}" i]`)}::after { content: "${String(tag).replace(/[\\"\n]/g, ' ')}"; display: inline-block; margin-left: .5em; font-family: var(--lk-tag-face); font-size: var(--lk-tag-size); color: var(--lk-quiet); }`).join('\n');
 
 /* Logseq lends its editor (Experiments.Components.Editor: any node by its uuid) only inside a tree it hosts itself. One piece
    is kept there (registerDaemonRenderer) and puts an editor into each element asked for (createPortal). Logseq shows a piece
@@ -337,7 +349,8 @@ const openUrl = url => logseq.App.openExternalLink(url);
 
 /* Where the plugin's lists stand, Logseq's own for the same thing are taken away: its Linked references and its two-way
    property tabs. Only where the plugin's stand (:has), so a plugin that failed to draw leaves Logseq's in place. */
-const HIDES_TAGS = `.ls-page-title .ls-block:has(> .lk-place:not(:empty)) > .is-page-title-row .block-tags { display: none !important; }`;
+const HIDES_TAGS = `.ls-page-title .ls-block:has(> .lk-place:not(:empty)) > .is-page-title-row .block-tags, .ls-block-right:has(> .lk-place:not(:empty)) > .block-tags { display: none !important; }
+.ls-block-right > .lk-place { align-self: flex-start; }`;
 const HIDES = `
 ${PAGE}:has(> .lk-rel) .references, ${PAGE}:has(> .lk-rel) .ls-bidirectional-properties { display: none !important; }
 .lk-open ${PAGE} .references, .lk-open ${PAGE} .unlinked-references, .lk-open ${PAGE} .ls-bidirectional-properties { display: none !important; }`;
@@ -376,7 +389,7 @@ const OPENED = `
 .lk-editor .property-key-panel { width: auto !important; min-width: 0 !important; min-height: var(--lk-line-h) !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-key-inner { min-width: 0; max-width: var(--lk-keycol); min-height: 0 !important; }
 .lk-editor .property-pair .property-icon, .lk-editor .property-pair .property-panel-bullet { display: none !important; }
-.lk-editor :is(.bottom-property-pill, .property-pair) .property-k { display: block !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: var(--lk-label) !important; line-height: 20px !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-k { display: block !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: var(--lk-small) !important; line-height: 20px !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-container { min-height: var(--lk-line-h) !important; display: flex !important; align-items: center !important; flex-wrap: wrap; overflow: visible !important; white-space: normal !important; min-width: 0; font-size: var(--lk-line-size) !important; line-height: 20px !important; padding: 0 !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner { background: none !important; }
 .lk-editor .ls-properties-area, .lk-editor .properties-panel { margin: 0 !important; padding: 0 !important; overflow: visible !important; border-radius: 0 !important; }
@@ -413,6 +426,10 @@ const OPENED = `
 .lk-editor .is-page-title-row .ls-block-right .block-tags { margin: 0 !important; padding-block: 0 !important; }
 .lk-editor .is-page-title-row .block-row { min-height: 0 !important; align-items: flex-start !important; }
 .lk-editor .is-page-title-row { margin-left: 0 !important; gap: 0 !important; }   /* the title's words stand where the line's words stood */
+/* A row whose line says its day after the bullet: opened, the node's first words stay where the line's stood, after the day,
+   which the row goes on showing. In a narrow place the day stands under a line's words and goes while the node is open. */
+.lk-rows:not(.lk-day-end *) > .lk-row > .lk-open > .lk-editor :is(.blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container, .is-page-title-row) .block-row > .block-content-wrapper:not(.property-block-container *) { margin-left: var(--lk-daycol, 0px); }
+@container lk-list (max-width: 300px) { .lk-rows:not(.lk-day-end *) > .lk-row > .lk-open > .lk-editor :is(.blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container, .is-page-title-row) .block-row > .block-content-wrapper:not(.property-block-container *) { margin-left: 0; } }
 .lk-editor:has(.ls-page-title) { margin-left: -2px; }
 .lk-dugopen > .lk-editor:has(.ls-page-title) { margin-left: 0; }
 .lk-editor .ls-page-icon { align-self: flex-start !important; height: 24px !important; padding: 0 !important; margin: 0 !important; align-items: center !important; }
@@ -440,5 +457,101 @@ ${IN} a.tag:hover { color: var(--lk-text) !important; }
 ${IN} .block-tag a.hash-symbol { opacity: 0; }
 ${IN} .block-tag:hover a.hash-symbol { opacity: .6; }
 `;
-G.touch = { MARKS, watch, changed, writing, edit, digs, seat, names, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+/* Logseq's own screens, quieted, as the plugin drew them before 0.9 (the owner, 25 November 2026, choosing each from a
+   picture of both). One sheet for each thing, so each can be switched off on its own. Nothing here is inside an opened node:
+   those rows are laid out by OPENED. */
+const AREA = ':is(#main-content-container, #right-sidebar)', OUT = ':not(.lk-editor *)';
+const PILLS = `${AREA} .ls-block .positioned-properties.block-below`;
+const CALM = {
+  /* The top bar: Ontology, Todo, Logseq's own menu and the sidebar button. Home, back, forward and the plugins button go
+     (Journals heads the left sidebar, Cmd [ and Cmd ] go back and forward, Plugins is in the menu). Icons a little finer. */
+  bar: `
+#head .r > .flex.items-center > button:has(.ls-icon-home), #head .r .toolbar-plugins-manager, #head .r .nav-left, #head .r .nav-right { display: none !important; }
+#head svg.tabler-icon, #head .ui__icon svg { stroke-width: 1.75 !important; }
+#head :is(button, a.button) { opacity: .7 !important; }
+#head :is(button, a.button):hover { opacity: 1 !important; }`,
+  /* A page's title a step smaller and tighter, so it heads the page without shouting over it. */
+  title: `
+${AREA} .ls-page-title-container${OUT} { font-size: 30px !important; line-height: 1.3 !important; }
+${AREA} .ls-page-title-container${OUT} .block-content-or-editor-inner { font-size: inherit !important; line-height: inherit !important; }
+${AREA} .ls-page-title-container${OUT} :is(.block-title-wrap, .editor-inner textarea) { font-weight: 600 !important; letter-spacing: -.015em; }
+#journals .journal-item { border-bottom-color: transparent !important; }`,
+  /* "Add property" under a page's properties: quiet words, a little apart from the rows, not a filled press. */
+  add: `
+${AREA} .ls-new-property${OUT} { margin-top: 10px !important; }
+${AREA} .ls-new-property${OUT} button { background: none !important; box-shadow: none !important; border: 0 !important; color: var(--lk-quiet) !important; font-weight: 400 !important; padding-left: 0 !important; }
+${AREA} .ls-new-property${OUT} button:hover { color: var(--lk-text) !important; }`,
+  /* A bullet's properties under its words: one quiet line of names and values, wrapping, with space between them and no
+     outline; the one being written has a capsule round it. Every one that holds something shows, so Logseq's Expand press
+     goes; an empty one stays out of the line, as before 0.9. */
+  pills: `
+${PILLS}${OUT}, ${PILLS}${OUT} .bottom-properties-row { height: auto !important; max-height: none !important; overflow: visible !important; }
+${PILLS}${OUT} .bottom-properties-row > :not(.bottom-properties-pills-strip) { display: none !important; }
+${PILLS}${OUT} .bottom-properties-pills-strip { flex-wrap: wrap !important; gap: 0 24px !important; max-width: none !important; overflow: visible !important; }
+${PILLS}${OUT} .bottom-property-pill { background: transparent !important; padding-inline: 0 !important; overflow: visible !important; }
+${PILLS}${OUT} .bottom-property-pill:not(:focus-within)::after { box-shadow: none !important; border: 0 !important; }
+${PILLS}${OUT} .bottom-property-pill:focus-within::after { inset: 1px -6px !important; border-radius: var(--lk-corner-round) !important; box-shadow: inset 0 0 0 1px var(--lk-line) !important; }
+${PILLS}${OUT} .bottom-property-pill > div:first-child { color: var(--lk-quiet) !important; }
+${PILLS}${OUT} .bottom-property-pill:has(.empty-value):not(:focus-within) { display: none !important; }
+${PILLS}${OUT} .bottom-property-pill input.ui__input { field-sizing: content; width: auto !important; min-width: 3ch; max-width: 40ch; height: 24px !important; padding: 0 2px !important; border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; }
+${AREA} .ls-block .bottom-property-edit-icon${OUT} { display: none !important; }`,
+  /* The right sidebar: Logseq's own row on top (Contents, Page graph, Help) is left out; each section has its own head. */
+  side: `
+#right-sidebar .cp__right-sidebar-topbar { display: none !important; }`,
+  /* Logseq's tables: the page's own ground under the column names, no lines between columns, a hairline under each row, the
+     wash under the pointer; the words in the plugin's greys; a link as a link is everywhere; what each tool does said in a
+     word beside its icon; the view's name a word with a short bar under the one in force. */
+  table: `
+${AREA} .ls-table-header { background: var(--lk-paper) !important; border-top-color: transparent !important; border-bottom-color: var(--lk-hair) !important; }
+${AREA} .ls-table-header-cell, ${AREA} .ls-table-rows .border-r { border-right-color: transparent !important; }
+${AREA} .ls-table-header-cell { font-weight: 400 !important; font-family: var(--lk-prop-face); }
+${AREA} .ls-table-header-cell button { color: var(--lk-quiet) !important; font-size: var(--lk-small); }
+${AREA} .ls-table-header-cell:has(.ls-icon-arrow-up, .ls-icon-arrow-down) button { color: var(--lk-text) !important; }
+${AREA} .ls-table-row { background: transparent !important; border-bottom-color: var(--lk-hair) !important; }
+${AREA} .ls-table-row:hover { background: var(--lk-wash) !important; }
+${AREA} :is(.ls-table-row, .ls-table-header) .sticky-columns { background: var(--lk-paper) !important; }
+${AREA} .ls-table-row:hover .sticky-columns { background: color-mix(in srgb, var(--lk-text) 7%, var(--lk-paper)) !important; }
+${AREA} .ls-table :is(.text-muted-foreground, .text-gray-500) { color: var(--lk-quiet) !important; }
+${AREA} .ls-table-cell .page-reference > .bracket { display: none; }
+${AREA} .table-block-title > .absolute button { background: transparent !important; border-radius: var(--lk-corner-round) !important; }
+${AREA} .table-block-title > .absolute button:hover { background: var(--lk-wash) !important; }
+${AREA} .table-block-title > .absolute button:first-child { width: auto !important; padding: 0 6px !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); }
+${AREA} .table-block-title > .absolute button:first-child svg { display: none; }
+${AREA} .table-block-title > .absolute button:first-child::before { content: "Open"; }
+${AREA} .ls-view-head .views button[data-view-tab-id] { position: relative; height: auto !important; padding: 3px 8px 6px !important; font-weight: 400 !important; color: var(--lk-quiet) !important; }
+${AREA} .ls-view-head .views button[data-view-tab-id]:not(.text-muted-foreground) { color: var(--lk-text) !important; }
+${AREA} .ls-view-head .views button[data-view-tab-id]:not(.text-muted-foreground)::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 1px; background: currentColor; }
+${AREA} .ls-view-head .views button[data-view-tab-id] > :is(.ls-icon-color-wrap, .text-xs) { display: none !important; }
+${AREA} .ls-view-head .views button[title="Add new view"] { width: auto !important; height: auto !important; padding: 3px 8px 6px !important; opacity: 1 !important; color: var(--lk-quiet) !important; font-size: var(--lk-small); font-weight: 400; }
+${AREA} .ls-view-head .views button[title="Add new view"] > :is(.ui__icon, svg) { display: none !important; }
+${AREA} .ls-view-head .views button[title="Add new view"]::after { content: "+ New view"; }
+${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item) { width: auto !important; height: 24px !important; padding: 0 6px !important; gap: 4px; border-radius: var(--lk-corner-round) !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-text) !important; opacity: 1 !important; }
+${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item):hover { background: var(--lk-wash) !important; }
+${AREA} .ls-view-head .view-actions :is(.ui__icon, svg) { width: 15px; height: 15px; }
+${AREA} .ls-view-head .view-actions { gap: 2px !important; flex-wrap: nowrap; }
+${AREA} .ls-view-head .view-action-type, ${AREA} .ls-view-head .view-action-type :is(.property-value-inner, .jtrigger) { width: auto !important; flex: none !important; }
+${AREA} .ls-view-head .view-action-type .select-item { display: inline-flex; align-items: center; white-space: nowrap; }
+${AREA} .ls-view-head .view-actions > button:has(.ls-icon-arrows-up-down)::after { content: "Sort"; }
+${AREA} .ls-view-head .view-actions > button:has(.ls-icon-filter)::after { content: "Filter"; }
+${AREA} .ls-view-head .view-action-search > div > button:first-child::after { content: "Find"; }
+${AREA} .ls-view-head .view-action-search:has(input) > div > button:first-child::after { content: none; }
+${AREA} .ls-view-head .view-action-type:has(.ls-icon-table) .select-item::after { content: "Table"; }
+${AREA} .ls-view-head .view-action-type:has(.ls-icon-list) .select-item::after { content: "List"; }
+${AREA} .ls-view-head .view-action-type:has(.ls-icon-layout-grid) .select-item::after { content: "Gallery"; }
+${AREA} .ls-view-head .view-actions > button:has(.ls-icon-plus)::after { content: "New"; }
+${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `${AREA} .ls-table[data-lk-less="${n}"] :is(.ls-table-header, .ls-table-row) > .flex-row:not(.sticky-columns) > :nth-child(${n})`).join(', ')} { display: none !important; }`,
+};
+/* On the main page the path of a page's tags stands at the right end of its title's line, where Logseq keeps a page's own
+   tags; anywhere else (the sidebar, a page opened in a row) there is no such room and it stands under the title (pageHead).
+   A press in it is not a press on the title, which would start writing there. */
+function titleEnd(el, name) {
+  if (!el.closest('#main-content-container') || el.closest('.lk-open')) return null;
+  const row = el.querySelector(':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
+  const spot = row?.querySelector('.ls-block-right');
+  if (!spot) return null;
+  let end = [...spot.children].find(child => child.classList.contains(name));
+  if (!end) { end = host().createElement('div'); end.className = name; for (const type of ['mousedown', 'pointerdown']) end.addEventListener(type, event => event.stopPropagation()); spot.append(end); }
+  return end;
+}
+G.touch = { MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, pages, pageFoot, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

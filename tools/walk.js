@@ -114,9 +114,9 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     // ---- Arriving: Find
     await goto(FATIGUE);
-    await step('Cmd-K opens Find on the kinds of things, as an outline', async () => {
+    await step('Cmd-K opens Find as its field alone, a capsule, with nothing under it until words are typed', async () => {   // the owner, 25 November 2026
       await page.keyboard.press('Meta+k'); await wait(700);
-      return is(await page.locator('.lk-find .lk-kind').evaluateAll(els => els.slice(0, 4).map(el => [el.innerText, el.style.paddingLeft])), [['Entity', '8px'], ['Organization', '26px'], ['Hospital', '44px'], ['Person', '26px']]);
+      return is(await page.evaluate(() => { const find = document.querySelector('.lk-find'), body = find.querySelector('.lk-find-body'); return [find.classList.contains('lk-find-bare'), body.offsetParent === null, find.querySelectorAll('.lk-kind').length, Math.round(find.getBoundingClientRect().height) < 70, parseFloat(getComputedStyle(find).borderTopLeftRadius) > 20]; }), [true, true, 0, true, true]);
     });
     await step('typed words find kinds by name and nodes through Logseq\'s own search', async () => {
       await page.keyboard.type('consul', { delay: 30 }); await wait(900);

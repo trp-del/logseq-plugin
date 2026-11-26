@@ -13,8 +13,8 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | Layer | Folder | What it gives |
 |---|---|---|
 | 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (a tag in Spectral, a property's name in IBM Plex Mono, both carried in `fonts/`). |
-| 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes lights for a moment, with a faded Undo arrow at its end. |
-| 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. Under a page's title, its tags and the tags above them. |
+| 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. |
+| 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. At the right end of a page's title, its tags and the tags above them; on a tag's page, its parent above the title. |
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
@@ -34,8 +34,8 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 - one list for each of your properties that points at the page, named by the property; on a journal day, Logseq's Scheduled
   and Deadline; then **Mentioned in**;
 - a tag every row of a list shares is said once, beside the list's name;
-- the lists stand under the title **Linked**;
-- rows carry their day at the right end (a Date property, else the journal day they were written on), newest first; in a narrow place the day stands under the words;
+- the lists stand under the quiet word **Relations** and a hairline;
+- rows carry their day right after the bullet, in a column of its own before the words (a Date property, else the journal day they were written on), newest first; in a narrow place the day stands under the words;
 - a long list shows ten rows, then **Show 43 more**, saying how many wait;
 - Logseq's own Linked references and two-way tabs are taken away where these lists stand.
 
@@ -62,9 +62,9 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   holds on Logseq's own pages, in the sidebar and inside an opened node, as in the plugin's lists. On Logseq's own pages a
   property with nothing in it is its name, fainter.
 - Colour is kept for a change: green for what comes, red struck through for what goes; Delete in a menu is red.
-- After the plugin changes a node shown as a line (a status, a tag, a new task, a tag moved in Ontology), the line lights and
-  fades, and a faded arrow stands at its end: a press takes the change back with Logseq's own Undo, in as many steps as the
-  change took. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow goes at
+- After the plugin changes a node shown as a line (a status, a tag, a new task, a tag moved in Ontology), a small faint arrow
+  stands right after the line's words: a press takes the change back with Logseq's own Undo, in as many steps as the change
+  took. Nothing lights. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow goes at
   the next change to the graph. Move values keeps its own way back.
 - Delete on a tag or a property asks first, in a box under its line: what goes, how many nodes hold it, a red yes and
   Cancel. The keys wait on Cancel; only a press on the red yes deletes.
@@ -75,15 +75,32 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 - Three corners (a small one, one for what floats, the round of a press) and the sizes of text are named once in
   `ground/look.js`.
 
+### Logseq's own screens, quieted (`beside/calm.js`, written in `ground/touch.js`)
+
+As the plugin drew them before 0.9; each can be switched off on its own in the plugin's settings.
+
+- The top bar keeps Ontology, Todo, Logseq's own menu and the sidebar button. Home, back, forward and the plugins button go.
+- A page's title is a step smaller and tighter.
+- **Add property** is quiet words, a little apart from the rows.
+- A bullet's properties under its words are one quiet line of names and values, wrapping, with no outline; the one being
+  written has a capsule round it; one with nothing in it stays out of the line.
+- The right sidebar has no row of Logseq's own on top (Contents, Page graph, Help).
+- Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
+  it does in a word beside its icon; a tag's own table leaves out its Tags column.
+
 ### A page's place (`page/place.js`)
 
-Under a page's title: each of its tags with the tags it sits under, up to the top. Each name opens its tag.
+On the main page, at the right end of the title's line: each of the page's tags with the tags it sits under, up to the top, on
+one line that gives way with an ellipsis. In the sidebar and in a page opened in a row, the same line stands under the title.
+Each name opens its tag. On a tag's own page a line above the title says **Parent** and the tag it stands under; a press lists
+your tags as an outline (not the tag itself, nor a tag under it) and **None (at the top)**, and the one taken is where the tag
+goes, with the Undo arrow at the bottom right.
 
 ### Find (`arrive/find.js`)
 
 Cmd-K, or **Find** in the command palette (a setting gives Cmd-K back to Logseq's own search). The window takes most of the screen. A kind you have taken stands before the words as a tag is written, with no capsule round it.
 
-- Nothing typed: your tags as an outline, the kinds of things there are.
+- Nothing typed and no kind taken: the field alone, a capsule, with nothing under it.
 - Words typed: kinds whose name they spell, then what Logseq's own search finds.
 - A kind taken (Enter or Tab on it) stands in the line. The list is every node of that kind and of the kinds under it, newest
   first. Words then narrow it by a node's own words, its tag, a value of one of its properties or its day (`chen oct`). A value
@@ -102,8 +119,9 @@ A click on a line goes to the node here, where on a page it opens the node in pl
 ### Todo (`arrive/todo.js`)
 
 The checkmark in the toolbar, or **Todo** in the command palette, opens a section of the right sidebar: your open tasks under
-**Today** (due today, or past its day, which then reads “was due Nov 18” in the ink), **Coming up** and **Any time**. The line at the top adds a task to today's
-journal. A task set Done or Canceled leaves the list.
+**Today** (due today, or past its day), **Coming up** and **Any time**, each under a small bold word, the words a size smaller
+than a page's. A task's day stands at the right end of its line, red once it has passed. The line at the top, **Add or find a
+todo**, narrows the list to the tasks holding every word typed, and Return adds what is typed as a task on today's journal. A task set Done or Canceled leaves the list.
 
 ### Sure values (`write/sure.js`)
 
@@ -162,6 +180,9 @@ that page, and with Shift, Cmd, Ctrl or Option it does what Logseq does (the sid
 
 A page opened from a row keeps Logseq's faint dot for a first bullet; a dug page has none, so no level ends in an empty line.
 
+In an opened node a property's name is a size under the words; a value that is a node says after its name what that node is
+(its tag); and a line runs down the left side of the node opened from a row.
+
 ### A list's head, and + on it
 
 In Relations the head of a property's list is two lines. The first is the property's mark and name. The second says how many
@@ -206,8 +227,8 @@ line stays, Logseq closed and opened again, until Done.
 
 ### The day in Find
 
-In Find the words start each row and the day stands at the row's right end, right-aligned. In the lists of Relations and Todo
-the day keeps its own place.
+In Find and in Todo the words start each row and the day stands at the row's right end, right-aligned. In the lists of
+Relations the day stands after the bullet, before the words.
 
 ### In a narrow place
 
