@@ -25,7 +25,7 @@
      read.values(ids)         id -> [words]   what each node holds under the person's properties
      read.held(ids)           id -> { name: [words] }   the same, told apart by the property's name
      read.where(ids)          id -> [{ uuid, words, day }]   where a bullet sits: its page (day: a journal's, else 0), then the bullet it is under
-     read.firstLines(id, n)   the first lines a node keeps under it
+     read.withLines(ids)      which of these nodes keep lines under them
      read.recycled()          Logseq's Recycle, newest first: [{ uuid, words, isPage, from, at }]
      read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled), with its priority's name
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
@@ -277,12 +277,12 @@ async function where(ids) {
   for (const [b, p, u, t] of parents) if (page.get(b) && page.get(b).id !== p) out.get(b).push({ uuid: String(u).toLowerCase(), words: W.firstLine(String(t ?? '')).line });
   return out;
 }
-// The first lines a node keeps under it, in their order: its own bullets, never the values of its properties.
-async function firstLines(id, few = 3) {
-  if (!isId(id)) return [];
-  const [kids, values] = await Promise.all([q(`[:find ?c ?o ?t :where [?c :block/parent ${id}] [?c :block/order ?o] [?c :block/title ?t] (not [?c :logseq.property/deleted-at])]`), q(`[:find ?c :where [?c :block/parent ${id}] [?c :logseq.property/created-from-property _]]`)]);
-  const not = new Set(values.map(([c]) => c));
-  return kids.filter(([c, , t]) => !not.has(c) && String(t ?? '').trim()).sort((a, b) => String(a[1]).localeCompare(String(b[1]))).slice(0, few).map(([, , t]) => W.firstLine(String(t)).line);
+// Which of these nodes keep lines under them (their own bullets, never the values of their properties): a set of ids.
+async function withLines(ids) {
+  const list = [...new Set(ids)].filter(isId);
+  if (!list.length) return new Set();
+  const kids = await q(`[:find ?b ?c :where ${among('?b', list)} [?c :block/parent ?b] (not [?c :logseq.property/created-from-property]) (not [?c :logseq.property/deleted-at])]`);
+  return new Set(kids.map(([b]) => b));
 }
 // Logseq's Recycle: what was deleted and can still be brought back, newest first. [{ uuid, words, isPage, from, at }]
 async function recycled() {
@@ -423,5 +423,5 @@ async function choices() {
   return out;
 }
 
-G.read = { pageNamed, outline, holds, choices, recycled, held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

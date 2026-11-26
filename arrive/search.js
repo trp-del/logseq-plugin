@@ -21,7 +21,7 @@ G.part({
 .lk-search .lk-piece[hidden] { display: none; }
 .lk-search .lk-list-name { font-size: var(--lk-small); font-weight: 600; }
 .lk-search .lk-list { margin-top: 0; }
-.lk-search .lk-search-none { color: var(--lk-off); padding: 8px 0 0; }
+.lk-search .lk-search-none { color: var(--lk-quiet); padding: 8px 0 0; }
 .lk-search .lk-search-none[hidden] { display: none; }
 .lk-search mark.lk-hit { background: none; color: inherit; font-weight: 600; padding: 0; margin: 0; border-radius: 0; }   /* the typed letters, in the words' own ink, a step heavier */`);
     const boxes = new Set();   // every drawn Search (the sidebar's section; one at a time in practice)

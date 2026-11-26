@@ -436,6 +436,8 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first();
       const tagsOf = () => list.locator(':scope > .lk-rows > .lk-row .lk-line').evaluateAll(els => els.slice(0, 2).map(el => el.querySelector('.lk-tag')?.innerText || ''));
       await list.locator('.lk-dots').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: 'Pick nodes' }).click(); await wait(500);
+      const astray = await list.locator(':scope > .lk-rows > .lk-row').evaluateAll(rows => rows.filter(row => { const box = row.querySelector(':scope > .lk-tick').getBoundingClientRect(), line = row.querySelector(':scope > .lk-line').getBoundingClientRect(); return Math.abs((box.top + box.height / 2) - (line.top + 14)) > 4 || box.right > line.left + 4; }).length);
+      if (astray) throw new Error(`${astray} tick boxes stand off their line's first line`);
       await list.locator('.lk-row > .lk-tick').nth(0).click(); await wait(200); await list.locator('.lk-row > .lk-tick').nth(1).click(); await wait(400);
       const bar = await list.locator('.lk-pickbar').innerText();
       await list.locator('.lk-pickbar [data-do="tag"]').click(); await wait(600); await page.keyboard.type('Zzontag', { delay: 30 }); await wait(500);

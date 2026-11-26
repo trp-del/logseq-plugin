@@ -205,6 +205,9 @@ async function load(state) {
     const [made, statuses] = await Promise.all([state.read(), G.read.statuses()]);
     const names = await G.read.names(made.flatMap(list => list.rows.flatMap(row => W.named(W.firstLine(row.words).line))));
     if (turn !== state.turn || !state.el.isConnected) return;
+    const holds = await G.read.withLines(made.flatMap(list => list.rows.map(row => row.id)));
+    if (turn !== state.turn || !state.el.isConnected) return;
+    for (const list of made) for (const row of list.rows) row.holds = holds.has(row.id);
     state.last = [made, names, statuses];
     draw(state, made, names, statuses);
     state.el.dispatchEvent(new (state.el.ownerDocument.defaultView.CustomEvent)('lk-drawn'));
@@ -437,6 +440,7 @@ G.node.CSS = `
 .lk-list[data-picking] .lk-row > .lk-fold { display: none; }
 .lk-row > .lk-tick { grid-column: 2; align-self: start; justify-self: center; position: relative; z-index: 1; }
 .lk-row > input.lk-tick[type=checkbox] { margin: calc(2px + (24px - 14px) / 2) 0 0; }   /* on the middle of the line's first line: its 2 above, its 24, the tick's 14 */
+.lk-day-end .lk-row > .lk-tick { grid-column: 1; grid-row: 1; }   /* where the day is at the right, the box takes the arrow's place before the line (it had a row of its own under it) */
 /* The tick for all stands in the mark's box where the head's arrow stands, which gives way to it as a row's arrow does. */
 .lk-list-head > .lk-list-name > .lk-tick-all { margin: 0 calc(var(--lk-mark-gap) + (var(--lk-mark-box) - 14px) / 2) 0 calc((var(--lk-mark-box) - 14px) / 2 - var(--lk-mark-box) - var(--lk-mark-gap)); align-self: center; }
 .lk-list[data-picking] > .lk-list-head > .lk-fold { visibility: hidden; }
@@ -491,7 +495,7 @@ G.node.CSS = `
 /* The levels show: one soft band for the node opened from a row; a node dug into stands under the value it was reached
    through, its rows starting where the value's words start, with a guide line down from the value's arrow. It takes its room
    in one move, once Logseq has drawn it. */
-.lk-row > .lk-open { border-radius: var(--lk-corner); padding: 0 8px 6px 0; }   /* one mark says open, the hairline down its side; no grey band as well (the owner's marked pages, 26 November 2026) */
+.lk-row > .lk-open { background: color-mix(in srgb, var(--lk-text) 3.5%, transparent); border-radius: var(--lk-corner); padding: 0 8px 6px 0; }   /* a soft band and the hairline down its side (the owner, 26 November 2026, of a picture with both: "have it look like this") */
 /* A line down the left side of the node opened from a row, from under its own line to its foot, as before 0.9. */
 /* ... under the row's dot, as Logseq draws a bullet's line down to its children: the dot's box is the mark's box at the band's start. */
 .lk-row > .lk-open::before { content: ""; position: absolute; left: calc(var(--lk-mark-box) / 2 - .5px - var(--lk-open-shift)); top: 28px; bottom: 8px; width: 1px; background: var(--lk-line); pointer-events: none; }

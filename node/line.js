@@ -28,7 +28,7 @@ function statusHtml(node, statuses) {
   return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
 function html(node, { names, statuses, tagShown, day }) {
-  return `<span class="lk-bul" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? `\u2002<span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
+  return `<span class="lk-bul${node.holds ? ' lk-folded' : ''}" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? `\u2002<span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
 }
 
 async function pickStatus(at, row) {
@@ -135,7 +135,8 @@ G.line.CSS = `
 .lk-line > :is(.lk-bul, .lk-status) { align-self: flex-start; }   /* the marks keep the line's first 24, the words and the day stand on one baseline */
 .lk-line:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-bul { flex: none; width: 16px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
-.lk-bul::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); }
+.lk-bul::before { content: ""; width: 6.4px; height: 6.4px; border-radius: 50%; background: var(--lk-bullet); opacity: .8; }
+.lk-bul.lk-folded::before { box-shadow: 0 0 0 4.8px var(--lk-bullet-ring); }   /* it holds lines: the ring Logseq puts round a folded bullet, 16 across (the owner, 26 November 2026: the bullet as before 0.9) */
 .lk-status-icon { display: inline-flex; }
 /* A task carries one mark before its words, its status circle, standing where the bullet stands; its words keep the edge of every other line. */
 .lk-line > .lk-bul:has(+ .lk-status) { display: none; }
@@ -148,7 +149,8 @@ G.line.CSS = `
 .lk-tag { font-family: var(--lk-tag-face); font-size: var(--lk-tag-size); font-style: normal; color: var(--lk-quiet); text-decoration: none; }
 a.lk-tag { cursor: pointer; }
 a.lk-tag:hover { color: var(--lk-text); }
-.lk-none, .lk-off { color: var(--lk-off); }
+.lk-none { color: var(--lk-quiet); }
+.lk-off { color: var(--lk-off); }
 /* A tick box on a line shows under the pointer or the keyboard, and stays once ticked (the owner, 25 November 2026). */
 .lk-line > input.lk-tick { align-self: center; margin-right: 2px; opacity: 0; }
 .lk-row:is(:hover, :focus-within) > .lk-line > input.lk-tick, .lk-line > input.lk-tick:checked { opacity: 1; }
@@ -162,9 +164,9 @@ a.lk-tag:hover { color: var(--lk-text); }
 .lk-words :is(.lk-tag, .lk-why, .lk-tell, .lk-lacks) { line-height: 1; }
 .lk-lacks { appearance: none; border: 0; background: none; padding: 0; font: inherit; font-size: var(--lk-small); white-space: nowrap; text-align: start; color: var(--lk-off); cursor: pointer; }
 .lk-lacks:hover, .lk-lacks:focus-visible { color: var(--lk-text); outline: none; }
-.lk-sits { display: block; font-size: var(--lk-small); line-height: 18px; color: var(--lk-off); margin: -2px 0 2px; }
+.lk-sits { display: block; font-size: var(--lk-small); line-height: 18px; color: var(--lk-quiet); margin: -2px 0 2px; }
 .lk-sits a.lk-step { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-hair); text-underline-offset: 3px; }
-.lk-sits a.lk-step:hover { color: var(--lk-text); }
+.lk-sits a.lk-step:hover { color: var(--lk-text); text-decoration-color: var(--lk-line); }
 .lk-num { flex: none; line-height: 1; margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; }
 /* In a narrow place (the sidebar) the words get the whole width: the day stands under them, an outline steps in less, and an
    opened node takes the width of the list. */

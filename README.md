@@ -62,7 +62,7 @@ A row:
 ### What a list of Relations can do
 
 Everything the plugin's Relations did before the rebuild, built again on the rebuild's pieces (`core/view.js`, `core/time.js`,
-`core/reads.js` decide; `node/view.js`, `node/pick.js`, `node/time.js`, `node/card.js` draw).
+`core/reads.js` decide; `node/view.js`, `node/pick.js`, `node/time.js` draw).
 
 | On | Do | Result |
 |---|---|---|
@@ -76,7 +76,6 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | | Move up, Move down | The list's place among the page's lists, kept for the page. A list's name can also be dragged above or below another |
 | The timeline | Click a dot, or drag across | A dot for each dated node from the first node's month to today. A dot narrows the list to its week; Left and Right walk the dots, Enter opens the node; a drag narrows to any span. By a property: a lane for each of its three most held values and one for the others; a lane's name narrows to it. Taller piles a week's dots. Escape lets go of the lane, then of the span |
 | A node's line | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, what the place itself offers, Delete. Words alone, Delete in red (the owner chose the short menu, 25 November 2026) |
-| | Rest the pointer on its words | A card with what the line does not say: its whole name when cut, its properties, its first lines |
 | | Right, Left | Opens the node in place, closes it |
 | | Drag onto another list's head | The node gets that list's property, pointing here |
 | "no Topic?" after a node | Click | A property four in five of the list hold and this node lacks: asks its value there |
@@ -91,6 +90,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 
 ### The marks, and what has just changed (`ground/look.js`, `ground/touch.js`, `node/undo.js`)
 
+- A node's bullet is Logseq's own, with Logseq's ring round it where the node holds lines that are folded away. A tick box
+  is a small rounded square with a short check.
 - A tag is written in Literata, quiet grey, with no # and no box. A property's name is written in Fragment Mono, quiet grey,
   with no small picture before it. A link to a node is the ink with a faint underline, never blue, never in brackets. This
   holds on Logseq's own pages, in the sidebar and inside an opened node, as in the plugin's lists. On Logseq's own pages a
@@ -250,7 +251,8 @@ that page, and with Shift, Cmd, Ctrl or Option it does what Logseq does (the sid
 A page opened from a row keeps Logseq's faint dot for a first bullet; a dug page has none, so no level ends in an empty line.
 
 In an opened node a property's name is a size under the words; a value that is a node says after its name what that node is
-(its tag); and a line runs down the left side of the node opened from a row.
+(its tag); and the node opened from a row lies on a soft grey band with a line
+down its left side.
 
 ### A list's head, and + on it
 

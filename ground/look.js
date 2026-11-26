@@ -23,6 +23,8 @@ G.look = {
   --lk-corner: 6px; --lk-corner-float: 10px; --lk-corner-round: 999px;   /* three corners: a lit line, a field and a small box; what floats; a press */
   --lk-line-size: 14px; --lk-line-lead: 21px; --lk-line-h: 28px;
   --lk-mark-box: 16px; --lk-mark-gap: 4px;   /* a mark before words (a bullet, a fold arrow, a list's mark) stands in a box 16 wide that ends 4 before them */
+  --lk-bullet: var(--lx-gray-08, var(--ls-block-bullet-color, var(--rx-gray-08, color-mix(in srgb, var(--lk-text) 28%, transparent))));
+  --lk-bullet-ring: var(--lx-gray-04-alpha, var(--ls-block-bullet-border-color, var(--rx-gray-04-alpha, color-mix(in srgb, var(--lk-text) 7%, transparent))));   /* Logseq's bullet and the ring of a folded one, by Logseq's own names */
   --lk-coming: var(--rx-green-11, #18794e); --lk-going: var(--rx-red-10, #dc3e42); }`,
   /* What is pressed, and what a change will do. One kind for each job: the yes that decides (filled), a plain press (a quiet
      capsule), a third-level press (no ground), the red yes, a tick box. What a change brings is green text; what it takes away is struck
@@ -41,9 +43,10 @@ G.look = {
 :is(.lk-btn, .lk-accent, .lk-del):disabled { opacity: .45; cursor: default; pointer-events: none; }
 /* A key is told only where it is not a common one, as the Mac writes it, with no box round it (the owner, 25 November 2026). */
 .lk-key { color: var(--lk-off); font-size: var(--lk-small); letter-spacing: .04em; white-space: nowrap; }
-input.lk-tick[type=checkbox] { appearance: none; -webkit-appearance: none; position: relative; box-sizing: border-box; width: 14px; height: 14px; margin: 0; padding: 0; flex: none; border: 1.5px solid var(--lk-line); border-radius: calc(var(--lk-corner) - 2px); background: none; color: inherit; cursor: pointer; vertical-align: -2px; box-shadow: none; outline: none; }
-input.lk-tick[type=checkbox]:is(:checked, :focus, :hover) { border-color: currentColor; background: none; box-shadow: none; outline: none; }
-input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; left: 3px; top: .5px; width: 4px; height: 8px; border: solid currentColor; border-width: 0 1.6px 1.6px 0; transform: rotate(42deg); }
+input.lk-tick[type=checkbox] { appearance: none; -webkit-appearance: none; position: relative; box-sizing: border-box; width: 14px; height: 14px; margin: 0; padding: 0; flex: none; border: 1.5px solid var(--lk-line); border-radius: 4px; background: none; color: inherit; cursor: pointer; vertical-align: -1px; box-shadow: none; outline: none; }
+input.lk-tick[type=checkbox]:is(:checked, :indeterminate, :focus, :hover) { border-color: currentColor; background: none; box-shadow: none; outline: none; }
+input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; inset: 0; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.2 6.5 11.2 12.5 5.2'/%3E%3C/svg%3E") center / 8px 8px no-repeat; }
+input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: absolute; left: 2.5px; right: 2.5px; top: 4.75px; height: 1.5px; border-radius: 1px; background: currentColor; }
 .lk-coming { color: var(--lk-coming); }
 .lk-going { color: var(--lk-going); text-decoration: line-through; text-decoration-thickness: 1.5px; }`,
 };
