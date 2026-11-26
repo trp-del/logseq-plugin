@@ -114,7 +114,13 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
 - **Add property** is quiet words, a little apart from the rows.
 - A bullet's properties under its words are one quiet line of names and values, wrapping, with no outline; the one being
   written has a capsule round it; one with nothing in it stays out of the line.
-- The right sidebar has no row of Logseq's own on top (Contents, Page graph, Help).
+- The right sidebar is flat, as before 0.9: no row of Logseq's own on top (Contents, Page graph, Help), no grey ground, no
+  card round a section (no shadow, rounded corner or band behind its head). It stands on the page's own ground with a
+  hairline at its edge (still the handle for its width) and a thin line between one section and the next. What a section
+  holds is Logseq's own. A page in it reads as a page: its place first, its properties open ("Open properties" is pressed
+  for you and left out), then its Relations; its name in the section's head is a link that opens the page. Every line of
+  it starts on one edge, 32 from the sidebar's edge, and the marks (a fold arrow, a list's mark, the + of Add property, a
+  value's bullet) stand in the gutter before that edge.
 - Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
   it does in a word beside its icon; a tag's own table leaves out its Tags column.
 
@@ -291,7 +297,15 @@ Relations the day stands after the bullet, before the words.
 ### In a narrow place
 
 In the right sidebar a list gives its words the whole width: a line's day stands under its words, an outline steps in less, and
-a node opened in place takes the width of the list.
+a node opened in place takes the width of the list. A list of Relations does the same wherever it is narrower than 300: a
+row's arrow stands in the gutter, its bullet on the edge its head's words start on, its day under its words; a property of a
+node opened there, and of a page in a narrow sidebar, has its name on one line and its values under it. Where a list is
+narrower than 420 the days of its head have a line of their own under the head's words.
+
+One rule for the gaps, measured: a mark stands in a box 16 wide that ends 4 before its words; from the middle of one line to
+the middle of the next it is 26 inside a head, 32 from a head to what it heads, and 54 from one section to the next. A head's
+kinds, its + and ⋯ and its days are one run of words that wraps where it must; the bar under the kind in force stays inside
+that kind's own line.
 
 ### Ontology (`tend/ontology.js`)
 
