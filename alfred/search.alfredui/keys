@@ -1,0 +1,3 @@
+#!/bin/zsh
+# Search: the foot's guide shows while Option is held (the same script as the node panel's).
+exec "${0:A:h:h}/read.alfredui/keys" "$@"

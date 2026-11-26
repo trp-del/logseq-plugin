@@ -1,0 +1,325 @@
+{
+ "bundleid": "com.openai.alfred.logseq-db.todo",
+ "log": {
+  "level": "info",
+  "internal": true,
+  "path": "logseq-todo.log",
+  "timestamp": true
+ },
+ "variablesconfig": {
+  "query": {
+   "src": "args[0]"
+  },
+  "LOGSEQ_TOKEN": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_HOST": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_PORT": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "last_uuid": {
+   "default": ""
+  }
+ },
+ "window": {
+  "padding": 20,
+  "root": {
+   "type": "view",
+   "layout": "inline",
+   "direction": "vertical",
+   "spacing": 12,
+   "events": [
+    {
+     "triggers": "launched",
+     "action": {
+      "type": "script",
+      "src": "list"
+     }
+    }
+   ],
+   "shortcuts": [
+    {
+     "shortcut": "↑",
+     "action": {
+      "type": "function",
+      "src": "todoList",
+      "args": "selectup"
+     }
+    },
+    {
+     "shortcut": "↓",
+     "action": {
+      "type": "function",
+      "src": "todoList",
+      "args": "selectdown"
+     }
+    },
+    {
+     "shortcut": "⌘d",
+     "action": {
+      "type": "script",
+      "src": "status",
+      "args": [
+       "{value:todoList.selected.tUuid.text}",
+       "done"
+      ]
+     }
+    },
+    {
+     "shortcut": "⌘g",
+     "action": {
+      "type": "script",
+      "src": "status",
+      "args": [
+       "{value:todoList.selected.tUuid.text}",
+       "doing"
+      ]
+     }
+    },
+    {
+     "shortcut": "⌘z",
+     "action": {
+      "type": "script",
+      "src": "undo",
+      "args": [
+       "{var:last_uuid}"
+      ]
+     }
+    },
+    {
+     "shortcut": "⌘o",
+     "action": {
+      "type": "json",
+      "src": {
+       "finish": {
+        "args": "block:{value:todoList.selected.tUuid.text}"
+       }
+      }
+     }
+    }
+   ],
+   "components": [
+    {
+     "type": "textfield",
+     "id": "tq",
+     "focus": true,
+     "text": "{var:query}",
+     "placeholder": "Add a task, or filter. “by friday” sets its deadline",
+     "bordered": false,
+     "focusring": false,
+     "background": "#00000000",
+     "font": {
+      "size": 28,
+      "weight": "light"
+     },
+     "constraints": {
+      "stretch": "horizontal"
+     },
+     "events": [
+      {
+       "triggers": "changed",
+       "action": [
+        {
+         "type": "function",
+         "src": "todoList",
+         "args": "filterdata"
+        }
+       ]
+      },
+      {
+       "triggers": "typingstopped",
+       "action": {
+        "type": "script",
+        "src": "read",
+        "async": true,
+        "args": [
+         "{value:tq.text}"
+        ]
+       }
+      },
+      {
+       "triggers": "actioned",
+       "action": {
+        "type": "script",
+        "src": "add",
+        "args": [
+         "{value:tq.text}"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "type": "view",
+     "id": "tLine1",
+     "background": "separatorColor",
+     "constraints": {
+      "stretch": "horizontal",
+      "size": {
+       "height": 1
+      }
+     }
+    },
+    {
+     "type": "dataview",
+     "id": "todoList",
+     "constraints": {
+      "stretch": "horizontal",
+      "size": {
+       "height": 300
+      }
+     },
+     "placeholder": "Nothing to do.",
+     "behaviour": {
+      "selection": {
+       "wrap": "vertical"
+      }
+     },
+     "cell": {
+      "height": 44,
+      "init": {
+       "tRow.background": null,
+       "tWords.colour": "labelColor",
+       "tIcon.contenttintcolour": "secondaryLabelColor",
+       "tHead.colour": "secondaryLabelColor"
+      },
+      "selected": {
+       "tRow.background": "quaternaryLabelColor"
+      },
+      "root": {
+       "type": "view",
+       "id": "tRow",
+       "layout": "border",
+       "padding": 8,
+       "spacing": 12,
+       "cornerradius": 12,
+       "components": [
+        {
+         "type": "imageview",
+         "id": "tIcon",
+         "constraints": {
+          "region": "left",
+          "position": "centre",
+          "size": {
+           "width": 22,
+           "height": 22
+          }
+         }
+        },
+        {
+         "type": "label",
+         "id": "tWords",
+         "font": {
+          "size": 18
+         },
+         "linebreak": "truncatetail",
+         "constraints": {
+          "region": "centre",
+          "position": "left"
+         }
+        },
+        {
+         "type": "label",
+         "id": "tHead",
+         "font": {
+          "size": 14,
+          "weight": "semibold"
+         },
+         "constraints": {
+          "region": "centre",
+          "position": "left"
+         }
+        },
+        {
+         "type": "label",
+         "id": "tDay",
+         "font": {
+          "size": 14
+         },
+         "constraints": {
+          "region": "right",
+          "position": "centre"
+         }
+        },
+        {
+         "type": "label",
+         "id": "tUuid",
+         "hidden": true
+        },
+        {
+         "type": "label",
+         "id": "tFind",
+         "hidden": true
+        }
+       ]
+      }
+     },
+     "data": {
+      "type": "basic",
+      "src": [],
+      "filter": {
+       "type": "basic",
+       "args": [
+        "tFind.text"
+       ],
+       "match": "{value:tq.text}"
+      }
+     }
+    },
+    {
+     "type": "view",
+     "id": "tLine2",
+     "background": "separatorColor",
+     "constraints": {
+      "stretch": "horizontal",
+      "size": {
+       "height": 1
+      }
+     }
+    },
+    {
+     "type": "view",
+     "layout": "border",
+     "constraints": {
+      "stretch": "horizontal"
+     },
+     "components": [
+      {
+       "type": "label",
+       "id": "tNote",
+       "text": "",
+       "colour": "secondaryLabelColor",
+       "font": {
+        "size": 14
+       },
+       "constraints": {
+        "region": "left",
+        "position": "centre"
+       }
+      },
+      {
+       "type": "label",
+       "text": "Done ⌘D      Doing ⌘G      Undo ⌘Z      Show in Logseq ⌘O      Add ↩",
+       "colour": "secondaryLabelColor",
+       "font": {
+        "size": 14
+       },
+       "constraints": {
+        "region": "right",
+        "position": "centre"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "size": {
+   "width": 900
+  }
+ }
+}

@@ -1,0 +1,3 @@
+#!/bin/zsh
+# A selection: written, answered by logseq.js (panel-sel-add), in Alfred UI's JSON.
+exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-sel-add "$@"

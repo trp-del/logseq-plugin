@@ -1,0 +1,3 @@
+#!/bin/zsh
+# A node whole: every step in the panel, answered by logseq.js (panel-node <command> …), in Alfred UI's JSON.
+exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-node "$@"

@@ -1,0 +1,3 @@
+#!/bin/zsh
+# The files tray: the files, before anything is added, answered by logseq.js (panel-files-show), in Alfred UI's JSON.
+exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-files-show "$@"

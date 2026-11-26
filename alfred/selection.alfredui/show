@@ -1,0 +1,3 @@
+#!/bin/zsh
+# The Add panel's show: answered by logseq.js (panel-show), in Alfred UI's JSON.
+exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-show "$@"
