@@ -624,6 +624,65 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       return is(got, [[false, ...IN.slice(1)], [false, ...OUT.slice(1)]]);
     });
     }
+    {
+    // ---- Beside: the key sheet (the owner chose it again, 26 November 2026)
+    const sheet = () => page.evaluate(() => { const box = document.querySelector('.lk-sheet.on'); return box ? { stays: box.classList.contains('stays'), presses: getComputedStyle(box).pointerEvents, keys: document.activeElement === box.querySelector('.lk-field'), heads: [...box.querySelectorAll('.lk-sheet-group:not([hidden]) > .lk-sheet-head')].map(el => el.textContent) } : null; });
+    const lines = () => page.evaluate(() => [...document.querySelectorAll('.lk-sheet .lk-sheet-line:not([hidden])')].map(el => `${el.querySelector('.lk-sheet-words').textContent} = ${[...el.querySelectorAll('.lk-keycap')].map(key => key.textContent).join(' ')}`));
+    const holdOption = async () => { await page.keyboard.down('Alt'); await wait(1100); await page.keyboard.up('Alt'); await wait(300); };
+    await goto(CHEN);
+    await step('Option held on its own brings the key sheet after a moment, which takes nothing while held and stays once let go', async () => {
+      await page.keyboard.down('Alt'); await wait(300); const early = await sheet(); await wait(800); const held = await sheet(), size = await page.evaluate(() => document.querySelector('.lk-sheet').offsetHeight);
+      await page.keyboard.up('Alt'); await wait(300); const stayed = await sheet();
+      return is([early, held?.stays, held?.presses, held?.heads, stayed?.stays, stayed?.keys, await page.evaluate(() => document.querySelector('.lk-sheet').offsetHeight) - size], [null, false, 'none', ['Writing', 'Arranging bullets', 'Finding', 'Moving around', 'Two letters, outside a bullet'], true, true, 0]);
+    });
+    await step('the sheet says each key as it is: Logseq\'s and the plugin\'s, and no Cmd-K for Logseq\'s search while Search takes it', async () => { const got = await lines(); return is(['Undo, redo = ⌘Z ⌘⇧Z', 'Indent, outdent = ⇥ ⇧⇥', 'Search = ⌘K', 'Search by a sentence = ⌥⌘K', 'Todo = g d', 'Update plugins = u p'].filter(want => !got.includes(want)).concat(got.filter(line => line.startsWith('Logseq’s search'))), []); });
+    await step('letters typed find among the keys and reach nothing else; Up and Down light a line; Escape clears, then closes', async () => {
+      const theme = () => page.evaluate(() => document.documentElement.className + document.documentElement.dataset.theme), before = await theme();
+      await page.keyboard.type('t t', { delay: 60 }); await wait(500); const same = await theme() === before;
+      await page.keyboard.press('Meta+a'); await page.keyboard.type('go', { delay: 40 }); await wait(300);
+      const found = (await lines()).every(line => /go/i.test(line.split(' = ')[0])), marked = await page.locator('.lk-sheet mark.lk-hit').first().innerText();
+      const lit = () => page.evaluate(() => [...document.querySelectorAll('.lk-sheet-line:not([hidden])')].findIndex(el => el.classList.contains('lit')));
+      const first = await lit(); await page.keyboard.press('ArrowDown'); const second = await lit(); await page.keyboard.press('ArrowUp'); const back = await lit();
+      await page.keyboard.type('zzzz'); await wait(200); const none = await page.locator('.lk-sheet-none').innerText();
+      await page.keyboard.press('Escape'); await wait(300); const cleared = [await page.locator('.lk-sheet .lk-field').inputValue(), (await lines()).length > 20];
+      await page.keyboard.press('Escape'); await wait(300);
+      return is([same, found, marked.toLowerCase(), first, second, back, none, cleared, await sheet()], [true, true, 'go', 0, 1, 0, 'No key does that.', ['', true], null]);
+    });
+    await step('a quick Option and a letter, Option with Shift, and any other key while held bring or keep no sheet', async () => {
+      await page.keyboard.press('Alt+e'); await wait(1000); const quick = await sheet();
+      await page.keyboard.down('Alt'); await page.keyboard.down('Shift'); await wait(1000); const shifted = await sheet(); await page.keyboard.up('Shift'); await page.keyboard.up('Alt'); await wait(200);
+      await page.keyboard.down('Alt'); await wait(1100); const up = !!(await sheet()); await page.keyboard.press('ArrowDown'); await wait(300); const gone = await sheet(); await page.keyboard.up('Alt'); await wait(300);
+      return is([quick, shifted, up, gone, await sheet()], [null, null, true, null, null]);
+    });
+    await step('a press puts the sheet away while Option is held and, once it stays, only a press outside it', async () => {
+      await page.keyboard.down('Alt'); await wait(1100); await page.mouse.click(8, 400); await wait(300); const held = await sheet(); await page.keyboard.up('Alt'); await wait(300);
+      await holdOption(); await page.locator('.lk-sheet-head').first().click(); await wait(300); const inside = await sheet();
+      await page.mouse.click(8, 400); await wait(300);
+      return is([held, inside?.keys, await sheet()], [null, true, null]);
+    });
+    await step('Escape gives the keys back to the bullet being written, the caret where it was and its words untouched', async () => {
+      const own = await page.evaluate(async u => (await window.logseq.api.append_block_in_page(u, 'Words being written')).uuid, CHEN); await wait(1200);
+      await page.evaluate(u => window.logseq.api.edit_block(u), own); await wait(900);
+      await page.evaluate(() => document.activeElement.setSelectionRange(3, 3)); const was = await page.evaluate(() => document.activeElement.value);
+      await holdOption(); const up = (await sheet())?.keys; await page.keyboard.press('Escape'); await wait(700);
+      const got = await page.evaluate(() => [document.activeElement.tagName, document.activeElement.selectionStart, document.activeElement.value]);
+      await page.keyboard.press('Escape'); await wait(500);
+      return is([up, got], [true, ['TEXTAREA', 3, was]]);
+    });
+    await step('a key changed in Logseq\'s own settings shows on the sheet as it now is', async () => {
+      const set = keys => box.frame().evaluate(shortcuts => logseq.App.setCurrentGraphConfigs({ shortcuts }), keys);
+      await set({ 'editor/undo': ['mod+shift+9'], 'editor/redo': [] }); await wait(1500);
+      await holdOption(); const got = (await lines()).filter(line => line.startsWith('Undo, redo')); await page.keyboard.press('Escape'); await wait(300);
+      await set({}); await wait(1000);
+      return is(got, ['Undo, redo = ⌘⇧9']);
+    });
+    await step('Show the keys in the command palette opens the sheet staying; Option brings none over that palette', async () => {
+      await page.keyboard.press('Meta+Shift+p'); await wait(700); await holdOption(); const over = await sheet();
+      await page.keyboard.type('Show the keys', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(900);
+      const got = await sheet(); await page.keyboard.press('Escape'); await wait(300);
+      return is([over, got?.stays, got?.keys, await sheet()], [null, true, true, null]);
+    });
+    }
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

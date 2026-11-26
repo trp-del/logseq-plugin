@@ -22,7 +22,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
-| Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
+| Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. The key sheet: Option held alone shows the keys. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -104,7 +104,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   the next change to the graph. Move values keeps its own way back.
 - Delete on a tag or a property asks first, in a box under its line: what goes, how many nodes hold it, a red yes and
   Cancel. The keys wait on Cancel; only a press on the red yes deletes.
-- A key is told only where it is not a common one, as the Mac writes it, with no box.
+- A key is told only where it is not a common one, as the Mac writes it, with no box. The one exception is the key sheet,
+  where keys are what is read: there each stands in a small box.
 - An opened node rolls out of its line in one short move. A tick box on a line shows under the pointer and stays once
   ticked (no list has tick boxes yet).
 - Three corners (a small one, one for what floats, the round of a press), the sizes of text, and the box a mark stands in
@@ -225,6 +226,30 @@ its sidebar. The right page rolls out as it opens (no motion where less motion i
 couple of seconds, the split closes, the sidebar goes back to how it was, and a notice says so: a half never stands blank.
 Loading the plugin again closes the split. Nothing is written to the graph. Switch it off with **Two pages side by side** in
 the plugin's settings.
+
+### The key sheet (`beside/keys.js`, its lines in `core/sheet.js`)
+
+Hold Option on its own for a moment (0.7 seconds) and a sheet of keys fills most of the window: **Writing**, **Arranging
+bullets**, **Finding**, **Moving around** and **Two letters, outside a bullet** (Logseq's and the plugin's, such as g j and
+g d). Each line is its words, then each key in a small box in mono, the Mac's marks (⌘⇧P). Every key is read as it is when
+the sheet comes, a key changed in Logseq's keyboard settings included; a line with no key is left out, and so are Search's
+lines while Search is switched off. While Cmd-K opens Search, Logseq's own search is not listed with it. The page is not
+dimmed.
+
+| Do | Result |
+|---|---|
+| Hold Option alone | The sheet comes; while Option is still down it takes nothing |
+| Any other key, a press, the wheel or leaving the window, Option still down | The sheet goes, and the key or press does its own job |
+| Let go of Option | The sheet stays, the keys in its line **Find a key** |
+| Type | Only the lines that hold every word typed stay, those letters a step heavier; the sheet keeps its size |
+| Up, Down | Light a line |
+| Escape | Clears what was typed, then closes; the keys go back where they were, into the bullet being written with its caret |
+| A press outside | Closes it, and the press lands |
+| **Show the keys**, in the command palette or the corner | Opens it staying |
+
+A quick Option with a letter, as in typing é, is over before the sheet would come. Option with Cmd, Shift or Ctrl never
+brings it, nor does it come over one of Logseq's windows, menus or lists, or one of the plugin's. Keys are told here, not
+set: Logseq's keyboard settings set them. The part can be switched off in the plugin's settings.
 
 ### Todo (`arrive/todo.js`)
 

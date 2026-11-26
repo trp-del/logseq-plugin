@@ -51,6 +51,10 @@ G.look = {
 :is(.lk-btn, .lk-accent, .lk-del):disabled { opacity: .45; cursor: default; pointer-events: none; }
 /* A key is told only where it is not a common one, as the Mac writes it, with no box round it (the owner, 25 November 2026). */
 .lk-key { color: var(--lk-off); font-size: var(--lk-small); letter-spacing: .04em; white-space: nowrap; }
+/* The one place keys are what is read, the key sheet: each key in a small box in mono, in the text colour (the owner, 12 and
+   26 November 2026); the Mac's marks in the system face, which draws them whole. */
+.lk-keycap { display: inline-block; padding: 0 6px; border: 1px solid var(--lk-line); border-radius: var(--lk-corner); font-family: var(--lk-prop-face); font-size: var(--lk-line-size); font-weight: var(--lk-prop-weight); line-height: 1.35; }
+.lk-keymark { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
 input.lk-tick[type=checkbox] { appearance: none; -webkit-appearance: none; position: relative; box-sizing: border-box; width: 14px; height: 14px; margin: 0; padding: 0; flex: none; border: 1.5px solid var(--lk-line); border-radius: 4px; background: none; color: inherit; cursor: pointer; vertical-align: -1px; box-shadow: none; outline: none; }
 input.lk-tick[type=checkbox]:is(:checked, :indeterminate, :focus, :hover) { border-color: currentColor; background: none; box-shadow: none; outline: none; }
 input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; inset: 0; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.2 6.5 11.2 12.5 5.2'/%3E%3C/svg%3E") center / 8px 8px no-repeat; }

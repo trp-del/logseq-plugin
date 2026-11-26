@@ -29,7 +29,9 @@
                               route(), address(), has(uuid), top(uuid), focused(), into(uuid), stepUp(), parent(uuid), go(uuid), back(address),
                               and the embed and selection pieces
      touch.command(key, label, run)   a line in Logseq's command palette; touch.commands() the ones made, { name, label, run };
-                              touch.logseqCommands() Logseq's own, { id, label, key, run }
+                              touch.logseqCommands() Logseq's own, { id, label, key, run }; each key is the one in force
+                              once touch.keysRead() has read the graph's config
+     touch.keepPlace()        where the keys are now; gives back what returns them there
      touch.plugins           the plugins Logseq runs: those from a folder (reloaded) and those from its marketplace (updated
                               by Logseq's own updater)
      touch.section(key, title, draw, path)  a section of Logseq's right sidebar that is the plugin's own: Logseq hosts it and
@@ -249,6 +251,13 @@ const editor = (() => {
   };
 })();
 
+/* Where the keys are now, for what takes them for a while: gives back what returns them there. A bullet being written that
+   Logseq has closed meanwhile is opened again, the caret where it was. */
+function keepPlace() {
+  const el = host().activeElement, block = el?.tagName === 'TEXTAREA' ? el.closest('.ls-block[blockid]') : null;
+  const uuid = block?.getAttribute('blockid'), at = el?.selectionStart;
+  return () => { if (el?.isConnected && el !== host().body) el.focus({ preventScroll: true }); else if (uuid) logseq.Editor.editBlock(uuid, { pos: at }); };
+}
 /* FOCUSING INTO A BULLET AND OUT, where it meets Logseq's screen (beside/glide.js decides which bullet moves, and when). Only
    the main view. Logseq swaps the whole view in one frame, and every way in and out goes through the app's history, so the view
    is read just before the history changes (pushState, and popstate for Back and Forward, both while the old view is still
@@ -529,10 +538,12 @@ function tableBar(word, run) {
 // A command in Logseq's palette; with keys ('u p'), also a shortcut of Logseq's own kind, listed and changed in its settings.
 const said = new Map();   // the plugin's own commands, for a place that lists them (the corner)
 const command = (name, label, run, keys) => { said.set(name, { name, label, run }); return logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run); };
-const commands = () => [...said.values()];
+const commands = () => { const keys = new Map(palette().map(one => [one.id.split('/').pop(), one.key])); return [...said.values()].map(one => ({ ...one, key: keys.get(one.name) || '' })); };
 /* Logseq's own commands, as its palette lists them, each { id, label, key, run }: the key it has (as the Mac's marks, "⌘⇧K",
    or two letters one after another, "g j"); run as its palette runs it, by its id (a plugin's own by its action). The plugin's
-   own lines are left out: commands() has them. Read from the app's state, which it hands to a plugin in the same window. */
+   own lines are left out: commands() has them. Read from the app's state, which it hands to a plugin in the same window.
+   The palette's state keeps each command's first key: a key changed in Logseq's keyboard settings is in the graph's config
+   (:shortcuts), where an empty one means none. keysRead() reads that; what it last read stands over the state's. */
 const LOGSEQ_NAMES = {   // the English name of each of Logseq's commands: the app hands its commands to a plugin, not its dictionary
   'auto-complete/complete': 'Auto-complete: Choose selected item',
   'auto-complete/meta-complete': 'Auto-complete: Cmd + Enter to choose selected item',
@@ -672,20 +683,30 @@ const keyMarks = spelling => {
     return parts.map(part => MARK[part.toLowerCase()] || (part.length === 1 ? part.toUpperCase() : part)).join(''); }).join(' ');
 };
 const nameOf = id => { const words = id.split('/').pop().replace(/-/g, ' '); return words.charAt(0).toUpperCase() + words.slice(1); };
-const logseqCommands = () => {
+let changedKeys = {};
+async function keysRead() {
+  try { const all = await logseq.App.getCurrentGraphConfigs('shortcuts'); changedKeys = all && typeof all === 'object' && !Array.isArray(all) ? all : {}; }
+  catch (error) { changedKeys = {}; }
+}
+// Every line of the palette once, the plugin's among them, with the key in force.
+function palette() {
   let all = [];
   try { all = host().defaultView.logseq.api.get_state_from_store('command-palette/commands') || []; } catch (error) { all = []; }
   const seen = new Set(), out = [];
   for (const one of Array.isArray(all) ? all : []) {
     const id = String(one?.id ?? '').replace(/^:/, '');
-    if (!id || seen.has(id) || /(^|[/.])lk-/.test(id)) continue;
+    if (!id || seen.has(id)) continue;
     seen.add(id);
-    const action = typeof one.action === 'function' ? one.action : null;
-    out.push({ id, label: LOGSEQ_NAMES[id] || (typeof one.desc === 'string' && one.desc) || nameOf(id), key: keyMarks(one.shortcut),
-      run: () => (/[A-Z]/.test(id) && action) ? action() : logseq.App.invokeExternalCommand('logseq.' + id) });
+    const set = Object.hasOwn(changedKeys, id) ? [].concat(changedKeys[id])[0] : one.shortcut;
+    out.push({ id, one, key: keyMarks(set) });
   }
   return out;
-};
+}
+const logseqCommands = () => palette().filter(({ id }) => !/(^|[/.])lk-/.test(id)).map(({ id, one, key }) => {
+  const action = typeof one.action === 'function' ? one.action : null;
+  return { id, label: LOGSEQ_NAMES[id] || (typeof one.desc === 'string' && one.desc) || nameOf(id), key,
+    run: () => (/[A-Z]/.test(id) && action) ? action() : logseq.App.invokeExternalCommand('logseq.' + id) };
+});
 /* The plugins Logseq runs, each { id, title, version }. mine(): the ones it loads from a folder of the person's own. market():
    the ones it installed into its own plugin folder, from its marketplace or from a GitHub release. updates(list) asks Logseq's own updater (the one behind "Check for updates" on its
    plugins page) for each plugin of market() with a newer release on GitHub, one after another; Logseq downloads it and loads it
@@ -1399,5 +1420,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();
