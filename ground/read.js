@@ -26,7 +26,7 @@
      read.where(ids)          id -> [{ uuid, words }]   where a bullet sits: its page, then the bullet it is under
      read.firstLines(id, n)   the first lines a node keeps under it
      read.recycled()          Logseq's Recycle, newest first: [{ uuid, words, isPage, from, at }]
-     read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled)
+     read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled), with its priority's name
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
      read.pageNamed(name)     the page of that very name, { uuid, gone } (gone: it lies in Logseq's Recycle), or null
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
@@ -292,14 +292,15 @@ async function tasks() {
   const held = (await q(`[:find ?b ?s :where [?b :logseq.property/status ?s] ${LIVE}]`)).filter(([, s]) => !shut.has(s));
   const ids = held.map(([b]) => b);
   if (!ids.length) return [];
-  const [nodes, deadline, scheduled, days] = await Promise.all([describe(ids),
+  const [nodes, deadline, scheduled, days, ranked] = await Promise.all([describe(ids),
     q(`[:find ?b ?v :where ${among('?b', ids)} [?b :logseq.property/deadline ?v]]`), q(`[:find ?b ?v :where ${among('?b', ids)} [?b :logseq.property/scheduled ?v]]`),
-    q('[:find ?p ?d :where [?p :block/journal-day ?d]]')]);
+    q('[:find ?p ?d :where [?p :block/journal-day ?d]]'), q(`[:find ?b ?t :where ${among('?b', ids)} [?b :logseq.property/priority ?p] [?p :block/title ?t]]`).catch(() => [])]);
+  const priority = new Map(ranked);
   const journal = new Map(days), dayOf = v => v > STAMP ? dayOfTime(v) : Number(journal.get(v)) || 0;
   const due = new Map();
   for (const [b, v] of scheduled) due.set(b, { day: dayOf(v), from: 'Scheduled' });
   for (const [b, v] of deadline) due.set(b, { day: dayOf(v), from: 'Deadline' });
-  return ids.map(id => nodes.get(id)).filter(Boolean).map(node => ({ ...node, day: due.get(node.id)?.day || 0, dayFrom: due.get(node.id)?.from || '' }));
+  return ids.map(id => nodes.get(id)).filter(Boolean).map(node => ({ ...node, day: due.get(node.id)?.day || 0, dayFrom: due.get(node.id)?.from || '', priority: String(priority.get(node.id) || '') }));
 }
 const journal = async day => { const [[uuid] = []] = await q(`[:find ?u :where [?p :block/journal-day ${Number(day)}] [?p :block/uuid ?u] (not [?p :logseq.property/deleted-at])]`); return uuid ? String(uuid) : ''; };
 

@@ -156,8 +156,22 @@ todo**, narrows the list to the tasks holding every word typed, and Return adds 
 Under that line stands a strip of time: a hairline from the first task's month to today, a dot for each listed task that has a
 day, a late one in red, today a short upright line. A press on a dot goes to its task. On the first group's line, at the right,
 two quiet words: **All open** lists the open statuses, each ticked or left out (the last one listed cannot be left out; Show
-all brings them back), and **By day** groups the tasks by day, status, tag or page. Both are kept for the next time, on this
-Mac. Grouping by priority, and a second level of grouping, are not built.
+all brings them back), and **By day** groups the tasks by day, page, parent (the node a task is written under), tag, priority
+or status, and sorts each group by day or by name. All of it is kept for the next time, on this Mac. A second level of
+grouping is not built.
+
+The same list stands on a page of its own, in the middle of the window, at a reading width: **Todo** in the command palette,
+or g then d outside a bullet. **Todo in the sidebar** and the toolbar's checkmark open the section.
+
+A day said in the words of a new task becomes its Deadline and leaves the words: today, tomorrow, a weekday ("friday", "by
+friday", "next friday"), "next week" (its Monday), "nov 20", "20 november". It is said at the line's right before Return
+("Friday, Nov 27"). A short weekday ("fri", "sun") counts only after by, on, due or next.
+
+Under a task's words stands where it sits: its page (a journal day by its date), a press goes there. Under a page's or a
+parent's heading the row does not say it again.
+
+A task's right-click has **Priority…** (Urgent, High, Medium, Low, and Remove priority when it has one) and **Deadline…**
+(Today, Tomorrow, Next week, and Remove deadline when it has one), each with the Undo arrow at the task's line.
 
 ### Sure values (`write/sure.js`)
 

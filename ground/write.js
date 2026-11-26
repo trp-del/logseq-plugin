@@ -4,7 +4,9 @@
    from the plugin each went back with one Undo, the Task tag Logseq had added going with the status).
      write.setStatus(uuid, title)   a task's status, by the name Logseq shows it under
      write.remove(uuid, isPage)     a bullet deleted; a page sent to Logseq's Recycle
-     write.addTask(words)           a new bullet at the end of today's journal, its status Todo; answers its uuid
+     write.addTask(words, day)      a new bullet at the end of today's journal, its status Todo, its Deadline the day when one is given; answers its uuid
+     write.setPriority(uuid, title) a task's priority by its name, or taken off with none
+     write.setDeadline(uuid, day)   a task's deadline, or taken off with 0
      write.setNode(uuid, ident, id) a node (or a day's journal page) put under one of the person's properties
      write.newTag(name)             a new tag of the person's, at the top; answers its uuid
      write.untag(uuid, tag)         one of the person's tags taken off a node
@@ -26,13 +28,20 @@ const sure = uuid => { if (!UUID.test(String(uuid || ''))) throw new Error('a no
 G.write = {
   setStatus: (uuid, title) => logseq.Editor.upsertBlockProperty(sure(uuid), 'logseq.property/status', String(title)),
   remove: (uuid, isPage) => isPage ? logseq.Editor.deletePage(sure(uuid)) : logseq.Editor.removeBlock(sure(uuid)),
-  async addTask(words) {
+  // A day as Logseq's own date picker writes it: that day's start, in this Mac's time.
+  setPriority: (uuid, title) => title ? logseq.Editor.upsertBlockProperty(sure(uuid), 'logseq.property/priority', String(title)) : logseq.Editor.removeBlockProperty(sure(uuid), 'logseq.property/priority'),
+  setDeadline(uuid, day) {
+    if (!day) return logseq.Editor.removeBlockProperty(sure(uuid), 'logseq.property/deadline');
+    if (!G.days.valid(day)) throw new Error('that is not a day');
+    return logseq.Editor.upsertBlockProperty(sure(uuid), 'logseq.property/deadline', new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100).getTime());
+  },
+  async addTask(words, day = 0) {
     const text = String(words || '').trim();
     if (!text) throw new Error('a task needs words');
     const today = G.days.number(new Date());
     const page = await G.read.journal(today) || String((await logseq.Editor.createJournalPage(new Date()))?.uuid || '');
     if (!UUID.test(page)) throw new Error('today’s journal could not be found');
-    const made = await logseq.Editor.appendBlockInPage(page, text, { properties: { 'logseq.property/status': 'Todo' } });
+    const made = await logseq.Editor.appendBlockInPage(page, text, { properties: { 'logseq.property/status': 'Todo', ...(G.days.valid(day) ? { 'logseq.property/deadline': new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100).getTime() } : {}) } });
     return String(made?.uuid || '');
   },
   setNode(uuid, ident, id) {
