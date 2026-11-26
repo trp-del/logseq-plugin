@@ -410,7 +410,9 @@ G.node.CSS = `
    day stays where it was. */
 .lk-list[data-viewed] > .lk-rows > .lk-row { position: relative; }
 .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-day { display: none; }
-.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: block; position: absolute; left: 44px; top: 2px; width: var(--lk-dayin, 54px); padding: 0; color: var(--lk-quiet); z-index: 1; }
+.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: flex; align-items: baseline; position: absolute; left: 44px; top: 2px; width: var(--lk-dayin, 54px); padding: 0; color: var(--lk-quiet); z-index: 1; }
+/* On the baseline of the opened node's first line, as on the line's words it stood beside: a strut of the words' line. */
+.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day::before { content: "\\200b"; width: 0; font-size: var(--lk-words-size); line-height: 24px; }
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { margin-left: calc(var(--lk-dayin, 54px) + 10px); }
 .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
 .lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
