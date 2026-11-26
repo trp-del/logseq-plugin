@@ -33,6 +33,8 @@
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
      read.recent(n)           the pages opened last, newest first: [node] (Logseq's own list of them; else the pages changed last)
      read.pageNames()         every page of the person's own by name, journal days left out: [{ id, uuid, title }]
+     read.folded(uuids)       what each folded node holds under it: uuid -> { task, done, image, pdf, file, due } (tasks open
+                              and done at any depth, files right under it, the nearest day an open task is due)
      read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
      read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words }], words as a person reads them
@@ -436,5 +438,34 @@ async function recent(n = 8) {
 const pageNames = () => once('pageNames', async () => (await q(`[:find ?b ?u ?title :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/title ?title] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) ${LIVE}]`))
   .map(([id, uuid, title]) => ({ id, uuid: String(uuid).toLowerCase(), title: String(title) })).filter(page => page.title));
 
-G.read = { recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+async function folded(uuids) {
+  const out = new Map(), roots = await q(`[:find ?u ?r ?pg :where ${amongUuids('?u', uuids)} [?r :block/uuid ?u] [?r :block/page ?pg]]`);
+  if (!roots.length) return out;
+  const tree = await q(`[:find ?b ?parent :where ${among('?pg', roots.map(r => r[2]))} [?b :block/page ?pg] [?b :block/parent ?parent] (not [?b :logseq.property/created-from-property _]) ${LIVE}]`);
+  const kids = new Map(); for (const [b, parent] of tree) { if (!kids.has(parent)) kids.set(parent, []); kids.get(parent).push(b); }
+  const below = new Map(), near = new Map();
+  for (const [, r] of roots) { const all = [], seen = new Set(), walk = (b, depth) => { for (const c of kids.get(b) || []) if (!seen.has(c)) { seen.add(c); all.push(c); walk(c, depth + 1); } }; walk(r, 0); below.set(r, all); near.set(r, new Set(kids.get(r) || [])); }
+  const ids = [...new Set([...below.values()].flat())];
+  const [all, status, deadline, scheduled, files] = ids.length ? await Promise.all([statuses(),
+    q(`[:find ?b ?s :where ${among('?b', ids)} [?b :logseq.property/status ?s]]`),
+    q(`[:find ?b ?v :where ${among('?b', ids)} [?b :logseq.property/deadline ?v]]`), q(`[:find ?b ?v :where ${among('?b', ids)} [?b :logseq.property/scheduled ?v]]`),
+    q(`[:find ?b ?type :where ${among('?b', ids)} (or-join [?b ?a] [(identity ?b) ?a] [?b :logseq.property/asset ?a]) [?a :logseq.property.asset/type ?type]]`).catch(() => [])]) : [[], [], [], [], []];
+  const doneIds = new Set(all.filter(s => s.name === 'done').map(s => s.id)), shut = new Set(all.filter(s => /^(done|canceled|cancelled)$/.test(s.name)).map(s => s.id));
+  const statusOf = new Map(status), kindOf = new Map(files.map(([b, type]) => { const k = bare(type).toLowerCase(); return [b, k === 'pdf' ? 'pdf' : /^(png|jpe?g|gif|webp|svg|avif|heic|bmp|tiff?)$/.test(k) ? 'image' : 'file']; }));
+  const journals = deadline.length || scheduled.length ? new Map(await q('[:find ?p ?d :where [?p :block/journal-day ?d]]')) : new Map(), dayOf = v => v > STAMP ? dayOfTime(v) : Number(journals.get(v)) || 0;
+  const dueOf = new Map(); for (const [b, v] of [...scheduled, ...deadline]) { const day = dayOf(v); if (day && (!dueOf.has(b) || day < dueOf.get(b))) dueOf.set(b, day); }
+  for (const [u, r] of roots) {
+    const held = { task: 0, done: 0, image: 0, pdf: 0, file: 0, due: 0 };
+    for (const b of below.get(r)) {
+      const s = statusOf.get(b);
+      if (s != null && doneIds.has(s)) held.done++;
+      else if (s != null && !shut.has(s)) { held.task++; const day = dueOf.get(b); if (day && (!held.due || day < held.due)) held.due = day; }
+      if (near.get(r).has(b) && kindOf.has(b)) held[kindOf.get(b)]++;
+    }
+    out.set(String(u).toLowerCase(), held);
+  }
+  return out;
+}
+
+G.read = { folded, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

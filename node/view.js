@@ -53,7 +53,7 @@ function head(state, list, made, plus, today) {
   const said = made.said.length ? `<button type="button" class="lk-set" title="View">${G.esc(made.said.join(' · '))}</button>` : '';
   const finding = !!(state.view.find.words || state.view.find.upTo);
   if (finding && made.total !== made.count) kinds += `<span class="lk-today">${made.total} today</span>`;
-  return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}</span><span class="lk-head-do">${plus}${dots}</span><span class="lk-head-end">${said}</span>`;   // the days stand on the rows: a span on the head said them twice
+  return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}</span><span class="lk-head-do">${plus}${dots}</span><span class="lk-head-end">${said}${made.from && made.to ? `<span class="lk-span">${G.esc(D.short(made.from, today))} to ${G.esc(D.short(made.to, today))}</span>` : ''}</span>`;   // the span of the list's days at the head's right end, as before 0.9 (the owner's choice, 26 November 2026: "before for list head")
 }
 // What stands under the head, in order: a group's line, a node's row, the line saying since when.
 const GROUP_FEW = 12;   // a group's nodes before its own "Show more", as before the rebuild
@@ -211,7 +211,7 @@ G.listview.CSS = `
 .lk-tab:hover, .lk-tab:focus-visible { color: var(--lk-text); outline: none; }
 .lk-tab:not([data-kind=""]):not(.lk-tabmore):not(.lk-newtab):not([data-kind="@none"]) { font-family: var(--lk-tag-face); }   /* a kind is a tag: in the tag's face */
 .lk-tab.on { color: var(--lk-text); }
-.lk-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1.5px; border-radius: 1px; background: currentColor; }   /* inside the kind's own line: never into the line below ("look at the underline of all") */
+.lk-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 1px; background: currentColor; }   /* the chosen kind underlined across its word and count, a line under them, as before 0.9 (the owner's choice, 26 November 2026) */
 .lk-tab .lk-n { margin-left: .25em; color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-group-head .lk-n, .lk-since .lk-n { margin-left: .25em; font-size: var(--lk-small); font-weight: 400; color: var(--lk-off); font-variant-numeric: tabular-nums; }
 .lk-tabmore { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
@@ -222,7 +222,7 @@ G.listview.CSS = `
 .lk-dots { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 2px; border-radius: 6px; opacity: .55; }
 .lk-dots:hover, .lk-dots:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 .lk-head-end { flex: none; margin-left: auto; display: inline-flex; align-items: baseline; gap: 12px; padding-left: 12px; white-space: nowrap; line-height: 24px; }
-.lk-head-end .lk-span { margin-left: 0; padding-left: 0; }
+.lk-head-end .lk-span { margin-left: 0; padding-left: 0; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-head-end > * { line-height: 1; }
 /* A strut at the start of the + and ⋯, and of the days: each is a line 24 high standing on the words' baseline, on whichever
    line of the head it falls (the gap after the strut is taken back). */

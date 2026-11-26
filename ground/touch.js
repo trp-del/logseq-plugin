@@ -32,6 +32,9 @@
      touch.page(key, title, draw)  a page of the plugin's own in Logseq's main view; draw(el) fills it. Answers { open(), at() }
      touch.toolbar(key, title, path, run)   a button in Logseq's toolbar, drawn as Logseq draws its own (path: the icon's line)
      touch.icon(id), touch.statusIcon(icon)   one of Logseq's own icons as markup
+     touch.foldedSpots()      Logseq's folded bullets on screen, each { uuid, at, put(el) }: at, what the plugin put after its
+                              words before; put(el) places el right after its words. touch.FOLDED the stylesheet that shows
+                              it only while the bullet is folded
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
 const G = window.PluginDoor;
@@ -656,6 +659,18 @@ function statusIcon(found) {
   const drawn = found.type === 'emoji' ? `<em-emoji id="${G.esc(found.id)}" size="1em"></em-emoji>` : icon(found.id);
   return `<span class="lk-status-icon ls-icon-${G.esc(found.id)}"${found.color ? ` style="color: ${G.esc(found.color)}"` : ''}>${drawn}</span>`;
 }
+
+// Logseq's folded bullets: the words of each (its own, not a child's), where a note after them stands.
+function foldedSpots() {
+  const own = (block, selector) => [...block.querySelectorAll(selector)].find(el => el.closest('.ls-block[blockid]') === block);
+  return [...host().querySelectorAll('.ls-block[blockid][data-collapsed="true"]')].map(block => {
+    const words = own(block, '.block-title-wrap'), file = !words && own(block, '.block-head-wrap a.asset-ref');
+    if (!words && !file) return null;
+    return { uuid: block.getAttribute('blockid').toLowerCase(), at: own(block, '.lk-folded'), put: el => words ? words.append(el) : file.after(el) };
+  }).filter(Boolean);
+}
+const FOLDED = `.ls-block:not([data-collapsed="true"]) > .block-main-container .lk-folded { display: none; }
+.block-head-wrap > a.asset-ref + .lk-folded { margin-right: auto; align-self: center; flex: none; }`;
 const openUrl = url => logseq.App.openExternalLink(url);
 
 /* Where the plugin's lists stand, Logseq's own for the same thing are taken away: its Linked references and its two-way
@@ -835,6 +850,68 @@ function here() {
 const AREA = ':is(#main-content-container, #right-sidebar)', OUT = ':not(.lk-editor *)';
 const PILLS = `${AREA} .ls-block .positioned-properties.block-below`;
 const CALM = {
+  /* What floats over Logseq's own screens (its menus, pop-ups, lists to choose from, the question before a delete, its windows
+     and settings) on the plugin's own surface, as before the rebuild (the owner chose the old floating surface and window back,
+     26 November 2026): the Mac's glass with a 10-point corner, a hair-thin edge and one shadow; lines of the menu's size; keys
+     as faint marks; the question small and in the middle, as the Mac asks; a window on the page's paper with a hairline. */
+  floats: `
+.ui__dialog-content:has(.cp__cmdk__modal), .cp__cmdk__modal { background: var(--lk-paper) !important; }
+.ui__dialog-content:has(.cp__cmdk__modal) { overflow: hidden; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__popover-content, .ui__select-content, .ui__multi-select-content) { background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; color: var(--lk-text) !important; border: .5px solid var(--lk-line) !important; border-radius: 10px !important; box-shadow: var(--lk-float-shadow) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { padding: 5px !important; }
+:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px 4px !important; box-sizing: border-box !important; height: var(--lk-line-h) !important; min-height: 0 !important; border-radius: 6px !important; color: var(--lk-text) !important; gap: 8px !important; }
+.ui__dropdown-menu-sub-trigger[data-open]:not([data-highlighted], :hover) { background: var(--lk-wash) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) :is(.ui__icon, i.ti) { font-size: 14px !important; width: 14px; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) svg.tabler-icon { width: 14px !important; height: 14px !important; stroke-width: 1.4 !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__popover-content) :is(.ui__icon, i.ti) { color: var(--lk-quiet) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__popover-content, .ui__select-content) :focus-visible { outline: none !important; box-shadow: none !important; }
+:is(.ui__dropdown-menu-separator, .ui__context-menu-separator, .ui__dropdown-menu-content [role=separator], .ui__context-menu-content [role=separator]) { background: var(--lk-hair) !important; height: 1px !important; margin: 5px 9px !important; }
+:is(.ui__dropdown-menu-label, .ui__context-menu-label) { font-weight: 400 !important; color: var(--lk-quiet) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) :is(.shui-shortcut-combo, .shui-shortcut-separate, .shui-shortcut-key) { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; min-width: 0 !important; font: inherit !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-combo { gap: 1px !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-key { color: var(--lk-off) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-separator { display: none !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) .shui-shortcut-key { display: inline-flex !important; align-items: center; height: var(--lk-line-lead) !important; line-height: 18px !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] :is([data-shortcut-binding="delete"], [data-shortcut-binding="backspace"]) kbd.shui-shortcut-key.shui-shortcut-key { color: transparent !important; position: relative; width: 16px; overflow: hidden; white-space: nowrap; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] > span:has(.shui-shortcut-key) { display: flex !important; align-items: center; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem] :is([data-shortcut-binding="delete"], [data-shortcut-binding="backspace"]) kbd.shui-shortcut-key.shui-shortcut-key::after { content: "⌫"; position: absolute; inset: 0; text-align: right; color: var(--lk-off); }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [role=menuitem]:is([data-highlighted], :hover) :is([data-shortcut-binding="delete"], [data-shortcut-binding="backspace"]) kbd.shui-shortcut-key.shui-shortcut-key::after { color: var(--lk-paper); }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) [data-shortcut-binding$="+click"] .shui-shortcut-key:last-child { text-transform: lowercase; margin-left: 3px; }
+.ui__popover-content .cp__select { font-size: var(--lk-line-size) !important; }
+.ui__popover-content .cp__select .input-wrap { background: transparent !important; padding: 4px 5px 0 !important; }
+.ui__popover-content .cp__select-input { background: transparent !important; font-size: var(--lk-line-size) !important; padding: 4px 9px !important; border: 0 !important; box-shadow: inset 0 -1px 0 var(--lk-hair) !important; border-radius: 0 !important; }
+.ui__popover-content .cp__select .menu-link-wrap { padding: 0 5px !important; }
+.ui__popover-content .cp__select .menu-link { display: flex !important; padding: 3px 9px 4px !important; border-radius: 6px !important; }
+.ui__popover-content .cp__select .menu-link, .ui__popover-content .cp__select .menu-link * { font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; }
+.ui__popover-content .cp__select .menu-link svg { width: 14px !important; height: 14px !important; }
+.ui__alert-dialog-content { width: 260px !important; max-width: 260px !important; padding: 18px 14px 14px !important; gap: 4px !important; text-align: center !important; background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; border: .5px solid var(--lk-line) !important; border-radius: 14px !important; box-shadow: var(--lk-float-shadow) !important; }
+.ui__alert-dialog-header { text-align: center !important; }
+.ui__alert-dialog-title { font-size: 13px !important; line-height: 18px !important; font-weight: 600 !important; }
+.ui__alert-dialog-title > span { flex-direction: column !important; gap: 6px !important; }
+.ui__alert-dialog-title .ui__icon svg { width: 30px !important; height: 30px !important; stroke-width: 1.2 !important; color: var(--lk-quiet) !important; }
+.ui__alert-dialog-main-content, .ui__alert-dialog-main-content p { font-size: 12px !important; opacity: 1 !important; color: var(--lk-quiet) !important; }
+.ui__alert-dialog-main-content p { margin: 0 0 8px !important; }
+.ui__alert-dialog-footer { display: block !important; }
+.ui__alert-dialog-footer > span:first-child:empty { display: none !important; }
+.ui__alert-dialog-footer > span:last-child { display: flex !important; flex-direction: column-reverse !important; gap: 6px !important; width: 100% !important; }
+.ui__alert-dialog-footer .ui__button { width: 100% !important; height: 28px !important; border-radius: 7px !important; border: 0 !important; font-size: 13px !important; font-weight: 500 !important; box-shadow: none !important; }
+.ui__alert-dialog-footer .ui__button.as-outline { background: var(--lk-wash) !important; color: var(--lk-text) !important; }
+.ui__alert-dialog-footer .ui__button.as-solid { background: var(--lk-text) !important; color: var(--lk-paper) !important; }
+.ui__alert-dialog-overlay { background: rgba(0,0,0,.14) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+.ui__dialog-content { background: var(--lk-paper) !important; border: 1px solid var(--lk-hair) !important; border-radius: 8px !important; box-shadow: 0 10px 30px rgba(0,0,0,.14) !important; }
+.cp__settings-inner > aside { background: transparent !important; box-shadow: inset -1px 0 0 var(--lk-hair) !important; }
+.cp__settings-inner .settings-menu-item { background: transparent !important; border-radius: 6px; }
+.cp__settings-inner .settings-menu-item:is(.active, :hover) { background: var(--lk-wash) !important; }
+.cp__settings-inner .settings-menu-link strong { font-weight: 400 !important; }
+.cp__settings-inner .settings-menu-link .ui__icon { color: var(--lk-quiet) !important; }
+.cp__settings-inner .cp__settings-modal-title { font-size: 20px !important; font-weight: 600 !important; }
+.cp__settings-inner .cp__settings-category-title { font-weight: 600 !important; }
+.cp__settings-inner .panel-wrap .ui__button[class~="bg-primary/90"] { background: color-mix(in srgb, var(--lk-text) 9%, transparent) !important; color: var(--lk-text) !important; box-shadow: none !important; border: 0 !important; border-radius: 6px !important; font-weight: 500 !important; }
+.cp__settings-inner .panel-wrap .ui__button[class~="bg-primary/90"]:hover { background: color-mix(in srgb, var(--lk-text) 15%, transparent) !important; }
+.cp__settings-inner .panel-wrap :is(select, [role=combobox], input:not([type=checkbox]):not([type=radio])) { background: transparent !important; border-color: var(--lk-hair) !important; box-shadow: none !important; }
+.ui__popover-content .cp__select .menu-link { box-sizing: border-box !important; min-height: var(--lk-line-h) !important; align-items: center !important; }
+.ui__popover-content .cp__select .menu-link .pt-1 { padding-top: 0 !important; display: inline-flex !important; align-items: center !important; }
+.ui__popover-content .cp__select #ui__ac-inner > .menu-link-wrap { padding-left: calc(5px + var(--st-pad, 0px)) !important; }`,
   /* The top bar: Ontology, Todo, Logseq's own menu and the sidebar button. Home, back, forward and the plugins button go
      (Journals heads the left sidebar, Cmd [ and Cmd ] go back and forward, Plugins is in the menu). Icons a little finer. */
   bar: `
@@ -1007,5 +1084,5 @@ function sidePages() {
   doc.addEventListener('click', onName, true);
   return () => { off(); doc.removeEventListener('click', onName, true); };
 }
-G.touch = { sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, section, page, toolbar, icon, statusIcon, foldedSpots, FOLDED, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

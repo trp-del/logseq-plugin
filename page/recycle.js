@@ -20,12 +20,12 @@ G.part({
 .lk-recycle .lk-going-btn { color: var(--lk-going); }`);
     const draw = async el => {
       const doc = el.ownerDocument, rows = await G.read.recycled().catch(() => []);
-      el.innerHTML = `<div class="lk-recycle"><div class="lk-recycle-top"><span>${rows.length ? `${rows.length} deleted ${rows.length === 1 ? 'thing' : 'things'} Logseq still keeps` : 'Logseq’s Recycle is empty'}</span>${rows.length > 1 ? '<button type="button" class="lk-btn lk-low lk-going-btn" data-do="all">Delete all</button>' : ''}</div><div class="lk-recycle-rows">${rows.map(row =>
-        `<div class="lk-recycle-row" data-uuid="${G.esc(row.uuid)}"><span class="lk-bul" aria-hidden="true"></span><span class="lk-recycle-words">${G.esc(row.words || (row.isPage ? 'A page with no name' : 'A bullet with no words'))}<span class="lk-recycle-from">${row.isPage ? 'page' : row.from ? `from ${G.esc(row.from)}` : 'bullet'}</span></span><button type="button" class="lk-btn lk-low" data-do="restore">Restore</button><button type="button" class="lk-btn lk-low lk-going-btn" data-do="delete">Delete</button></div>`).join('')}</div></div>`;
+      el.innerHTML = `<div class="lk-recycle"><div class="lk-recycle-top"><span>${rows.length ? `${rows.length} deleted ${rows.length === 1 ? 'thing' : 'things'} Logseq still keeps` : 'Logseq’s Recycle is empty'}</span>${rows.length > 1 ? '<button type="button" class="lk-btn lk-low lk-going-btn lk-i-bin" data-do="all">Delete all</button>' : ''}</div><div class="lk-recycle-rows">${rows.map(row =>
+        `<div class="lk-recycle-row" data-uuid="${G.esc(row.uuid)}"><span class="lk-bul" aria-hidden="true"></span><span class="lk-recycle-words">${G.esc(row.words || (row.isPage ? 'A page with no name' : 'A bullet with no words'))}<span class="lk-recycle-from">${row.isPage ? 'page' : row.from ? `from ${G.esc(row.from)}` : 'bullet'}</span></span><button type="button" class="lk-btn lk-low lk-i-undo" data-do="restore">Restore</button><button type="button" class="lk-btn lk-low lk-going-btn lk-i-bin" data-do="delete">Delete</button></div>`).join('')}</div></div>`;
       const ask = (after, words, yes) => {
         el.querySelector('.lk-recycle-ask')?.remove();
         const box = doc.createElement('div'); box.className = 'lk-recycle-ask';
-        box.innerHTML = `<span><b>${G.esc(words)}</b> Nothing brings it back.</span><button type="button" class="lk-accent" data-do="yes">Delete for good</button><button type="button" class="lk-btn" data-do="no">Leave it</button>`;
+        box.innerHTML = `<span><b>${G.esc(words)}</b> Nothing brings it back.</span><button type="button" class="lk-big" data-do="yes">Delete for good</button><button type="button" class="lk-btn" data-do="no">Leave it</button>`;
         after.after(box); box.querySelector('[data-do="no"]').focus();
         box.onclick = async event => { const what = event.target.closest('[data-do]')?.dataset.do; if (!what) return; event.stopPropagation(); box.remove(); if (what === 'yes') { await yes(); draw(el); } };
         box.onkeydown = event => { if (event.key === 'Escape') { event.preventDefault(); box.remove(); } };

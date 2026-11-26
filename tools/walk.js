@@ -21,7 +21,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
   const wait = ms => page.waitForTimeout(ms);
   const goto = async uuid => { await page.evaluate(u => window.logseq.api.push_state('page', { name: u }), uuid); await wait(1800); };
   const count = sel => page.locator(sel).count();
-  const lists = () => page.evaluate(() => [...document.querySelectorAll('.lk-rel')].map(rel => ({ where: rel.closest('#right-sidebar') ? 'sidebar' : rel.closest('.lk-open') ? 'opened' : 'main', lists: [...rel.querySelectorAll(':scope > .lk-list')].map(l => `${[l.querySelector('.lk-list-via').innerText, l.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n')} (${l.querySelectorAll(':scope > .lk-rows > .lk-row').length})`) })));
+  const lists = () => page.evaluate(() => [...document.querySelectorAll('.lk-rel')].map(rel => ({ where: rel.closest('#right-sidebar') ? 'sidebar' : rel.closest('.lk-open') ? 'opened' : 'main', lists: [...rel.querySelectorAll(':scope > .lk-list')].map(l => `${[l.querySelector('.lk-list-via').innerText, l.querySelector('.lk-list-name').innerText.replace(/\n?[A-Z][a-z]{2} \d+(, \d{4})? to [A-Z][a-z]{2} \d+(, \d{4})?$/, '')].filter(Boolean).join('\n')} (${l.querySelectorAll(':scope > .lk-rows > .lk-row').length})`) })));
   let n = 0;
   const step = async (what, check) => { n++; try { const said = await check(); if (said !== true) faults.push(`${what}: ${said}`); } catch (error) { faults.push(`${what}: ${String(error.message || error).split('\n')[0]}`); } };
   // A line's own words, without what Relations says after them (the value that tells nodes apart, what it lacks, where it sits).
@@ -64,7 +64,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await goto(NORTHGATE);
     await step('a page opened in a row reads as a line: its name the size of the words, its own lists under it', async () => {
       await page.locator('.lk-row .lk-line').first().click(); await wait(2200);
-      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list > .lk-list-head')].map(el => [el.querySelector('.lk-list-via').innerText, el.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n'))]; }), ['16px', ['Decided\nDecision 3', 'Provider of\nConsultation 2']]);
+      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list > .lk-list-head')].map(el => [el.querySelector('.lk-list-via').innerText, el.querySelector('.lk-list-name').innerText.replace(/\n?[A-Z][a-z]{2} \d+(, \d{4})? to [A-Z][a-z]{2} \d+(, \d{4})?$/, '')].filter(Boolean).join('\n'))]; }), ['16px', ['Decided\nDecision 3', 'Provider of\nConsultation 2']]);
     });
     await step('a node opens inside an opened node, and Escape closes one at a time, innermost first', async () => {
       await page.locator('.lk-open .lk-row .lk-line').nth(1).click(); await wait(1800);
@@ -141,8 +141,16 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const got = await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-search .lk-row')], holds = rows.map(r => /chen/i.test(r.querySelector('.lk-words').textContent)); return [rows.length > 0, holds[0], new Set(rows.map(r => r.dataset.uuid)).size === rows.length, document.querySelectorAll('.lk-search .lk-list-name').length > 1, rows.filter(r => { const w = r.querySelector('.lk-words').cloneNode(true); for (const el of w.querySelectorAll('.lk-sits')) el.remove(); return /chen/i.test(w.textContent); }).every(r => r.querySelector('mark.lk-hit'))]; });
       return is(got, [true, true, true, true, true]);
     });
+    await step('a press on a found line goes to it in the main view; Escape empties the line', async () => {
+      await page.locator('.lk-search .lk-row', { hasText: 'Dr. Mei Chen' }).first().locator('.lk-words').click(); await wait(1500);
+      const went = await page.evaluate(() => location.hash.includes('1a000000-0000-4000-8000-00000000000e'));
+      await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Escape'); await wait(500);
+      return is([went, await page.locator('.lk-search .lk-field').inputValue()], [true, '']);
+    });
+    // ---- The marked pictures of 25 and 26 November 2026, as steps
+    await goto(CHEN);
     await step('Search as Find: nothing typed shows the kinds with counts and the pages opened last; letters light a kind, Tab takes it and its values show with counts; a value taken narrows', async () => {   // the owner's choices, 26 November 2026
-      await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Escape'); await wait(1200);
+      await page.locator('.lk-search .lk-field').focus(); await wait(1200);
       const bare = await page.evaluate(() => [/\d/.test(document.querySelector('.lk-search .lk-choice')?.textContent || ''), document.querySelector('.lk-search .lk-list-name')?.textContent]);
       await page.keyboard.type('cons', { delay: 30 }); await wait(1500);
       const lit = await page.evaluate(() => document.querySelector('.lk-search .lk-choice.lit')?.firstChild?.textContent);
@@ -163,14 +171,6 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('#right-sidebar .sidebar-item', { has: page.locator('.lk-search') }).first().locator('.item-actions button').last().click().catch(() => {}); await wait(800);
       return is(got, [['kind', 'Provider', 'when'], ['Near'], true]);
     });
-    await step('a press on a found line goes to it in the main view; Escape empties the line', async () => {
-      await page.locator('.lk-search .lk-row', { hasText: 'Dr. Mei Chen' }).first().locator('.lk-words').click(); await wait(1500);
-      const went = await page.evaluate(() => location.hash.includes('1a000000-0000-4000-8000-00000000000e'));
-      await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Escape'); await wait(500);
-      return is([went, await page.locator('.lk-search .lk-field').inputValue()], [true, '']);
-    });
-    // ---- The marked pictures of 25 and 26 November 2026, as steps
-    await goto(CHEN);
     await step('a node dug into names itself and never lists the node it was dug from', async () => {
       const row = page.locator('#main-content-container .lk-row', { hasText: 'Video call' }).first(), uuid = await row.getAttribute('data-uuid');
       await row.locator('.lk-words').click(); await wait(2200);
@@ -327,10 +327,10 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     // ---- Relations: what a list's head says, and + on it
     await goto(CHEN);
     const MAIN = '#main-content-container .lk-relpage > .lk-list';
-    await step('every list\'s head is one look: the property\'s name with the arrow, under it its kinds with their counts; the days only on the rows', async () => {   // the owner's marked page, 26 November 2026
+    await step('every list\'s head is one look: the property\'s name with the arrow, under it its kinds with their counts and, at its right end, the span of its days', async () => {   // the owner's marked page, 26 November 2026, then "before for list head" the same day
       const heads = await page.evaluate(sel => { const box = el => { const range = document.createRange(); range.selectNodeContents(el); return range.getBoundingClientRect(); };
         return [...document.querySelectorAll(sel)].filter(l => l.dataset.kind === 'property' && l.querySelector('.lk-tab')).map(l => { const name = box(l.querySelector('.lk-list-via .lk-prop')), arrow = l.querySelector('.lk-list-head > .lk-fold').getBoundingClientRect(), tab = box(l.querySelector('.lk-tab'));
-          return [Math.abs((arrow.top + arrow.bottom) / 2 - (name.top + name.bottom) / 2) < 6, name.bottom <= tab.top + 1, !l.querySelector('.lk-list-head .lk-span'), /\d/.test(l.querySelector('.lk-tab').innerText)]; }); }, MAIN);
+          return [Math.abs((arrow.top + arrow.bottom) / 2 - (name.top + name.bottom) / 2) < 6, name.bottom <= tab.top + 1, l.querySelectorAll(':scope > .lk-rows > .lk-row').length < 2 || !!l.querySelector('.lk-list-head .lk-span'), /\d/.test(l.querySelector('.lk-tab').innerText)]; }); }, MAIN);
       return is([heads.length > 0, heads.every(h => h.every(Boolean))], [true, true]);
     });
     await step('+ on a list\'s head opens a line to type a new node in at the list\'s end; Enter makes it pointing here, the Undo arrow takes it back', async () => {   // the owner, 25 November 2026: "the actual feature were well developed"

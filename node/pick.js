@@ -103,9 +103,9 @@ function bar(state, box, made) {
   if (asking) return;
   delete el.dataset.asking;
   const html = n ? `<b class="lk-pick-n">${n}</b><button type="button" class="lk-btn lk-low lk-pick-x" data-do="clear" aria-label="Let them go" title="Let them go">${icon('x', 14)}</button>
-<button type="button" class="lk-btn lk-low" data-do="open">Open in sidebar</button><button type="button" class="lk-btn lk-low" data-do="tag">Set tag</button><button type="button" class="lk-btn lk-low" data-do="prop">Set property</button><button type="button" class="lk-btn lk-low" data-do="more">More</button>
-<button type="button" class="lk-btn lk-low lk-pick-del" data-do="delete">Delete</button>`
-    : `<span class="lk-did">${G.esc(did.words)}</span><button type="button" class="lk-btn lk-low" data-do="undo">Undo</button><button type="button" class="lk-btn lk-low" data-do="done" aria-label="Done" title="Done">${icon('x', 14)}</button>`;
+<button type="button" class="lk-btn lk-low lk-i-side" data-do="open">Open in sidebar</button><button type="button" class="lk-btn lk-low lk-i-tag" data-do="tag">Set tag</button><button type="button" class="lk-btn lk-low lk-i-list" data-do="prop">Set property</button><button type="button" class="lk-btn lk-low" data-do="more">More</button>
+<button type="button" class="lk-btn lk-low lk-pick-del lk-i-bin" data-do="delete">Delete</button>`
+    : `<span class="lk-did">${G.esc(did.words)}</span><button type="button" class="lk-btn lk-low lk-i-undo" data-do="undo">Undo</button><button type="button" class="lk-btn lk-low" data-do="done" aria-label="Done" title="Done">${icon('x', 14)}</button>`;
   if (el.lkHtml !== html) { el.innerHTML = html; el.lkHtml = html; }
   const all = head.querySelector('.lk-tick-all');
   if (all) { const shown = made.rows.length; all.checked = shown > 0 && n >= shown; all.indeterminate = n > 0 && n < shown; }
@@ -115,7 +115,7 @@ function askDelete(state, box, el, uuids) {
   const rows = box.lkList.rows.filter(row => uuids.includes(row.uuid)), pages = rows.filter(row => row.isPage).length, bullets = rows.length - pages;
   const what = [pages ? `${pages} ${pages === 1 ? 'page' : 'pages'} with all ${pages === 1 ? 'its' : 'their'} bullets` : '', bullets ? `${bullets} ${bullets === 1 ? 'bullet' : 'bullets'}` : ''].filter(Boolean).join(' and ');
   el.dataset.asking = '1'; el.lkHtml = '';
-  el.innerHTML = `<span class="lk-did"><b>Delete ${G.esc(what)}?</b> ${bullets ? 'A bullet is deleted for good.' : 'A page goes to Logseq’s Recycle.'}</span><button type="button" class="lk-accent" data-do="delete-yes">Delete</button><button type="button" class="lk-btn" data-do="delete-no">Cancel</button>`;
+  el.innerHTML = `<span class="lk-did"><b>Delete ${G.esc(what)}?</b> ${bullets ? 'A bullet is deleted for good.' : 'A page goes to Logseq’s Recycle.'}</span><button type="button" class="lk-del" data-do="delete-yes">Delete</button><button type="button" class="lk-btn" data-do="delete-no">Cancel</button>`;
   el.querySelector('[data-do="delete-no"]').focus();
 }
 function act(state, event) {

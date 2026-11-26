@@ -42,7 +42,9 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 - the lists stand under the quiet word **Relations** and a hairline;
 - rows carry their day right after the bullet, in a column of its own before the words (a Date property, else the journal day they were written on), newest first; in a narrow place the day stands under the words;
 - a long list shows ten rows, then **Show 43 more**, saying how many wait;
-- what a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads;
+- what a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads; the
+  chosen kind is underlined across its word and count, and the span of the list's days ("Jul 8 to Aug 20") stands at the head's
+  right end, as before the rebuild;
 - Logseq's own Linked references and two-way tabs are taken away where these lists stand.
 
 A row:
@@ -103,6 +105,12 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   the next change to the graph. Move values keeps its own way back.
 - Delete on a tag or a property asks first, in a box under its line: what goes, how many nodes hold it, a red yes and
   Cancel. The keys wait on Cancel; only a press on the red yes deletes.
+- The presses are drawn as before the rebuild: the yes that decides filled in the ink, a plain press a quiet capsule, a
+  third-level press with no ground, Delete in red on no ground with its bin, the one yes Undo cannot take back ("Delete for
+  good") filled in blue; a small picture before a press's word where its job has one (Open in sidebar, Set tag, Set property,
+  Undo, Restore, Move values).
+- What floats (a menu, a list to choose from) stands on the Mac's glass: the page shows through, a 10-point corner, a hair-thin
+  edge, one shadow; a window in the middle of the screen is on the page's paper with a hairline.
 - A key is told only where it is not a common one, as the Mac writes it, with no box.
 - An opened node rolls out of its line in one short move. A tick box on a line shows under the pointer and stays once
   ticked (no list has tick boxes yet).
@@ -118,6 +126,13 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
 - The left sidebar is words alone: no picture before Journals, Pages, a favourite or a recent page, no section words
   (Navigations, Favorites, Recent), a gap between the groups, the graph's name alone. Logseq's ? at the bottom right goes.
 - A page's title is a step smaller and tighter.
+- Logseq's own menus, pop-ups and lists to choose from stand on the plugin's glass, their lines the menu's size and their keys
+  faint marks; the question before a page is deleted is small and in the middle, as the Mac asks; Logseq's windows and its
+  settings are on the page's paper with a hairline.
+- A folded bullet says after its words, small and grey, what waits under it (a part of its own, `beside/folded.js`): a ↳, an
+  open circle with the number of unfinished tasks at any depth (done of all, "1/3", once some are done, the circle ticked when
+  all are), the pictures, PDFs and files right under it, each an icon with its number, and the nearest day a task is due ("due
+  Oct 19", "was due Oct 12"). Only while it is folded.
 - **Add property** is quiet words, a little apart from the rows.
 - A bullet's properties under its words are one quiet line of names and values, wrapping, with no outline; the one being
   written has a capsule round it; one with nothing in it stays out of the line.
