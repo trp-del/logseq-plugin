@@ -495,7 +495,8 @@ const openUrl = url => logseq.App.openExternalLink(url);
 /* Where the plugin's lists stand, Logseq's own for the same thing are taken away: its Linked references and its two-way
    property tabs. Only where the plugin's stand (:has), so a plugin that failed to draw leaves Logseq's in place. */
 const HIDES_TAGS = `.ls-page-title .ls-block:has(> .lk-place:not(:empty)) > .is-page-title-row .block-tags, .ls-block-right:has(> .lk-place:not(:empty)) > .block-tags { display: none !important; }
-.ls-block-right > .lk-place { align-self: flex-start; }`;
+.ls-block-right > .lk-place { align-self: flex-start; }
+.ls-page-title-container:has(.lk-place-end) { column-gap: 14px !important; }   /* the space before the path is the row's gap: when the path drops under the title it starts on the title's edge */`;
 const HIDES = `
 ${PAGE}:has(.lk-relpage) .references, ${PAGE}:has(.lk-relpage) .ls-bidirectional-properties { display: none !important; }
 .lk-open ${PAGE} .references, .lk-open ${PAGE} .unlinked-references, .lk-open ${PAGE} .ls-bidirectional-properties { display: none !important; }`;
