@@ -600,7 +600,7 @@ const OPENED = `
    owner's picture of "Doctors" opened in Search, 26 November 2026). */
 .lk-editor .ls-page-title .is-page-title-row { min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
 .lk-editor .ls-page-title .ls-block-right:not(:has(* > *)) { display: none !important; }   /* Logseq's empty place for the page's tags, which stood as a blank second line */
-.lk-row > .lk-open > .lk-editor .ls-page-blocks { margin-left: 12px !important; }
+.lk-row > .lk-open > .lk-editor:has(.ls-page-title) .ls-page-blocks { margin-left: 12px !important; }
 .lk-editor textarea { font-size: inherit !important; }
 .lk-editor .ls-page-blocks:has(.ls-block[blockid]) .block-add-button { display: none !important; }   /* Logseq's dot for a first bullet, only where there is none yet */
 .lk-editor .ls-page-title-container, .lk-editor .ls-page-title-container :is(h1, .block-title-wrap, .ls-page-title-actions) { font-size: inherit !important; line-height: 24px !important; font-weight: 600 !important; min-height: 0 !important; margin: 0 !important; }
