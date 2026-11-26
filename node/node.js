@@ -324,6 +324,8 @@ function draw(state, made, names, statuses) {
 // The words being found, marked where they stand in a line's words.
 function hit(words, want) {
   if (!words) return;
+  for (const old of words.querySelectorAll('mark.lk-hit')) old.replaceWith(...old.childNodes);   // marks of letters typed before go first
+  words.normalize();
   const doc = words.ownerDocument, walk = doc.createTreeWalker(words, 4), nodes = [];
   for (let node; (node = walk.nextNode());) if (!node.parentElement.closest('.lk-tag, .lk-tell, .lk-lacks, .lk-sits')) nodes.push(node);
   for (const node of nodes) {

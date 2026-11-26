@@ -58,7 +58,7 @@ G.part({
       };
       const list = G.node.listing(rel, read, { few: 8, press: (row, event) => { G.touch.open(row.dataset.uuid, event.shiftKey); return true; },
         key: (row, event) => { if (event.key !== 'Enter') return false; G.touch.open(row.dataset.uuid, event.shiftKey); return true; } });
-      const mark = () => { const want = S.tokens(box.text); if (want.length) for (const words of rel.querySelectorAll('.lk-line > .lk-words')) if (!words.querySelector('mark.lk-hit')) G.node.hit(words, want); };
+      const mark = () => { const want = S.tokens(box.text); for (const words of rel.querySelectorAll('.lk-line > .lk-words')) G.node.hit(words, want); };
       rel.addEventListener('lk-drawn', mark);
       const again = () => { pieceEl.hidden = !box.kind; pieceEl.textContent = box.kind?.title || ''; field.placeholder = box.kind ? 'Words, a value, a day' : 'Search'; list.again(); };
       box.take = tag => { box.kind = tag; box.kindNodes = null; box.text = ''; field.value = ''; again(); field.focus(); };

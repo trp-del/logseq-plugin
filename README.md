@@ -161,9 +161,11 @@ setting gives Cmd-K back to Logseq's own search).
 
 ### The corner (`beside/corner.js`)
 
-The bottom right corner holds the plugin's commands, out of the way of what you read and write. Nothing shows there until the
-pointer comes near; then a quiet ···, and a press opens one menu: Search, Todo, Ontology, New page…, then Recycle and Update
-plugins. What is done to a node stays on its right-click.
+The bottom right corner holds commands, out of the way of what you read and write. Nothing shows there until the pointer
+comes near; then a quiet ···, and a press opens a list to type into, as Logseq's own command palette: the plugin's commands
+first (Search, Todo, Ontology, New page…, Recycle, Update plugins and the rest), then every command of Logseq's own with its
+key. Letters narrow it, the closest line first; Enter does the lit line; words no command has offer a new page of that name.
+What is done to a node stays on its right-click.
 
 ### Todo (`arrive/todo.js`)
 
