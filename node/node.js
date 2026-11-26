@@ -28,7 +28,7 @@ let within = null, offKeys = null, count = 0;   // the opened node the person is
    rows, the nodes dug into from it, its Relations. The dug node is the plugin's own element. It is never put inside Logseq's
    rows (Logseq throws away what it did not draw there): room is opened under the value's row by a style rule, and the node is
    laid into that room. Where the value has no row of its own, the node stands under the rows. */
-function mount(holder, uuid) {
+function mount(holder, uuid, from = '') {
   const doc = holder.ownerDocument, view = doc.defaultView, k = String(++count);
   holder.dataset.k = k; holder.dataset.node = uuid;
   const rule = doc.createElement('style'), page = doc.createElement('div'), head = doc.createElement('div'), rel = doc.createElement('div');
@@ -58,7 +58,7 @@ function mount(holder, uuid) {
       dug.classList.toggle('lk-flow', !seat);
       if (!seat) { dug.style.top = dug.style.left = ''; continue; }
       dug.style.top = Math.round(page.offsetTop + seat.top) + 'px'; dug.style.left = Math.round(page.offsetLeft + seat.left) + 'px';
-      css += `.lk-open[data-k="${k}"] > .lk-editor ${seat.mark}::before { transform: rotate(90deg); background: var(--lk-text); }\n`;
+      css += `.lk-open[data-k="${k}"] > .lk-editor ${seat.mark}::before { transform: rotate(90deg); }\n`;
       if (dug.dataset.whole) css += `.lk-open[data-k="${k}"] > .lk-editor ${seat.row} { margin-bottom: ${dug.offsetHeight}px !important; }\n`;   // room only once the node has come to rest: one move, not a stutter
     }
     if (rule.textContent !== css) rule.textContent = css;
@@ -67,13 +67,14 @@ function mount(holder, uuid) {
   sized?.observe(page);
   holder.lkPlace = place;
   const whole = G.touch.editor.whole(page, () => { holder.dataset.whole = '1'; place(); holder.parentElement?.closest('.lk-open')?.lkPlace?.(); });
-  const offEditor = G.touch.editor.show(page, uuid), offLists = lists(rel, uuid);
+  const offEditor = G.touch.editor.show(page, uuid), offLists = lists(rel, uuid, from);
   const undig = value => { const dug = dugs.get(value); if (!dug) return; dugs.delete(value); sized?.unobserve(dug); dug.lkOff?.(); dug.remove(); place(); };
   holder.lkDig = value => {
     if (dugs.has(value)) { undig(value); return; }
     const dug = doc.createElement('div'); dug.className = 'lk-open lk-dugopen';
     holder.insertBefore(dug, head); dugs.set(value, dug);
-    mount(dug, value); dug.lkClose = () => undig(value);
+    mount(dug, value, uuid); dug.lkClose = () => undig(value);
+    G.read.names([value]).then(names => { const name = names.get(String(value).toLowerCase()); if (!name || !dug.isConnected) return; const said = doc.createElement('div'); said.className = 'lk-dugname'; said.textContent = name; dug.querySelector(':scope > .lk-editor')?.before(said); }).catch(() => {});   // the dug node says whose its lists are
     sized?.observe(dug); place(); within = dug;
     view.setTimeout(() => { if (dug.isConnected && !dug.dataset.whole) { dug.dataset.whole = '1'; place(); } }, 800);
   };
@@ -172,7 +173,7 @@ function listing(el, read, opts = {}) {
    as its View says (node/view.js), in the order the person gave the page's lists. Gives back the listing's handle with
    find(words), which narrows every list to the words and turns them back to a day ("on Oct 7"), and rows(), how many nodes
    the lists hold. */
-function related(el, uuid) {
+function related(el, uuid, from = '') {
   const view = G.listview.state(uuid);
   let total = 0;
   const handle = listing(el, async () => {
@@ -188,15 +189,16 @@ function related(el, uuid) {
     for (const list of made) {
       list.types = types; list.own_name = list.prop?.title || '';
       if (list.kind === 'property') list.name = G.reads.back(list.prop.title, named);   // read from this end: "Prescribed by" is "Prescribed" here
+      if (from) list.rows = list.rows.filter(row => row.uuid !== from);   // never back to the node it was opened from (the owner's marked page, 26 Nov)
       list.rows = list.rows.map(row => ({ ...row, held: held.get(row.id) || {}, where: list.kind === 'mentions' && !row.isPage ? (sits.get(row.id) || []) : [] }));
     }
     total = made.reduce((n, list) => n + list.rows.length, 0);
-    return G.view.ordered(made, G.listview.order(uuid));
+    return G.view.ordered(from ? made.filter(list => list.rows.length) : made, G.listview.order(uuid));   // a list that held only the way back is left out
   }, { view, few: 10, add: true });
   const offDrags = G.listview.drags(mounted.get(el));
   return { ...handle, off() { offDrags(); handle.off(); }, rows: () => total, day: () => view.own, find(words) { view.find = G.view.parse(words, D.number(new Date())); mounted.get(el)?.redraw(); } };
 }
-const lists = (el, uuid) => related(el, uuid).off;
+const lists = (el, uuid, from) => related(el, uuid, from).off;
 async function load(state) {
   const turn = ++state.turn;
   try {
@@ -232,7 +234,7 @@ function draw(state, made, names, statuses) {
   const wanted = made.length || !state.none ? made : [{ key: 'none', kind: 'none', name: state.none, rows: [] }];
   sync(state.el, wanted, list => list.key, () => {
     const box = doc.createElement('div'); box.className = 'lk-list';
-    box.innerHTML = `<div class="lk-list-head" role="button" tabindex="0"><span class="lk-fold">${ARROW}</span><span class="lk-list-via"></span><span class="lk-list-name"></span></div><div class="lk-rows"></div>`;
+    box.innerHTML = `<div class="lk-list-head" role="button" tabindex="0"><span class="lk-fold">${CHEV}</span><span class="lk-list-via"></span><span class="lk-list-name"></span></div><div class="lk-rows"></div>`;
     return box;
   }, (box, list) => {
     const isFolded = folded.has(list.key), head = box.firstElementChild, rowsEl = box.querySelector(':scope > .lk-rows');
@@ -269,7 +271,7 @@ function draw(state, made, names, statuses) {
       if (item.type !== 'row') return el;
       el.className = 'lk-row';
       // In a list of Relations a row's arrow is the thin one its head has, as before the rebuild; elsewhere Logseq's own.
-      el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold${made ? ' lk-fold-thin' : ''}" aria-label="Open">${made ? CHEV : ARROW}</button><div class="lk-line" role="button" tabindex="0"></div>`;
+      el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold lk-fold-thin" aria-label="Open">${CHEV}</button><div class="lk-line" role="button" tabindex="0"></div>`;
       return el;
     }, (el, item) => {
       if (item.type === 'draft') return;
@@ -498,6 +500,7 @@ G.node.CSS = `
 .lk-relhead::after { content: ""; flex: 1; height: 1px; background: var(--lk-hair); }
 .lk-open > .lk-relhead:not(:has(+ .lk-rel > .lk-list)) { display: none; }
 .lk-dugopen > .lk-relhead { margin-left: 0; }
+.lk-dugname { font-size: var(--lk-line-size); line-height: var(--lk-line-lead); font-weight: 600; margin: 2px 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* whose the dug details are */
 .lk-row > .lk-open > .lk-rel { margin: 2px 0 6px 40px; }   /* one step in under the word Relations, so a head's mark stands where the word starts */
 .lk-dugopen > .lk-rel { margin: 2px 0 0 18px; }`;
 })();

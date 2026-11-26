@@ -26,6 +26,7 @@ async function main() {
   await graphReady();
   G.touch.editor.start(); root.onStop(() => G.touch.editor.stop());
   G.card.start(); root.onStop(() => G.card.stop());
+  root.onStop(G.touch.here());
   for (const part of G.parts) {
     if (!G.on(part.key)) continue;
     const base = G.base(part.key); bases.push(base);

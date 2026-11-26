@@ -83,7 +83,10 @@ function seat(editor, uuid) {
   const box = link.closest('.property-value-container') || link, at = editor.getBoundingClientRect(), r = row.getBoundingClientRect(), v = box.getBoundingClientRect();
   const inset = parseFloat(editor.ownerDocument.defaultView.getComputedStyle(box).paddingLeft) || 0;   // where the value's words start: past the values' own step in a narrow node
   const kind = row.classList.contains('property-pair') ? '.property-pair' : '.bottom-property-pill', n = [...row.parentElement.children].indexOf(row) + 1;
-  return { top: r.bottom - at.top, left: v.left + inset - at.left, row: `${kind}:nth-child(${n}):has(a.page-ref[data-uuid="${uuid}"])`, mark: `:is(${ROW}) a.page-ref[data-uuid="${uuid}"]` };
+  /* Under the value pressed, not the first of the row's values (the owner's marked page, 26 November 2026: "You opened low blood
+     oxygen, but its details start under cough"), while that leaves the node room to be read; else under the first. */
+  const own = (link.closest('.property-value-inner') || link).getBoundingClientRect(), mine = own.left > v.left + 1 && at.right - own.left >= 240;
+  return { top: r.bottom - at.top, left: (mine ? own.left : v.left + inset) - at.left, row: `${kind}:nth-child(${n}):has(a.page-ref[data-uuid="${uuid}"])`, mark: `:is(${ROW}) a.page-ref[data-uuid="${uuid}"]` };
 }
 // How wide the longest property name of an opened node is drawn, so its holder can set the names' column to it.
 function names(editor) {
@@ -501,7 +504,7 @@ ${PAGE}:has(.lk-relpage) .references, ${PAGE}:has(.lk-relpage) .ls-bidirectional
    closes the node, is the one a person means there (the walk, 25 November 2026: a press on the row's arrow reached Logseq's).
    A page's own arrow stays, in the place the line's bullet had: it unfolds what the page keeps folded (a tag's Extends and
    properties), and nothing else opens those. */
-const ARROW = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 512'%3E%3Cpath d='M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z'/%3E%3C/svg%3E\")";
+const ARROW = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='6 4 12 16'%3E%3Cpath d='M9 6l6 6l-6 6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")";   // the one fold arrow, thin, as every list's (the owner's marked pages, 26 November 2026)
 const OPENED = `
 /* One form for every node (25 November 2026: "this does not look like a coherent system to dig"). Logseq draws a page's
    properties as rows, name then value, and a tagged bullet's as capsules in one clipped strip. Inside an opened node both are
@@ -568,7 +571,7 @@ const OPENED = `
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] { min-width: 0; max-width: calc(100% + 16px); }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] :is(.jtrigger, .select-item) { min-width: 0; max-width: 100% !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref { overflow: hidden; text-overflow: ellipsis; }
-.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref::before { content: ""; display: inline-block; width: 12px; height: 14px; margin: 0 4px 0 0; vertical-align: -2px; background: var(--lk-off); -webkit-mask: ${ARROW} center / 5px 13px no-repeat; mask: ${ARROW} center / 5px 13px no-repeat; transition: transform .14s ease; cursor: pointer; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref::before { content: ""; display: inline-block; width: 12px; height: 14px; margin: 0 4px 0 0; vertical-align: -2px; background: var(--lk-off); -webkit-mask: ${ARROW} center / 8px 11px no-repeat; mask: ${ARROW} center / 8px 11px no-repeat; transition: transform .14s ease; cursor: pointer; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref:hover::before { background: var(--lk-text); }
 /* A node dug into: its name already stands on the value's line, so only what it holds is shown under it. */
 .lk-dugopen > .lk-editor .is-page-title-row { display: none !important; }
@@ -629,7 +632,27 @@ ${IN} a.tag { font-family: var(--lk-tag-face) !important; font-size: var(--lk-ta
 ${IN} a.tag:hover { color: var(--lk-text) !important; }
 ${IN} .block-tag a.hash-symbol { opacity: 0; }
 ${IN} .block-tag:hover a.hash-symbol { opacity: .6; }
+${IN} a.external-link { color: var(--lk-text) !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; }   /* a web link is a link: the ink, underlined, never Logseq's blue */
+${IN} a.external-link:hover { text-decoration-color: currentColor !important; }
+${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
 `;
+/* On a page, a link to that same page is its words alone: it leads nowhere (the owner's marked page, 26 November 2026). */
+function here() {
+  const doc = host(), el = doc.createElement('style'); el.id = 'lk-here'; doc.head.appendChild(el);
+  const quote = text => String(text).replace(/["\\]/g, '\\$&');
+  const set = async () => {
+    try {
+      const page = await logseq.Editor.getCurrentPage(), names = new Set();
+      if (page && !page.page) for (const name of [page.title, page.name, page.originalName]) if (name) names.add(String(name).toLowerCase());
+      const plain = `{ text-decoration: none !important; }`;
+      el.textContent = [...[...names].flatMap(name => [`#main-content-container a.page-ref[data-ref="${quote(name)}"]:not(.lk-editor *) ${plain}`, `#main-content-container a.lk-node[data-to="${quote(name)}" i]:not(.lk-editor *) ${plain}`]),
+        ...(page && !page.page && page.uuid ? [`#main-content-container a.lk-node[data-to="${quote(String(page.uuid).toLowerCase())}"]:not(.lk-editor *) ${plain}`] : [])].join('\n');
+    } catch (error) { el.textContent = ''; }
+  };
+  set();
+  const off = logseq.App.onRouteChanged(() => set());
+  return () => { try { off?.(); } catch (error) { /* gone with the plugin */ } el.remove(); };
+}
 /* Logseq's own screens, quieted, as the plugin drew them before 0.9 (the owner, 25 November 2026, choosing each from a
    picture of both). One sheet for each thing, so each can be switched off on its own. Nothing here is inside an opened node:
    those rows are laid out by OPENED. */
@@ -789,5 +812,5 @@ function sidePages() {
   doc.addEventListener('click', onName, true);
   return () => { off(); doc.removeEventListener('click', onName, true); };
 }
-G.touch = { sidePages, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();
