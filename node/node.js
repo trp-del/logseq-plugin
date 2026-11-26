@@ -353,7 +353,10 @@ function handle(state, event) {
   if (row && G.line.act(event, row, state.more)) { event.stopPropagation(); return; }
   if (state.view && !row && G.listview.act(state, event)) { event.stopPropagation(); return; }
   const head = target.closest('.lk-list-head');
-  if (head && head.parentElement.dataset.kind !== 'none' && (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
+  // Only the arrow folds a list to a press; the rest of its head line (the property's name, the tags) is for reading and choosing
+  // (the owner, 26 November 2026: "only click on the chevron shpuld fold the sections of relations not the entire row"). The keys
+  // still fold it from the head.
+  if (head && head.parentElement.dataset.kind !== 'none' && ((event.type === 'click' && target.closest('.lk-fold')) || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
     if (target.closest('.lk-tick, button')) return;
     event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); state.view?.kinds.delete(head.parentElement.dataset.key); state.redraw(); return;   // a folded list keeps no kind chosen
   }
@@ -400,6 +403,7 @@ G.node.CSS = `
 .lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: var(--lk-prop-size); letter-spacing: -.01em; }
 .lk-list[data-kind="none"] .lk-fold { visibility: hidden; }
 .lk-list-head { display: flex; align-items: center; gap: 2px var(--lk-mark-gap); min-height: 28px; margin-left: -18px; cursor: default; border-radius: var(--lk-corner); }
+.lk-list-head > .lk-fold { cursor: pointer; }
 .lk-list-head:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-list-head .lk-fold { opacity: 0; margin-top: 0; }
 .lk-list-head:hover .lk-fold, .lk-list-head:focus-visible .lk-fold, .lk-list-head[aria-expanded="false"] .lk-fold { opacity: 1; }

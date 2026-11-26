@@ -53,11 +53,13 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-row[data-open] > .lk-fold').click(); await wait(300);
       return is([second, open, await count('.lk-row[data-open]')], ['Wiped out all day.', 1, 0]);
     });
-    await step('a list folds and unfolds on its name, and stays folded on another page', async () => {
-      await page.locator('.lk-list-head').first().click(); await wait(500);
+    await step('a list folds and unfolds on its arrow only, not on a press on its name', async () => {
+      await page.locator('.lk-list-head .lk-list-via, .lk-list-head .lk-list-name').first().click(); await wait(500);
+      const kept = await page.evaluate(() => document.querySelector('.lk-list .lk-rows').hidden);
+      await page.locator('.lk-list-head > .lk-fold').first().click(); await wait(500);
       const hidden = await page.evaluate(() => document.querySelector('.lk-list .lk-rows').hidden);
-      await page.locator('.lk-list-head').first().click(); await wait(500);
-      return is([hidden, await page.evaluate(() => document.querySelector('.lk-list .lk-rows').hidden)], [true, false]);
+      await page.locator('.lk-list-head > .lk-fold').first().click(); await wait(500);
+      return is([kept, hidden, await page.evaluate(() => document.querySelector('.lk-list .lk-rows').hidden)], [false, true, false]);
     });
     await goto(NORTHGATE);
     await step('a page opened in a row reads as a line: its name the size of the words, its own lists under it', async () => {

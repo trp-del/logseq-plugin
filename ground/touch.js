@@ -595,6 +595,13 @@ const OPENED = `
 .lk-editor .breadcrumb { display: none !important; }
 .lk-editor:not(:has(.ls-page-title)) .ls-page-blocks .blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container > .block-control-wrap > .block-control { visibility: hidden !important; pointer-events: none !important; }
 .lk-editor .ls-page-blocks { margin-top: 0 !important; min-height: 0 !important; }
+/* A page opened from a line (Search, Relations, Todo): its name is one line, its bullets come straight under it, one step in,
+   their dots clear of the line down the opened node's side; a bullet being typed keeps the size of the words around it (the
+   owner's picture of "Doctors" opened in Search, 26 November 2026). */
+.lk-editor .ls-page-title .is-page-title-row { min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; }
+.lk-editor .ls-page-title .ls-block-right:not(:has(* > *)) { display: none !important; }   /* Logseq's empty place for the page's tags, which stood as a blank second line */
+.lk-row > .lk-open > .lk-editor .ls-page-blocks { margin-left: 12px !important; }
+.lk-editor textarea { font-size: inherit !important; }
 .lk-editor .ls-page-blocks:has(.ls-block[blockid]) .block-add-button { display: none !important; }   /* Logseq's dot for a first bullet, only where there is none yet */
 .lk-editor .ls-page-title-container, .lk-editor .ls-page-title-container :is(h1, .block-title-wrap, .ls-page-title-actions) { font-size: inherit !important; line-height: 24px !important; font-weight: 600 !important; min-height: 0 !important; margin: 0 !important; }
 .lk-editor .ls-page-properties { margin: 2px 0 0 24px !important; }   /* a page's rows start where its title's words do */
