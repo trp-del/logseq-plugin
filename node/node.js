@@ -261,7 +261,8 @@ function draw(state, made, names, statuses) {
     const items = made ? G.listview.items(state, list, made, state.few) : L.shown(list.rows, state.all.has(list.key), state.few).map(row => ({ type: 'row', key: row.uuid, row }));
     const hidden = made ? (items.hidden || 0) : list.rows.length - items.length;
     const dated = items.filter(item => item.type === 'row' && item.row.dayShown), long = dated.some(item => Math.floor(item.row.dayShown / 10000) !== Math.floor(today / 10000));
-    box.style.setProperty('--lk-daycol', made ? '0px' : dated.length ? (long ? '92px' : '56px') : '0px');   // a list of Relations has the day after the bullet, inside the line
+    box.style.setProperty('--lk-daycol', dated.length ? (long ? '92px' : '56px') : '0px');   // the day at the line's right end, in every list (the owner, 26 November 2026)
+    box.classList.toggle('lk-day-end', true);
     box.style.setProperty('--lk-dayin', long ? '90px' : '54px');
     box.toggleAttribute('data-picking', !!made?.picking);
     box.toggleAttribute('data-viewed', !!made);
@@ -287,7 +288,7 @@ function draw(state, made, names, statuses) {
       let tick = el.querySelector(':scope > .lk-tick');
       if (item.picking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = !!item.picked; } else tick?.remove();
       const want = made?.finding ? G.search.tokens(state.view.find.words) : [];
-      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown, day: made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
+      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
       if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; if (want.length) hit(line.querySelector('.lk-words'), want); }
       G.undo.dress(el);   // the node changed last keeps its arrow through a redraw
@@ -416,7 +417,6 @@ G.node.CSS = `
 /* A list of Relations has the day after the bullet, inside the line. Opened, the node stands where its words stood, and its
    day stays where it was. */
 .lk-list[data-viewed] > .lk-rows > .lk-row { position: relative; }
-.lk-list[data-viewed] > .lk-rows > .lk-row > .lk-day { display: none; }
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: flex; align-items: baseline; position: absolute; left: 44px; top: 2px; width: var(--lk-dayin, 54px); padding: 0; color: var(--lk-quiet); z-index: 1; }
 /* On the baseline of the opened node's first line, as on the line's words it stood beside: a strut of the words' line. */
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day::before { content: "\\200b"; width: 0; font-size: var(--lk-words-size); line-height: 24px; }
