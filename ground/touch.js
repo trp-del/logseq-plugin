@@ -591,6 +591,8 @@ const CALM = {
 ${AREA} .ls-page-title-container${OUT} { font-size: 30px !important; line-height: 1.3 !important; }
 ${AREA} .ls-page-title-container${OUT} .block-content-or-editor-inner { font-size: inherit !important; line-height: inherit !important; }
 ${AREA} .ls-page-title-container${OUT} :is(.block-title-wrap, .editor-inner textarea) { font-weight: 600 !important; letter-spacing: -.015em; }
+/* The plugin's own pages (Ontology, Todo, the Recycle list) title the same way as Logseq's. */
+.lk-page > .lk-page-title { font-size: 30px; line-height: 1.3; letter-spacing: -.015em; }
 #journals .journal-item { border-bottom-color: transparent !important; }`,
   /* "Add property" under a page's properties: quiet words, a little apart from the rows, not a filled press. */
   add: `
