@@ -123,6 +123,18 @@ test('tasks stand under Today, Coming up and Any time; an overdue one says its d
   assert.deepEqual(got.map(l => [l.name, l.rows.map(r => r.uuid)]), [['Today', ['b', 'a']], ['Coming up', ['c']], ['Any time', ['d']]]);
   assert.deepEqual(got[0].rows.map(r => r.dayShown), [20261118, 0]);
   assert.deepEqual(todo.groups([], 20261125), []);
+  // 25 November 2026 is a Wednesday.
+  const dayIn = words => todo.dayIn(words, 20261125);
+  assert.deepEqual(dayIn('Call Sam by friday'), { day: 20261127, words: 'Call Sam' });
+  assert.deepEqual(dayIn('Pay rent tomorrow'), { day: 20261126, words: 'Pay rent' });
+  assert.deepEqual(dayIn('Book the dentist next week'), { day: 20261130, words: 'Book the dentist' });
+  assert.deepEqual(dayIn('File taxes on nov 20'), { day: 20271120, words: 'File taxes' });
+  assert.deepEqual(dayIn('Renew passport 3 december'), { day: 20261203, words: 'Renew passport' });
+  assert.deepEqual(dayIn('Lunch next friday'), { day: 20261204, words: 'Lunch' });
+  assert.equal(dayIn('Sit in the sun'), null);
+  assert.deepEqual(dayIn('Walk on sun'), { day: 20261129, words: 'Walk' });
+  assert.equal(dayIn('tomorrow'), null);
+  assert.equal(dayIn('Buy milk'), null);
   const sorted = todo.by('status', [{ uuid: 'a', words: 'Pay', day: 20261125, s: 'Todo' }, { uuid: 'b', words: 'Call', day: 0, s: 'Doing' }, { uuid: 'c', words: 'Old', day: 20261101, s: 'Todo' }, { uuid: 'd', words: 'Odd', day: 0, s: '' }], 20261120, task => task.s, ['Backlog', 'Todo', 'Doing']);
   assert.deepEqual(sorted.map(list => [list.name, list.rows.map(row => row.uuid), list.rows.map(row => row.late)]), [['Todo', ['c', 'a'], [true, false]], ['Doing', ['b'], [false]], ['No status', ['d'], [false]]]);
   assert.deepEqual(got[0].rows.map(r => r.late), [true, false], 'a task past its day is late, one due today is not');

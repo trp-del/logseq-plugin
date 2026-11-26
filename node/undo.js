@@ -36,7 +36,8 @@ function dress(row) {
   if (!last || row.dataset.uuid !== last.uuid) { row.querySelector(':scope > .lk-line .lk-undo')?.remove(); return; }
   const line = row.querySelector(':scope > .lk-line');
   if (!line || line.querySelector('.lk-undo')) return;
-  (line.querySelector(':scope > .lk-words') || line).appendChild(arrow(row.ownerDocument, false));   // inside the words, so it follows the last of them wherever they end
+  const words = line.querySelector(':scope > .lk-words') || line, under = words.querySelector(':scope > .lk-sits');   // inside the words, so it follows the last of them wherever they end; before the small line that says where the node sits
+  words.insertBefore(arrow(row.ownerDocument, false), under);
   last.dock?.remove(); last.dock = null;
 }
 function mark(uuid, steps = 1) {
