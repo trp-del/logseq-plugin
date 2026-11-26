@@ -432,8 +432,8 @@ G.node.CSS = `
 .lk-list-head:has(> .lk-list-via:not(:empty)) .lk-fold { opacity: 1; }   /* on the count's line the arrow stays in view, faint, as it was */
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
 .lk-span { margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* A row's arrow in a list of Relations: the thin one, faint until the row is under the pointer. */
-.lk-row > .lk-fold.lk-fold-thin svg { width: 13px; height: 13px; }
+/* A row's arrow in a list of Relations is the thin one, faint until the row is under the pointer, the size of every other
+   arrow (.lk-fold svg). */
 /* Where a found node holds the words: the property and its values under its line, on the words' own edge. */
 .lk-row > .lk-found { grid-column: 3; min-width: 0; padding: 0 6px 4px 20px; font-size: 14px; line-height: 21px; }
 .lk-list:has(.lk-row .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: calc(20px + var(--lk-dayin, 54px) + 12px); }
