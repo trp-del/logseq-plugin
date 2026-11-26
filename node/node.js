@@ -286,7 +286,7 @@ function draw(state, made, names, statuses) {
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
       let tick = el.querySelector(':scope > .lk-tick');
       if (item.picking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = !!item.picked; } else tick?.remove();
-      const want = made?.finding ? G.find.tokens(state.view.find.words) : [];
+      const want = made?.finding ? G.search.tokens(state.view.find.words) : [];
       const html = G.line.html(row, { names, statuses, tagShown: row.tagShown, day: made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
       if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; if (want.length) hit(line.querySelector('.lk-words'), want); }
@@ -386,7 +386,7 @@ function adder(holder, name, add, failed) {
   field.addEventListener('keydown', onKey);
   return () => { field.removeEventListener('keydown', onKey); line.remove(); };
 }
-G.node = { toggle, open, close, back, listing, lists, related, adder, folded, ARROW, CHEV };
+G.node = { toggle, open, close, back, listing, lists, related, adder, folded, hit, ARROW, CHEV };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }

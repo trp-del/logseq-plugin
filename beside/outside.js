@@ -23,7 +23,7 @@
      lines: [{ uuid, depth, words, task, tag, under }],   its bullets; words as written, a link as [[its name]]; under: how many bullets stand under it
      lists: [{ name, said, rows: [{ uuid, title, kind, day, isPage }], more }] }   what points at it, as Relations lists it */
 (function () {
-const G = window.PluginDoor, R = G.read, Wr = G.write, W = G.words, D = G.days, F = G.find;
+const G = window.PluginDoor, R = G.read, Wr = G.write, W = G.words, D = G.days, T = G.tags, S = G.search;
 const FEW = 5;
 const fail = said => { throw new Error(said); };
 const row = (node, names, kind = node.tag) => ({ uuid: node.uuid, title: W.plain(W.firstLine(node.words).line, names) || 'Untitled', kind: kind || '', day: D.short(node.day), isPage: !!node.isPage });
@@ -71,15 +71,15 @@ const answers = {
     return { ok: true, nodes: found.map(node => row(node, names)) };
   },
   async node({ uuid }) { const node = await whole(uuid); return node ? { ok: true, node } : { ok: false, said: 'That node is no longer in the graph.' }; },
-  async tags() { return { ok: true, tags: F.tree(await R.tags()).map(({ tag, depth }) => ({ uuid: tag.uuid, title: tag.title, depth })) }; },
+  async tags() { return { ok: true, tags: T.tree(await R.tags()).map(({ tag, depth }) => ({ uuid: tag.uuid, title: tag.title, depth })) }; },
   async candidates({ ident, words }) {
     const prop = (await R.schema()).props.get(String(ident)) || fail('That property is no longer in the graph.'), text = String(words || '').trim();
     const tagIndex = await R.tags(), takes = new Set();
-    for (const tag of prop.range) for (const one of F.under(tag, tagIndex)) takes.add(one);
+    for (const tag of prop.range) for (const one of T.under(tag, tagIndex)) takes.add(one);
     const found = takes.size ? await R.tagged([...takes]) : text ? (await R.search(text, 40)).filter(node => node.isPage) : [];
     const names = await R.names(found.flatMap(node => W.named(node.words)));
     const plain = found.map(node => ({ ...node, words: W.plain(W.firstLine(node.words).line, names) }));
-    const kept = takes.size ? F.narrow(plain, text).sort((a, b) => a.words.localeCompare(b.words)) : plain;
+    const kept = takes.size ? S.narrow(plain, text).sort((a, b) => a.words.localeCompare(b.words)) : plain;
     return { ok: true, nodes: kept.slice(0, 60).map(node => ({ uuid: node.uuid, title: node.words || 'Untitled', kind: node.tag || '', day: D.short(node.day), isPage: !!node.isPage })) };
   },
   async markdown(request) {

@@ -13,7 +13,7 @@ async function offer(box, head, skip, take, done, failed) {
   G.read.forget();
   const tags = new Map([...(await G.read.tags())].filter(([id]) => id !== skip));
   if (!tags.size || G.touch.writing() !== box) return;
-  close = G.menu(box, [{ group: head }, ...G.find.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag',
+  close = G.menu(box, [{ group: head }, ...G.tags.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag',
     take: () => take(tag).then(() => G.say(done(tag))).catch(error => G.say(`${failed(tag)}: ${error?.message || 'Logseq refused'}`, 'warning')) }))], { quiet: true });
 }
 const fail = error => console.error('Logseq Plugin: what was just made could not be asked about', error);

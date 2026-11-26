@@ -22,7 +22,7 @@
      touch.tagList(say)       words after each tag's name in Logseq's own list of tags (the one on "#"): say(name) -> words
      touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k'), matched by its place on the keyboard; gives back what
                               lets it go. fn answers false to leave the press to Logseq after all
-     touch.command(key, label, run)   a line in Logseq's command palette
+     touch.command(key, label, run)   a line in Logseq's command palette; touch.commands() the ones made, { name, label, run }
      touch.plugins           the plugins Logseq runs: those from a folder (reloaded) and those from its marketplace (updated
                               by Logseq's own updater)
      touch.section(key, title, draw, path)  a section of Logseq's right sidebar that is the plugin's own: Logseq hosts it and
@@ -322,7 +322,9 @@ function tableBar(word, run) {
   return () => { off(); for (const button of doc.querySelectorAll('.lk-table-word')) button.remove(); };
 }
 // A command in Logseq's palette; with keys ('u p'), also a shortcut of Logseq's own kind, listed and changed in its settings.
-const command = (name, label, run, keys) => logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run);
+const said = new Map();   // the plugin's own commands, for a place that lists them (the corner)
+const command = (name, label, run, keys) => { said.set(name, { name, label, run }); return logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run); };
+const commands = () => [...said.values()];
 /* The plugins Logseq runs, each { id, title, version }. mine(): the ones it loads from a folder of the person's own. market():
    the ones it installed from its marketplace. updates(list) asks Logseq's own updater (the one behind "Check for updates" on its
    plugins page) for each plugin of market() with a newer release on GitHub, one after another; Logseq downloads it and loads it
@@ -812,5 +814,5 @@ function sidePages() {
   doc.addEventListener('click', onName, true);
   return () => { off(); doc.removeEventListener('click', onName, true); };
 }
-G.touch = { sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

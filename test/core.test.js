@@ -95,28 +95,34 @@ test('a tag\'s path runs up to the top, and a loop ends it', () => {
   assert.deepEqual(path(6, tags).map(t => t.title), ['Two', 'Entity']);
   assert.deepEqual(path(9, tags), []);
 });
-const find = require('../core/find.js'), todo = require('../core/todo.js');
+const search = require('../core/search.js'), tagTree = require('../core/tags.js'), todo = require('../core/todo.js');
 const TAGS = new Map([[1, { id: 1, title: 'Doctor', parents: [2] }], [2, { id: 2, title: 'Person', parents: [3] }], [3, { id: 3, title: 'Entity', parents: [] }], [4, { id: 4, title: 'Consultation', parents: [5] }], [5, { id: 5, title: 'Occurrence', parents: [] }], [6, { id: 6, title: 'Patient', parents: [2] }]]);
 test('the tags read as an outline, tops and children by name', () => {
-  assert.deepEqual(find.tree(TAGS).map(r => '  '.repeat(r.depth) + r.tag.title), ['Entity', '  Person', '    Doctor', '    Patient', 'Occurrence', '  Consultation']);
+  assert.deepEqual(tagTree.tree(TAGS).map(r => '  '.repeat(r.depth) + r.tag.title), ['Entity', '  Person', '    Doctor', '    Patient', 'Occurrence', '  Consultation']);
 });
 test('a tag holds every tag below it', () => {
-  assert.deepEqual([...find.under(3, TAGS)].sort(), [1, 2, 3, 6]);
-  assert.deepEqual([...find.under(4, TAGS)], [4]);
+  assert.deepEqual([...tagTree.under(3, TAGS)].sort(), [1, 2, 3, 6]);
+  assert.deepEqual([...tagTree.under(4, TAGS)], [4]);
 });
 test('typed words find kinds, the one that starts with them first', () => {
-  assert.deepEqual(find.kinds(TAGS, 'p').map(t => t.title), ['Person', 'Patient']);
-  assert.deepEqual(find.kinds(TAGS, 'on').map(t => t.title), ['Person', 'Consultation']);
-  assert.deepEqual(find.kinds(TAGS, ''), []);
+  assert.deepEqual(search.kinds(TAGS, 'p').map(t => t.title), ['Person', 'Patient']);
+  assert.deepEqual(search.kinds(TAGS, 'on').map(t => t.title), ['Person', 'Consultation']);
+  assert.deepEqual(search.kinds(TAGS, ''), []);
+});
+test('a search shows only what holds the words, each node once, pages first, the name itself before the rest', () => {
+  const found = [{ uuid: 'a', words: 'targeted therapies' }, { uuid: 'b', words: 'Ravikanth R Tadi agreed with Nutritionist' }, { uuid: 'c', words: 'Ravikanth R Tadi', isPage: true },
+    { uuid: 'c', words: 'Ravikanth R Tadi', isPage: true }, { uuid: 'd', words: 'Tadi', isPage: true }, { uuid: 'e', words: 'medical device', isPage: true }];
+  assert.deepEqual(search.rank(found, 'tadi').map(n => n.uuid), ['d', 'c', 'b']);
+  assert.deepEqual(search.rank(found, ''), []);
 });
 test('words narrow by a node\'s words, its tag, a value of its, or its day, and say which value', () => {
   const nodes = [{ uuid: 'a', words: 'Video call about the tingling', tag: 'Consultation', day: 20261007, values: ['Dr. Mei Chen', 'Peripheral neuropathy'] },
     { uuid: 'b', words: 'First appointment', tag: 'Consultation', day: 20260820, values: ['Dr. Mei Chen'] }, { uuid: 'c', words: 'Chen family dinner', tag: '', day: 0, values: [] }];
-  assert.deepEqual(find.narrow(nodes, 'chen oct').map(n => [n.uuid, n.why]), [['a', ['Dr. Mei Chen']]]);
-  assert.deepEqual(find.narrow(nodes, 'chen').map(n => n.uuid), ['c', 'a', 'b']);          // the one whose own words start with it first
-  assert.deepEqual(find.narrow(nodes, 'consult 2026').map(n => n.uuid), ['a', 'b']);
-  assert.deepEqual(find.narrow(nodes, '').length, 3);
-  assert.deepEqual(find.narrow(nodes, 'nothing'), []);
+  assert.deepEqual(search.narrow(nodes, 'chen oct').map(n => [n.uuid, n.why]), [['a', ['Dr. Mei Chen']]]);
+  assert.deepEqual(search.narrow(nodes, 'chen').map(n => n.uuid), ['c', 'a', 'b']);          // the one whose own words start with it first
+  assert.deepEqual(search.narrow(nodes, 'consult 2026').map(n => n.uuid), ['a', 'b']);
+  assert.deepEqual(search.narrow(nodes, '').length, 3);
+  assert.deepEqual(search.narrow(nodes, 'nothing'), []);
 });
 test('tasks stand under Overdue, Today, Coming up and Any time; an overdue one says its day', () => {
   const got = todo.groups([{ uuid: 'a', words: 'Pay', day: 20261125 }, { uuid: 'b', words: 'Dispute', day: 20261118 }, { uuid: 'c', words: 'Move', day: 20261130 }, { uuid: 'd', words: 'Call', day: 0 }], 20261125);
@@ -188,7 +194,7 @@ test('a list of several says how many, of what, and from when to when; a list of
 });
 test('the nodes under a tag are its own and those of the tags below it, each counted once', () => {
   const tags = new Map([[1, { id: 1, title: 'Entity', parents: [] }], [2, { id: 2, title: 'Person', parents: [1] }], [3, { id: 3, title: 'Doctor', parents: [2] }], [4, { id: 4, title: 'Place', parents: [] }]]);
-  const counts = find.counts(tags, [[1, 10], [2, 11], [3, 11], [3, 12], [4, 13], [9, 14]]);
+  const counts = tagTree.counts(tags, [[1, 10], [2, 11], [3, 11], [3, 12], [4, 13], [9, 14]]);
   assert.deepEqual([counts.get(1), counts.get(2), counts.get(3), counts.get(4)], [3, 2, 2, 1]);
 });
 

@@ -41,7 +41,7 @@ async function pickTags(at, row) {
   const uuid = row.dataset.uuid, node = await G.read.node(uuid);
   if (!node) return;
   const [tags, own] = await Promise.all([G.read.tags(), G.read.tagsOf(node.id)]), has = new Set(own);
-  G.menu(at, [{ group: 'Tags' }, ...G.find.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id),
+  G.menu(at, [{ group: 'Tags' }, ...G.tags.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id),
     take: () => G.undo.after(uuid, has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning')) }))]);
 }
 // A property given to a node, as Logseq's own Add property gives one to a bullet: the properties its tags give and it has not

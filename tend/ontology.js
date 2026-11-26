@@ -95,7 +95,7 @@ G.part({
         rel.querySelector(':scope > .lk-joins')?.remove();
         const me = ids.get(lit);
         if (!me) return;
-        const near = G.find.under(me, tagIndex), rowOf = new Map([...rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows > .lk-row')].map(row => [ids.get(row.dataset.uuid), row]));
+        const near = G.tags.under(me, tagIndex), rowOf = new Map([...rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows > .lk-row')].map(row => [ids.get(row.dataset.uuid), row]));
         const at = rel.getBoundingClientRect(), areas = [...rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows')];
         const tops = [...new Set(areas.map(area => Math.round(area.getBoundingClientRect().top - at.top)))].sort((x, y) => x - y);
         const seat = row => { const r = (row.querySelector(':scope > .lk-line') || row).getBoundingClientRect(), area = row.parentElement, ar = area.getBoundingClientRect(); return { y: r.top - at.top + 14, l: ar.left - at.left, r: ar.right - at.left, area: areas.indexOf(area), line: tops.indexOf(Math.round(ar.top - at.top)) }; };
@@ -145,9 +145,9 @@ G.part({
         else if (d > 0) move(uuid, d > 1 ? above(row, d - 2)?.dataset.uuid || '' : '');
       };
       const list = G.node.listing(rel, async () => {
-        const tags = await G.read.tags(), tree = G.find.tree(tags), props = [...(await G.read.properties()).values()].sort((a, b) => a.title.localeCompare(b.title));
+        const tags = await G.read.tags(), tree = G.tags.tree(tags), props = [...(await G.read.properties()).values()].sort((a, b) => a.title.localeCompare(b.title));
         const [tagNodes, propNodes, pairs] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.byUuids(props.map(prop => prop.uuid)), G.read.tagPairs()]);
-        const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.find.counts(tags, pairs), idOf = new Map(tree.map(row => [row.tag.uuid, row.tag.id]));
+        const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.tags.counts(tags, pairs), idOf = new Map(tree.map(row => [row.tag.uuid, row.tag.id]));
         ids = idOf; tagIndex = tags; joins = await G.read.relations();
         const tagRows = tagNodes.map(node => ({ ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(idOf.get(node.uuid)) || 0 }));
         const propList = { key: 'ontology:properties', kind: 'group', name: 'Properties', tag: '', face: 'prop', rows: propNodes.map(plain) };
@@ -175,10 +175,10 @@ G.part({
           const under = async () => {
             const tags = await G.read.tags(), tag = [...tags.values()].find(one => one.uuid === uuid);
             if (!tag) return;
-            const below = G.find.under(tag.id, tags), others = new Map([...tags].filter(([id]) => !below.has(id)));
-            G.menu(at, [{ group: `Put ${tag.title} under` }, ...G.find.tree(others).map(({ tag: one, depth }) => ({ word: one.title, depth, face: 'tag', on: tag.parents.includes(one.id), take: () => move(uuid, one.uuid) }))]);
+            const below = G.tags.under(tag.id, tags), others = new Map([...tags].filter(([id]) => !below.has(id)));
+            G.menu(at, [{ group: `Put ${tag.title} under` }, ...G.tags.tree(others).map(({ tag: one, depth }) => ({ word: one.title, depth, face: 'tag', on: tag.parents.includes(one.id), take: () => move(uuid, one.uuid) }))]);
           };
-          return [{ gap: true }, { word: 'Show its nodes', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.arrive.find(tag.id); } },
+          return [{ gap: true }, { word: 'Show its nodes', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.arrive.search(tag.id); } },
             { word: 'Move values…', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.moving.ask(holder, { tag: { id: tag.id, title: tag.title } }); } },
             { word: 'Put under…', take: under },
             ...(depthOf(row) > 0 ? [{ word: 'Move to the top', take: () => move(uuid, '') }] : [])];

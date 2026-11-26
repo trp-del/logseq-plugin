@@ -28,7 +28,7 @@ async function run(state, box, uuids, words, each) {
 // by typing; a name no node has is offered as a new page, with the property's tag when it takes exactly one.
 async function askNode(at, prop, take) {
   const tags = await G.read.tags(), range = (prop.range || []).filter(id => tags.has(id));
-  const under = range.length ? [...new Set(range.flatMap(id => [...G.find.under(id, tags)]))] : [...tags.keys()];
+  const under = range.length ? [...new Set(range.flatMap(id => [...G.tags.under(id, tags)]))] : [...tags.keys()];
   const found = (await G.read.tagged(under)).sort((a, b) => String(a.words).localeCompare(String(b.words))).slice(0, 400);
   const names = await G.read.names(found.flatMap(node => G.words.named(G.words.firstLine(node.words).line)));
   G.menu(at, found.map(node => ({ word: G.words.plain(G.words.firstLine(node.words).line, names), value: node.tag, take: () => take(node.id, node) })), { find: `A node for ${prop.title}`,
@@ -59,7 +59,7 @@ async function askProperty(at, title, take, only = null) {
 }
 async function askTag(at, title, take) {
   const tags = await G.read.tags();
-  G.menu(at, [{ group: title }, ...G.find.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', take: () => take(tag) }))], { find: 'A tag' });
+  G.menu(at, [{ group: title }, ...G.tags.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', take: () => take(tag) }))], { find: 'A tag' });
 }
 // This page taken out of what a node holds under the list's property; with another node given, that one put in its place.
 async function swap(state, box, uuids, into) {
@@ -86,7 +86,7 @@ function more(state, box, at, uuids) {
 // A mention made into something that points here: a tag, with the property of that tag that takes this page.
 async function makeIt(state, box, at, uuids) {
   const here = await G.read.node(state.view.uuid), [tags, mine, { props, byTag }] = await Promise.all([G.read.tags(), G.read.tagsOf(here.id), G.read.schema()]);
-  const fits = prop => prop.type === 'node' && (!prop.range.length || prop.range.some(top => mine.some(tag => G.find.under(top, tags).has(tag))));
+  const fits = prop => prop.type === 'node' && (!prop.range.length || prop.range.some(top => mine.some(tag => G.tags.under(top, tags).has(tag))));
   const choices = [];
   for (const [tagId, idents] of byTag) { const tag = tags.get(tagId); if (tag) for (const ident of idents) { const prop = props.get(ident); if (prop && fits(prop)) choices.push({ tag, prop }); } }
   if (!choices.length) { G.say('No tag of yours has a property that takes this page.'); return; }

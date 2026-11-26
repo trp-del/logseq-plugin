@@ -55,7 +55,7 @@ async function ask(place, { from = '', tag = null, only = null } = {}) {
   box.dataset.asking = '1'; box.onclick = null;
   const state = { from, into: null, naming: false, remove: false, nodes: [], made: null, busy: false };
   const [schema, pairs, tags] = await Promise.all([G.read.schema(), tag ? G.read.tagPairs() : [], G.read.tags()]);
-  const within = only ? new Set(only) : tag ? new Set(pairs.filter(([t]) => G.find.under(tag.id, tags).has(t)).map(([, node]) => node)) : null;
+  const within = only ? new Set(only) : tag ? new Set(pairs.filter(([t]) => G.tags.under(tag.id, tags).has(t)).map(([, node]) => node)) : null;
   // For ticked rows with no property named: the one most of them hold comes first.
   if (only && !state.from) { const held = await G.read.held([...within]), n = new Map(); for (const has of held.values()) for (const title of Object.keys(has)) n.set(title, (n.get(title) || 0) + 1);
     const most = [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0]; state.from = [...schema.props.values()].find(prop => prop.title === most)?.ident || ''; }

@@ -47,7 +47,7 @@ G.part({
       if (!tag) return;
       const from = tag.parents.map(id => all.get(id)?.uuid).filter(Boolean);
       const move = async to => { try { G.undo.mark(uuid, await G.write.moveTag(uuid, to, from)); } catch (error) { G.say(`The tag could not be moved: ${error?.message || 'Logseq refused'}`, 'warning'); } };
-      const may = G.find.tree(all).filter(({ tag: one }) => !G.tags.above(one.id, all).has(tag.id));   // not itself, nor a tag under it
+      const may = G.tags.tree(all).filter(({ tag: one }) => !G.tags.above(one.id, all).has(tag.id));   // not itself, nor a tag under it
       G.menu(line.lastElementChild, [{ word: 'None (at the top)', on: !from.length, take: () => move('') }, { gap: true },
         ...may.map(({ tag: one, depth }) => ({ word: one.title, face: 'tag', depth, on: tag.parents.includes(one.id), take: () => move(one.uuid) }))]);
     };
