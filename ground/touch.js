@@ -509,6 +509,11 @@ const OPENED = `
 /* The arrow before a value that is a node: a press on it digs. The arrow stands in the gutter between the two columns, so the
    words of every value start on one line. */
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] { margin-left: -16px; overflow: visible !important; }
+/* A value that is a node, with the tag said after it, keeps to the values' column: what does not fit ends in an ellipsis
+   instead of being cut at the edge of the node. */
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] { min-width: 0; max-width: calc(100% + 16px); }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] :is(.jtrigger, .select-item) { min-width: 0; max-width: 100% !important; }
+.lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref { overflow: hidden; text-overflow: ellipsis; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref::before { content: ""; display: inline-block; width: 12px; height: 14px; margin: 0 4px 0 0; vertical-align: -2px; background: var(--lk-off); -webkit-mask: ${ARROW} center / 5px 13px no-repeat; mask: ${ARROW} center / 5px 13px no-repeat; transition: transform .14s ease; cursor: pointer; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref:hover::before { background: var(--lk-text); }
 /* A node dug into: its name already stands on the value's line, so only what it holds is shown under it. */
