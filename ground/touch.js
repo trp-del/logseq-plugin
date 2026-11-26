@@ -326,15 +326,22 @@ const said = new Map();   // the plugin's own commands, for a place that lists t
 const command = (name, label, run, keys) => { said.set(name, { name, label, run }); return logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run); };
 const commands = () => [...said.values()];
 /* The plugins Logseq runs, each { id, title, version }. mine(): the ones it loads from a folder of the person's own. market():
-   the ones it installed from its marketplace. updates(list) asks Logseq's own updater (the one behind "Check for updates" on its
+   the ones it installed into its own plugin folder, from its marketplace or from a GitHub release. updates(list) asks Logseq's own updater (the one behind "Check for updates" on its
    plugins page) for each plugin of market() with a newer release on GitHub, one after another; Logseq downloads it and loads it
    again, as from its plugins page. It answers { updated: [{ title, version, to }], same, failed: [{ title, why }] }.
    reload(ids) has Logseq load the folder ones again, this plugin last: its own code ends there. What keep() is given outlives
    that reload for a minute, for took() to hand to the plugin's next run, once. */
 const LOADED = 'lk.plugins-before', MARKET = 'https://raw.githubusercontent.com/logseq/marketplace/master/plugins.json';
+// The GitHub repository a plugin names for itself ("owner/name"): Logseq's "Install plugin from GitHub release" keeps it as repo,
+// and a plugin's package.json may give it as repository.
+const ownRepo = options => {
+  const said = options?.repo || options?.repository?.url || options?.repository || '';
+  const found = typeof said === 'string' && said.match(/(?:github\.com[/:])?([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/);
+  return found ? found[1] : '';
+};
 const listed = filter => {
   const core = host().defaultView.LSPluginCore;
-  return core ? [...core.registeredPlugins.values()].filter(filter).map(one => ({ id: one.id, title: one.options?.title || one.options?.name || one.id, version: one.options?.version || '' })) : [];
+  return core ? [...core.registeredPlugins.values()].filter(filter).map(one => ({ id: one.id, title: one.options?.title || one.options?.name || one.id, version: one.options?.version || '', repo: ownRepo(one.options) })) : [];
 };
 // Logseq's updater answers on its own channel; the answer for one plugin, or null after two minutes.
 function asked(apis, pkg) {
@@ -360,8 +367,9 @@ const plugins = {
     let packages;
     try { packages = (await (await fetch(MARKET)).json()).packages || []; } catch (error) { out.failed = list.map(one => ({ ...one, why: "Logseq's list of plugins could not be read" })); return out; }
     for (const one of list) {
-      const listing = packages.find(pkg => pkg.id === one.id);
-      if (!listing?.repo) { out.failed.push({ ...one, why: "not in Logseq's list of plugins" }); continue; }
+      // One from Logseq's marketplace is updated from the repository its list names; one installed from its GitHub release, from its own.
+      const listing = packages.find(pkg => pkg.id === one.id && pkg.repo) || (one.repo ? { id: one.id, repo: one.repo } : null);
+      if (!listing) { out.failed.push({ ...one, why: 'it names no GitHub repository to update from' }); continue; }
       let latest = '';
       try { const answer = await fetch(`https://api.github.com/repos/${listing.repo}/releases/latest`); if (answer.ok) latest = (await answer.json()).tag_name || ''; } catch (error) { /* said below */ }
       if (!latest) { out.failed.push({ ...one, why: 'GitHub did not answer' }); continue; }

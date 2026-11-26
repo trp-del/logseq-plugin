@@ -22,7 +22,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
-| Beside the stack | `beside/` | Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those from its marketplace, a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
+| Beside the stack | `beside/` | Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -334,7 +334,7 @@ the tag it extends, its properties, a property's kind and what it takes. Ontolog
 **u p** (two keys one after the other, as Logseq's own **t p** for its plugins page), or **Update plugins** in the command
 palette, brings every plugin Logseq runs to its newest:
 
-- A plugin Logseq installed from its marketplace, with a newer release on GitHub, is updated by Logseq's own updater (the one
+- A plugin Logseq installed from its marketplace or from a GitHub release, with a newer release on GitHub, is updated by Logseq's own updater (the one
   behind **Check for updates** on its plugins page), one after another. Logseq says each one it updated, as it does there.
 - A plugin Logseq loads from a folder is loaded again: Logseq loads such a plugin once, when it starts, so what was put into
   the folder afterwards waits for the next start. This plugin is loaded last.
