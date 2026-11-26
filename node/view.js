@@ -47,7 +47,7 @@ function head(state, list, made, plus, today) {
     kinds = made.tabs.map(one => tab(one.kind, one.word, one.n, one.on)).join('');
     if (made.kind && made.kind !== '@new' && !made.tabs.some(one => one.kind === made.kind)) kinds += tab(made.kind, made.kind === '@none' ? 'No tag' : made.kind, made.count, true);
     if (made.more) kinds += `<button type="button" class="lk-tab lk-tabmore">and ${made.more} more</button>`;
-  } else kinds = tab(made.one || '', made.one || 'All', made.count, false);   // one kind: the same tab every head has, its name and count (the owner's marked page, 26 Nov: "Recommended, then Recommendations")
+  } else kinds = tab(made.one || '', made.one || 'All', made.count, !!made.one && made.kind === made.one);   // one kind: the same tab every head has, its name and count (the owner's marked page, 26 Nov: "Recommended, then Recommendations")
   if (made.fresh) kinds += tab('@new', `${made.fresh} new`, null, made.kind === '@new', ' lk-newtab');
   const dots = `<button type="button" class="lk-dots" title="View and more" aria-label="View and more">${icon('dots', 16)}</button>`;
   const said = made.said.length ? `<button type="button" class="lk-set" title="View">${G.esc(made.said.join(' · '))}</button>` : '';

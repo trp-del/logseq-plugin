@@ -30,7 +30,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
   try {
     await page.evaluate(() => { window.resizeTo(1100, 800); }); await wait(2500);   // the editor is asked for a moment after the start
     await goto(FATIGUE);
-    await step('a page lists what points at it, by property, the shared tag said once', async () => is(await lists(), [{ where: 'main', lists: ['Symptom type\n12 Symptom Logs\nJul 6 to Oct 4 (10)'] }]));
+    await step('a page lists what points at it, by property, the shared tag said once', async () => is(await lists(), [{ where: 'main', lists: ['Symptom type\nSymptom Log 12 (10)'] }]));   // one head for every list: the kind and its count, no span of days (the owner's marked page, 26 November 2026)
     await step('a list shows ten nodes, then "Show 2 more" shows them all', async () => { const more = page.locator('#main-content-container .lk-relpage .lk-more').first(), said = await more.innerText(); await more.click(); await wait(500); return is([said, await count('#main-content-container .lk-relpage > .lk-list > .lk-rows > .lk-row')], ['Show 2 more', 12]); });   // ten, the owner, 25 November 2026
     await step('Logseq\'s own Linked references are gone where the lists stand', async () => is(await page.evaluate(() => [...document.querySelectorAll('.references')].filter(el => el.offsetParent).length), 0));
     await step('rows carry their day, newest first', async () => is(await page.locator('.lk-row .lk-dayin').evaluateAll(els => els.slice(0, 3).map(el => el.textContent)), ['Oct 4', 'Oct 2', 'Sep 20']));
@@ -62,7 +62,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await goto(NORTHGATE);
     await step('a page opened in a row reads as a line: its name the size of the words, its own lists under it', async () => {
       await page.locator('.lk-row .lk-line').first().click(); await wait(2200);
-      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list > .lk-list-head')].map(el => [el.querySelector('.lk-list-via').innerText, el.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n'))]; }), ['16px', ['Decided\n3 Decisions\nAug 20 to Oct 14', 'Provider of\n2 Consultations\nAug 20 to Oct 7']]);
+      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list > .lk-list-head')].map(el => [el.querySelector('.lk-list-via').innerText, el.querySelector('.lk-list-name').innerText].filter(Boolean).join('\n'))]; }), ['16px', ['Decided\nDecision 3', 'Provider of\nConsultation 2']]);
     });
     await step('a node opens inside an opened node, and Escape closes one at a time, innermost first', async () => {
       await page.locator('.lk-open .lk-row .lk-line').nth(1).click(); await wait(1800);
@@ -180,8 +180,8 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-todo .lk-field').click(); await page.keyboard.type('Ring the pharmacy', { delay: 20 }); await page.keyboard.press('Enter'); await wait(2200);
       return is(await page.evaluate(() => [...document.querySelectorAll('.lk-todo .lk-list')].filter(l => l.querySelector('.lk-list-name').innerText === 'Any time').map(l => [...l.querySelectorAll('.lk-line')].map(el => el.innerText.split('\n')[0]).filter(t => t === 'Ring the pharmacy').length)), [1]);   // the line's first row: under it the task says where it sits
     });
-    await step('once a task is added the list is whole again, and the task says under its words where it sits', async () => {   // typing narrows the list; adding must not leave it narrowed
-      return is(await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-todo .lk-row')], mine = rows.find(r => r.querySelector('.lk-words')?.firstChild?.textContent.trim() === 'Ring the pharmacy'); return [rows.length > 1, !!mine?.querySelector('.lk-sits')?.textContent.trim(), document.querySelector('.lk-todo .lk-field').value]; }), [true, true, '']);
+    await step('once a task is added the list is whole again, and the task carries one day: no journal under its words', async () => {   // typing narrows the list; adding must not leave it narrowed
+      return is(await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-todo .lk-row')], mine = rows.find(r => r.querySelector('.lk-words')?.firstChild?.textContent.trim() === 'Ring the pharmacy'); return [rows.length > 1, !!mine?.querySelector('.lk-sits')?.textContent.trim(), document.querySelector('.lk-todo .lk-field').value]; }), [true, false, '']);
     });
     await step('a day said in a new task\'s words becomes its deadline and leaves the words', async () => {   // the owner chose this old part, 26 November 2026
       await page.locator('.lk-todo .lk-field').click(); await page.keyboard.type('Water the ferns tomorrow', { delay: 20 }); await wait(300);
@@ -303,15 +303,11 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     // ---- Relations: what a list's head says, and + on it
     await goto(CHEN);
     const MAIN = '#main-content-container .lk-relpage > .lk-list';
-    await step('a list\'s head says how many it holds, of what, and from when to when', async () => {
-      const heads = await page.evaluate(sel => [...document.querySelectorAll(sel)].map(l => [l.querySelector('.lk-list-name :is(.lk-said, .lk-tag)')?.innerText || '', l.querySelector('.lk-span')?.innerText || '', l.querySelectorAll(':scope > .lk-rows > .lk-row').length]), MAIN);
-      const counted = heads.filter(h => /^\d+ \S/.test(h[0]));
-      return is([counted.length > 0, counted.every(h => parseInt(h[0], 10) >= h[2] && parseInt(h[0], 10) > 1), heads.some(h => /^\w{3} \d+.* to \w{3} \d+/.test(h[1]))], [true, true, true]);
-    });
-    await step('a property\'s list has its head on two lines: the property\'s name, and under it the count, starting on one line', async () => {   // the owner, 25 November 2026: "I prefer the two line of oriiginal"
-      const heads = await page.evaluate(sel => { const left = el => { const range = document.createRange(); range.selectNodeContents(el); return range.getBoundingClientRect(); };
-        return [...document.querySelectorAll(sel)].filter(l => l.dataset.kind === 'property' && l.querySelector('.lk-said')).map(l => { const name = left(l.querySelector('.lk-list-via .lk-prop')), said = left(l.querySelector('.lk-said')); return [name.bottom <= said.top + 1, Math.abs(name.left - said.left) < 1.5, /^\d+ \S/.test(l.querySelector('.lk-said').innerText)]; }); }, MAIN);
-      return is([heads.length > 0, heads.every(h => h[0] && h[1] && h[2])], [true, true]);
+    await step('every list\'s head is one look: the property\'s name with the arrow, under it its kinds with their counts; the days only on the rows', async () => {   // the owner's marked page, 26 November 2026
+      const heads = await page.evaluate(sel => { const box = el => { const range = document.createRange(); range.selectNodeContents(el); return range.getBoundingClientRect(); };
+        return [...document.querySelectorAll(sel)].filter(l => l.dataset.kind === 'property' && l.querySelector('.lk-tab')).map(l => { const name = box(l.querySelector('.lk-list-via .lk-prop')), arrow = l.querySelector('.lk-list-head > .lk-fold').getBoundingClientRect(), tab = box(l.querySelector('.lk-tab'));
+          return [Math.abs((arrow.top + arrow.bottom) / 2 - (name.top + name.bottom) / 2) < 6, name.bottom <= tab.top + 1, !l.querySelector('.lk-list-head .lk-span'), /\d/.test(l.querySelector('.lk-tab').innerText)]; }); }, MAIN);
+      return is([heads.length > 0, heads.every(h => h.every(Boolean))], [true, true]);
     });
     await step('+ on a list\'s head opens a line to type a new node in at the list\'s end; Enter makes it pointing here, the Undo arrow takes it back', async () => {   // the owner, 25 November 2026: "the actual feature were well developed"
       const list = page.locator(MAIN, { has: page.locator('.lk-list-head .lk-plus') }).first(), name = await list.evaluate(el => el.lkList.prop.title);
