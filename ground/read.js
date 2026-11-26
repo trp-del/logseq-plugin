@@ -14,6 +14,7 @@
      read.tagsOf(id)          the ids of a node's own tags
      read.tagIds()            the ids of the person's tags as they are this moment (never kept)
      read.tagPairs()          [[tag id, node id]]   which node holds which of the person's tags
+     read.propertyCounts()    property uuid -> how many nodes hold something under it
      read.relations()         [[tag id, property ident, tag id, n]]   n nodes of the first tag hold, under the property, a node of the second
      read.holders(ident)      the nodes holding a value under a property: [{ id, uuid, words, tag, values: [{ raw, text }] }]
      read.heldUnder(node, value)  the name of the property under which one node holds another (uuids), or ''
@@ -75,6 +76,7 @@ const tagIds = async () => new Set((await q('[:find ?t ?i :where [?t :block/tags
 // The plain pages made since a moment (a time in milliseconds), asked afresh each time: no journal day, no tag, no property,
 // and none that already holds one of the person's tags.
 // Which node holds which of the person's tags: [[tag id, node id]], kept until the graph changes.
+const propertyCounts = async () => new Map((await q(`[:find ?u (count ?b) :where [?p :block/tags :logseq.class/Property] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/uuid ?u] [?b ?i _]]`)).map(([u, n]) => [String(u).toLowerCase(), Number(n) || 0]));
 const tagPairs = () => once('tagPairs', async () => {
   const mine = await tagIds();
   return (await q(`[:find ?t ?b :where [?b :block/tags ?t] [?t :block/tags :logseq.class/Tag] ${LIVE}]`)).filter(([t]) => mine.has(t));
@@ -421,5 +423,5 @@ async function choices() {
   return out;
 }
 
-G.read = { pageNamed, outline, holds, choices, recycled, held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { pageNamed, outline, holds, choices, recycled, held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

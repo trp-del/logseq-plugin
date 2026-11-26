@@ -557,6 +557,8 @@ const OPENED = `
 .lk-editor .block-left.positioned-properties > .property-value-inner:has([class*="ls-icon-priority"]) { display: none !important; }
 .lk-editor .block-tag:has(> div > a.tag[data-ref="task"]), .lk-editor .block-tag:has(a.tag[data-ref="task"]):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }
 .lk-editor .ls-block-right:has(.block-tags):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }
+.lk-editor .ls-block:not(.is-page-title-row *) > .block-main-container .block-row > .block-content-wrapper { flex: 0 1 auto !important; width: auto !important; }   /* an opened bullet keeps its tag right after its words, as its line had it */
+.lk-editor .ls-block .block-row > .ls-block-right { margin-left: 0 !important; }
 .lk-editor .block-main-container:has(> div > div > .block-main-content .block-left.positioned-properties) .positioned-properties.block-below { margin-left: 25px !important; width: auto !important; }   /* a task's properties start under its words */
 @container lk-list (max-width: 520px) {
   .lk-editor button.bottom-property-pill.bottom-property-hidden-toggle-btn:has(> .ls-icon-chevron-down) { display: none !important; }

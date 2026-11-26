@@ -21,9 +21,10 @@ G.part({
 .lk-relwrap { margin: 27px 0 20px; padding-left: 18px; font-size: 1rem; font-weight: 400; line-height: 24px; letter-spacing: normal; color: var(--lk-text); cursor: auto; }
 .lk-relwrap:not(:has(.lk-relpage > .lk-list)) { display: none; }
 .lk-relpage { gap: 28px; margin: 28px 0 0 19px; }   /* the lists one step in under the word Relations, as a bullet's children stand under it (the owner, 26 November 2026: "in-line with natural hierarchy") */
-.lk-relpage > .lk-list > .lk-rows { margin-left: -7px; }   /* a row's dot one step in from its list's name, as Logseq sets a child under its parent */
+.lk-relpage > .lk-list > .lk-rows { margin-left: -7px; }
+.lk-relpage > .lk-list > .lk-more { position: relative; left: -7px; }   /* Show more on its rows' words' edge */   /* a row's dot one step in from its list's name, as Logseq sets a child under its parent */
 .lk-relsec { margin: 0; }
-.lk-relfind-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); margin: 0 var(--lk-mark-gap) 0 -18px; color: var(--lk-quiet); }
+.lk-relfind-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); margin: 0 var(--lk-mark-gap) 0 -28px; color: var(--lk-quiet); }   /* the words on the edge of the word Relations, the mark hanging before them */
 .lk-relsec:not(:has(+ .lk-rel > .lk-list)) { display: none; }
 .lk-relsec > .lk-relhead { display: flex; gap: var(--lk-mark-gap); margin: 0 0 0 -28px;   /* the word on the page's edge, its arrow hanging before it as Logseq's own */ cursor: default; border-radius: 6px; }
 .lk-relsec > .lk-relhead::after { margin-left: 8px; }
@@ -37,8 +38,8 @@ G.part({
 .lk-relfind .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
 .lk-relfind .lk-field:focus, .lk-relfind .lk-field:not(:placeholder-shown) { border-bottom-color: var(--lk-line); }
 .lk-relfind .lk-field::placeholder { color: var(--lk-quiet); }
-.lk-relsec > .lk-relhead .lk-fold { opacity: .45 !important; }
-.lk-relsec > .lk-relhead:hover .lk-fold { opacity: .8 !important; }
+.lk-relsec > .lk-relhead .lk-fold { opacity: 1 !important; }
+.lk-relsec > .lk-relhead:hover .lk-fold { color: var(--lk-text); }
 .lk-relday { display: inline-flex; flex: none; font-size: var(--lk-small); }
 .lk-relday[hidden] { display: none; }`);
     const kept = new Map();   // the plugin's element on a page -> { off, head }

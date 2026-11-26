@@ -423,11 +423,16 @@ G.node.CSS = `
 /* The band of a node opened in a list of Relations starts at the row's dot and holds the dot and the day; the node itself starts
    past the day, where the line's words stood. (The owner, 25 November 2026: "this location of grey box": it started under the day.) */
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { --lk-open-shift: 0px; padding-left: calc(var(--lk-dayin, 54px) + 10px); }
+/* A node with no day, in a list of dated ones: no empty day before its words. They come after the dated ones, a little apart
+   (the owner's marked page, 26 November 2026: "No day, so a wide hole"). */
+.lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin:empty { display: none; }
+.lk-list[data-viewed] > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:not(:empty)) + .lk-row:has(> .lk-line > .lk-dayin:empty) { margin-top: 10px; }
+.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:empty) > .lk-open { padding-left: 0; }
 .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
 .lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
 .lk-list-head[data-thin] > .lk-list-name { align-items: baseline; }
-.lk-list-head[data-thin] > .lk-fold { opacity: .45 !important; }
-.lk-list-head[data-thin]:hover > .lk-fold { opacity: .8 !important; }
+.lk-list-head[data-thin] > .lk-fold { opacity: 1 !important; }   /* the one arrow, in the quiet grey every arrow has, never fainter */
+.lk-list-head[data-thin]:hover > .lk-fold { color: var(--lk-text); }
 .lk-list-head[data-plain] > .lk-list-via > .lk-plain { font-size: var(--lk-line-size); }
 .lk-list[data-picking] .lk-row > .lk-fold { display: none; }
 .lk-row > .lk-tick { grid-column: 2; align-self: start; justify-self: center; position: relative; z-index: 1; }
@@ -486,7 +491,7 @@ G.node.CSS = `
 /* The levels show: one soft band for the node opened from a row; a node dug into stands under the value it was reached
    through, its rows starting where the value's words start, with a guide line down from the value's arrow. It takes its room
    in one move, once Logseq has drawn it. */
-.lk-row > .lk-open { background: color-mix(in srgb, var(--lk-text) 3.5%, transparent); border-radius: var(--lk-corner); padding: 0 8px 6px 0; }
+.lk-row > .lk-open { border-radius: var(--lk-corner); padding: 0 8px 6px 0; }   /* one mark says open, the hairline down its side; no grey band as well (the owner's marked pages, 26 November 2026) */
 /* A line down the left side of the node opened from a row, from under its own line to its foot, as before 0.9. */
 /* ... under the row's dot, as Logseq draws a bullet's line down to its children: the dot's box is the mark's box at the band's start. */
 .lk-row > .lk-open::before { content: ""; position: absolute; left: calc(var(--lk-mark-box) / 2 - .5px - var(--lk-open-shift)); top: 28px; bottom: 8px; width: 1px; background: var(--lk-line); pointer-events: none; }

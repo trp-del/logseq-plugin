@@ -146,11 +146,11 @@ G.part({
       };
       const list = G.node.listing(rel, async () => {
         const tags = await G.read.tags(), tree = G.tags.tree(tags), props = [...(await G.read.properties()).values()].sort((a, b) => a.title.localeCompare(b.title));
-        const [tagNodes, propNodes, pairs] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.byUuids(props.map(prop => prop.uuid)), G.read.tagPairs()]);
+        const [tagNodes, propNodes, pairs, held] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.byUuids(props.map(prop => prop.uuid)), G.read.tagPairs(), G.read.propertyCounts().catch(() => new Map())]);
         const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.tags.counts(tags, pairs), idOf = new Map(tree.map(row => [row.tag.uuid, row.tag.id]));
         ids = idOf; tagIndex = tags; joins = await G.read.relations();
         const tagRows = tagNodes.map(node => ({ ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(idOf.get(node.uuid)) || 0 }));
-        const propList = { key: 'ontology:properties', kind: 'group', name: 'Properties', tag: '', face: 'prop', rows: propNodes.map(plain) };
+        const propList = { key: 'ontology:properties', kind: 'group', name: 'Properties', tag: '', face: 'prop', rows: propNodes.map(node => ({ ...plain(node), count: held.get(String(node.uuid).toLowerCase()) || 0 })) };   // each with how many nodes hold it, as a tag says its nodes
         if (!wide) return [{ key: 'ontology:tags', kind: 'group', name: 'Tags', tag: '', face: 'tag', rows: tagRows }, propList].filter(one => one.rows.length);
         const areas = [];   // each top tag with the tags under it
         for (const row of tagRows) { if (!row.depth || !areas.length) areas.push([]); areas[areas.length - 1].push(row); }
