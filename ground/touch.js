@@ -599,9 +599,12 @@ const OPENED = `
    writes them, on a page and in the sidebar (the owner, 25 November 2026: one way for each, in every place; no small picture
    before a property's name; an empty property is its name, fainter). A link and a tag are written so inside a node opened in
    place too; how that node's rows are laid out, and its property names, is OPENED's, above. Looks only: nothing of Logseq's
-   is moved or taken away. */
+   is moved or taken away.
+   The words of all of Logseq are written in the look's face for words, unless Logseq's own setting asks for its serif or
+   mono face. */
 const IN = ':is(#main-content-container, #right-sidebar, .lk-editor)', OWN = ':is(#main-content-container, #right-sidebar)';
 const MARKS = `
+html:not([data-font="serif"], [data-font="mono"]) { --ls-font-family: var(--lk-words-face); }
 ${OWN} a.property-k:not(.lk-editor a) { font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: var(--lk-prop-size) !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
 ${OWN} .property-key-inner > .property-icon { display: none !important; }
 ${IN} :is(.property-panel-row-empty, .bottom-property-pill:has(.empty-value)) a.property-k { color: var(--lk-off) !important; }

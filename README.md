@@ -12,7 +12,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 
 | Layer | Folder | What it gives |
 |---|---|---|
-| 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (a tag in Spectral, a property's name in IBM Plex Mono, both carried in `fonts/`). |
+| 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (the words in Wix Madefor Text, a tag in Brygada 1918, a property's name in Fragment Mono, all carried in `fonts/`). |
 | 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. At the right end of a page's title, its tags and the tags above them; on a tag's page, its parent above the title. |
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
@@ -87,7 +87,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 
 ### The marks, and what has just changed (`ground/look.js`, `ground/touch.js`, `node/undo.js`)
 
-- A tag is written in Spectral, quiet grey, with no # and no box. A property's name is written in IBM Plex Mono, quiet grey,
+- Words are written in Wix Madefor Text everywhere in Logseq, unless Logseq's own setting asks for its serif or mono face.
+- A tag is written in Brygada 1918, quiet grey, with no # and no box. A property's name is written in Fragment Mono, quiet grey,
   with no small picture before it. A link to a node is the ink with a faint underline, never blue, never in brackets. This
   holds on Logseq's own pages, in the sidebar and inside an opened node, as in the plugin's lists. On Logseq's own pages a
   property with nothing in it is its name, fainter.
