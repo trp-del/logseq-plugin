@@ -504,6 +504,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await goto(CHEN);
       return is([told.length > 0, rows ? asked : 'nothing to delete', after], [true, rows ? 'Leave it' : 'nothing to delete', rows]);
     });
+    {
     // ---- Beside: two pages side by side (the owner chose the old feature, 26 November 2026)
     await goto(CHEN);
     const sideNow = () => page.evaluate(() => ({ list: window.logseq.api.get_state_from_store('sidebar/blocks').map(e => e[1]), open: !!window.logseq.api.get_state_from_store('ui/sidebar-open?') }));
@@ -584,6 +585,45 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(6000);
       return is([on, (await split()).own, (await split()).on, await sideNow()], [true, 0, false, was]);
     });
+    }
+    {
+    // ---- Focusing into a bullet and out (the owner, 26 November 2026)
+    const focus = await box.frame().evaluate(async () => { const p = await logseq.Editor.createPage('Zzfocus walk', {}, { redirect: false }); const first = await logseq.Editor.appendBlockInPage(p.uuid, 'Above one');
+      await logseq.Editor.insertBatchBlock(first.uuid, [{ content: 'Above two' }, { content: 'Above three' }, { content: 'Go in here', children: [{ content: 'Under it' }] }, { content: 'Below' }], { sibling: true });
+      return { page: p.uuid, bullet: (await logseq.Editor.getPageBlocksTree(p.uuid))[3].uuid }; });
+    const dot = page.locator(`#main-content-container .ls-block[blockid="${focus.bullet}"] > .block-main-container .bullet-container`).first();
+    /* What the glide does from a press on, read at each frame: how far the bullet moved by it, whether it moved the whole way
+       smoothly, whether the old view faded; then how things stand at rest. */
+    const glided = async act => {
+      const seen = page.evaluate(uuid => new Promise(done => { const tops = []; let ghost = false; const t0 = performance.now(); const frame = () => {
+        const main = document.getElementById('main-content-container'), block = [...main.querySelectorAll(`.ls-block[blockid="${uuid}"]`)].find(b => !b.closest('.lk-ghost'));
+        if (main.querySelector('.lk-ghost')) ghost = true;
+        if (block?.getAnimations().some(a => a.id === 'lk-glide')) tops.push(Math.round(block.querySelector(':scope > .block-main-container').getBoundingClientRect().top));
+        if (performance.now() - t0 < 1400) requestAnimationFrame(frame); else done({ moved: new Set(tops).size > 4 && Math.abs(tops[0] - tops[tops.length - 1]) > 40, ghost }); }; frame(); }), focus.bullet);
+      await wait(60); await act(); const got = await seen; await wait(500);
+      return [got.moved, got.ghost, ...await page.evaluate(uuid => [location.hash.includes(uuid), !!document.querySelector(`#main-content-container .ls-block.selected[blockid="${uuid}"]`), document.querySelectorAll('#main-content-container .lk-out').length, document.querySelectorAll('.lk-ghost').length, !!document.querySelector('.ui__dialog-content')], focus.bullet)];
+    };
+    // moved, old view faded, in the bullet, selected, arrows, copies left, a window of Logseq's open
+    const IN = [true, true, true, false, 1, 0, false], OUT = [true, true, false, true, 0, 0, false];
+    await goto(focus.page);
+    await step('a press on a bullet glides it to the top, the old view fading, an up arrow after the line of steps', async () => is(await glided(() => dot.click()), IN));
+    await step('the up arrow steps out with the same glide back, and the bullet comes back selected', async () => is(await glided(() => page.locator('#main-content-container .lk-out').click()), OUT));
+    await step('Cmd-. goes back into the selected bullet and Cmd-, steps out again, Logseq\'s settings staying shut', async () => is([await glided(() => page.keyboard.press('Meta+.')), await glided(() => page.keyboard.press('Meta+,'))], [IN, OUT]));
+    await step('Back and Forward glide too', async () => is([await glided(() => page.evaluate(() => history.back())), (await glided(() => page.evaluate(() => history.forward()))).slice(0, 4)], [IN, [true, true, false, true]]));
+    await step('Cmd-, while writing in the focused bullet keeps the cursor and selects nothing', async () => {
+      await dot.click(); await wait(1200);
+      await page.locator(`#main-content-container .ls-block[blockid="${focus.bullet}"] > .block-main-container .block-content`).first().click(); await wait(500);
+      const got = await glided(() => page.keyboard.press('Meta+,')), writing = await page.evaluate(() => document.activeElement?.tagName);
+      await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('Escape'); await wait(300);
+      return is([got, writing], [[true, true, false, false, 0, 0, false], 'TEXTAREA']);
+    });
+    await step('with Reduce motion on nothing moves: the old view only fades, and the bullet still comes back selected', async () => {
+      await page.emulateMedia({ reducedMotion: 'reduce' }); await goto(focus.page);
+      const got = [await glided(() => dot.click()), await glided(() => page.locator('#main-content-container .lk-out').click())];
+      await page.emulateMedia({ reducedMotion: null });
+      return is(got, [[false, ...IN.slice(1)], [false, ...OUT.slice(1)]]);
+    });
+    }
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

@@ -1,8 +1,15 @@
 /* GROUND: the look's ground. The greys, sizes and faces every piece is drawn from, mixed from Logseq's own text colour so
-   they follow light, dark and any theme. A piece names what it draws with these and carries no colour or size of its own. */
+   they follow light, dark and any theme. A piece names what it draws with these and carries no colour or size of its own.
+   A longer motion's length and curve are named here too (MOTION). */
 (function () {
 const G = window.PluginDoor;
 G.look = {
+  /* Focusing into a bullet and out (the owner picked it, 11 and 26 November 2026). The bullet moves for ms on ease. The views
+     fade on fade, over parts of ms: the old one goes in away (awayStill where the Mac asks for less motion and nothing moves),
+     the new one comes in over in, after inDelay going in and outDelay stepping out. wait: how long the new view is waited for; rest: how long a bullet
+     drawn late must stand still before it moves;
+     cap: when a copy of the old view or a lifted cut is cleared although its motion never ended (a window in the background). */
+  MOTION: { glide: { ms: 280, ease: 'cubic-bezier(.2,.7,.2,1)', fade: 'ease-out', away: .35, awayStill: .6, in: .8, inDelay: .35, outDelay: .25, wait: 2000, rest: 40, cap: 2000 } },
   /* The faces. Logseq reaches no face of the Mac by its name alone ("New York" came out as Georgia, "SF Mono" as Menlo), so
      each face the look uses comes with the plugin, in fonts/, and is said from there once Logseq has told the plugin where its
      folder is (root: logseq.baseInfo.lsr, known at the start, not at load). A tag is written in Commissioner with its stroke ends widened, a property's name in

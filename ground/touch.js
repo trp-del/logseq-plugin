@@ -20,8 +20,14 @@
      touch.left(fn)           fn(uuid) runs a moment after a bullet whose words changed stops being written in; gives back what
                               stops it. Only looks on: nothing of Logseq's editor is touched while it is written in
      touch.tagList(say)       words after each tag's name in Logseq's own list of tags (the one on "#"): say(name) -> words
-     touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k'), matched by its place on the keyboard; gives back what
-                              lets it go. fn answers false to leave the press to Logseq after all
+     touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k', 'mod+.'), matched by its place on the keyboard; gives
+                              back what lets it go. fn answers false to leave the press to Logseq after all
+     touch.glide              focusing into a bullet and out, in the main view (beside/glide.js decides, this draws):
+                              moves(leaving, arrived) hears each change of view, before and after; view() what the view shows
+                              now; replaced(view) whether another stands; play(view, uuid, out) the motion; soon(fn) calls fn at
+                              each change of the screen until stopped; wayOut(press) the arrow after the line of steps;
+                              route(), address(), has(uuid), top(uuid), focused(), into(uuid), stepUp(), parent(uuid), go(uuid), back(address),
+                              and the embed and selection pieces
      touch.command(key, label, run)   a line in Logseq's command palette; touch.commands() the ones made, { name, label, run };
                               touch.logseqCommands() Logseq's own, { id, label, key, run }
      touch.plugins           the plugins Logseq runs: those from a folder (reloaded) and those from its marketplace (updated
@@ -44,7 +50,7 @@
 const G = window.PluginDoor;
 const host = () => G.host();
 const PAGE = '.cp__page-inner-wrap', PAGE_NODE = '.ls-page-title .ls-block[blockid]', FIRST_NODE = '.ls-page-blocks .ls-block[blockid]', FEED = '.journal-item';
-const OURS = '.lk-open, .lk-rel';
+const OURS = '.lk-open, .lk-rel, .lk-ghost';   // what is the plugin's own on Logseq's screen, never read as a page of Logseq's
 
 // One watcher of Logseq's page for every part: passes run once a frame, whatever changed and however often.
 const passes = new Set(); let observer = null, queued = false;
@@ -243,6 +249,193 @@ const editor = (() => {
   };
 })();
 
+/* FOCUSING INTO A BULLET AND OUT, where it meets Logseq's screen (beside/glide.js decides which bullet moves, and when). Only
+   the main view. Logseq swaps the whole view in one frame, and every way in and out goes through the app's history, so the view
+   is read just before the history changes (pushState, and popstate for Back and Forward, both while the old view is still
+   drawn) and the motion is played once the new view stands. Nothing is written to the graph. */
+const glide = (() => {
+  const MOST = 600;   // a view with more blocks than this is not copied for the fade: only the bullet glides
+  const ROW = ':scope > .block-main-container', STEPS = '.breadcrumb--block-page', STEP = ':scope > a:not(.lk-out)';
+  const ASIDE = `.references, ${OURS}`;   // a bullet there is not the view's own
+  const win = () => host().defaultView;
+  const main = () => host().getElementById('main-content-container');
+  const timing = () => G.look.MOTION.glide;
+  const still = () => win().matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rowOf = block => block.querySelector(ROW);
+  const inView = (rect, box) => rect.bottom > box.top && rect.top < box.bottom && rect.height > 0;
+  const blocks = () => [...(main()?.querySelectorAll('.ls-block[blockid]') || [])].filter(block => !block.closest('.lk-ghost'));
+  const blockIn = uuid => [...(main()?.querySelectorAll(`.ls-block[blockid="${uuid}"]`) || [])].find(block => !block.closest(ASIDE) && rowOf(block)) || null;
+  // The line of steps above a focused bullet in the main view (never one inside a node opened in a list).
+  const line = () => [...(main()?.querySelectorAll(STEPS) || [])].find(one => !one.closest(OURS)) || null;
+  // What view stands: whether a bullet is focused, and the view's first bullet.
+  const sign = () => `${!!line()}|${blocks().find(block => !block.closest(ASIDE) && rowOf(block))?.getAttribute('blockid') || ''}`;
+  const route = () => /#\/page\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(win().location.hash)?.[1].toLowerCase() || null;
+
+  // The view as it stands: where each block's row is on screen, and a still copy of the view for the fade.
+  function view() {
+    const scroller = main(), rows = new Map();
+    if (!scroller) return null;
+    const box = scroller.getBoundingClientRect(), all = blocks();
+    for (const block of all) {
+      const uuid = block.getAttribute('blockid'), row = rows.has(uuid) ? null : rowOf(block);
+      if (!row) continue;
+      const rect = row.getBoundingClientRect();
+      if (inView(rect, box)) rows.set(uuid, { x: rect.left, y: rect.top });
+    }
+    let copy = null;
+    const body = [...scroller.children].find(child => !child.classList.contains('lk-ghost'));
+    if (all.length <= MOST && body) {
+      copy = body.cloneNode(true);
+      for (const node of copy.querySelectorAll('[id]')) node.removeAttribute('id');
+      copy.removeAttribute('id');
+      const at = body.getBoundingClientRect();   // the copy stands exactly where the view stood
+      Object.assign(copy.style, { top: (at.top - box.top) + 'px', left: (at.left - box.left) + 'px', width: at.width + 'px', right: 'auto', margin: '0' });
+    }
+    return { sign: sign(), focused: !!line(), rows, copy, box: { width: box.width, height: box.height } };
+  }
+  // The old view, a copy laid over the new one, fading where it stood; the bullet that moves is left out of it.
+  function fadeOld({ copy, box, rows }, uuid) {
+    const scroller = main(), { ms, fade, away, awayStill, cap } = timing();
+    if (!copy) return;
+    const ghost = host().createElement('div');
+    ghost.className = 'lk-ghost'; ghost.inert = true; ghost.setAttribute('aria-hidden', 'true');
+    Object.assign(ghost.style, { left: scroller.scrollLeft + 'px', top: scroller.scrollTop + 'px', width: box.width + 'px', height: box.height + 'px' });
+    for (const block of copy.querySelectorAll(`.ls-block[blockid="${uuid}"]`)) block.style.visibility = 'hidden';
+    // The line of steps never fades (the owner, 12 November 2026: it flashed): it stands where it is and only its words change.
+    for (const one of copy.querySelectorAll(STEPS)) one.style.visibility = 'hidden';
+    ghost.append(copy);
+    scroller.append(ghost);   // inside Logseq's view, so its rules for what stands in the view still hold for the copy
+    for (const played of ghost.getAnimations({ subtree: true })) { try { played.finish(); } catch (error) { /* one that never ends */ } }   // Logseq's own fade-ins shown as they ended
+    // Margins fold differently in a copy that stands on its own, so it is put right by one bullet it holds.
+    for (const [id, at] of rows) {
+      const row = copy.querySelector(`.ls-block[blockid="${id}"] > .block-main-container`); if (!row) continue;
+      const now = row.getBoundingClientRect();
+      copy.style.top = (parseFloat(copy.style.top) + at.y - now.top) + 'px'; copy.style.left = (parseFloat(copy.style.left) + at.x - now.left) + 'px';
+      break;
+    }
+    const going = ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms * (still() ? awayStill : away), easing: fade, fill: 'forwards' });
+    going.onfinish = () => ghost.remove();
+    win().setTimeout(() => ghost.remove(), cap);
+  }
+  /* The motion: the bullet glides from where it stood in the old view to where it stands now, its children with it, the old
+     view fades where it stood and the rest of the new one fades in. Stepping out, a bullet that landed off screen is brought
+     to the middle first. Where the Mac asks for less motion, only the old view fades. */
+  function play(was, uuid, out) {
+    const scroller = main(), block = blockIn(uuid), row = block && rowOf(block);
+    if (!row) return;
+    const box = scroller.getBoundingClientRect();
+    // Only the main view is scrolled: scrollIntoView would also move Logseq's whole window.
+    const at = row.getBoundingClientRect();
+    if (out && !inView(at, box)) scroller.scrollTop += at.top + at.height / 2 - (box.top + box.height / 2);
+    fadeOld(was, uuid);
+    if (still()) return;
+    const { ms, ease, fade, in: part, inDelay, outDelay, cap } = timing(), from = was.rows.get(uuid), to = row.getBoundingClientRect();
+    if (from) {
+      // Logseq's list of a page's bullets cuts off what stands outside it (overflow hidden), so a bullet gliding in from
+      // above would be hidden for the first part of the way: the cut is lifted for the glide alone.
+      const cut = [];
+      for (let node = block.parentElement; node && node !== scroller; node = node.parentElement)
+        if (win().getComputedStyle(node).overflow !== 'visible') { cut.push([node, node.style.overflow]); node.style.overflow = 'visible'; }
+      const back = () => { for (const [node, had] of cut.splice(0)) node.style.overflow = had; };
+      const moving = block.animate([{ transform: `translate(${from.x - to.left}px, ${from.y - to.top}px)` }, { transform: 'none' }], { id: 'lk-glide', duration: ms, easing: ease });
+      moving.onfinish = moving.oncancel = back;
+      win().setTimeout(back, cap);
+    }
+    const others = [...scroller.querySelectorAll('.block-main-container, .block-children-left-border, .ls-page-title, .page-title, .ls-page-properties')]
+      .filter(node => !node.closest('.lk-ghost') && !block.contains(node) && !node.contains(block) && inView(node.getBoundingClientRect(), box));
+    for (const node of others) node.animate([{ opacity: 0 }, { opacity: 1 }], { id: 'lk-glide-in', duration: ms * part, delay: ms * (out ? outDelay : inDelay), easing: fade, fill: 'backwards' });
+  }
+  // Each change of the view in the main window, said before it is drawn (leaving; pushed: a new step, not Back or Forward) and after.
+  function moves(leaving, arrived) {
+    const history = win().history, own = history.pushState; let on = true;
+    const tell = (fn, arg) => { if (!on) return; try { fn(arg); } catch (error) { console.error('Logseq Plugin: the glide could not follow a change of view', error); } };
+    const wrapped = function (...args) { tell(leaving, true); const done = own.apply(this, args); tell(arrived); return done; };
+    const popped = () => { tell(leaving, false); tell(arrived); };
+    history.pushState = wrapped;
+    win().addEventListener('popstate', popped, true);
+    return () => { on = false; if (history.pushState === wrapped) history.pushState = own; win().removeEventListener('popstate', popped, true); };
+  }
+  /* fn the moment Logseq puts something in (before it is first painted, so the new view never shows standing still), and once a
+     frame in case that was missed, until what is given back is called. */
+  function soon(fn) {
+    const view = win(); let on = true;
+    const watcher = new view.MutationObserver(() => { if (on) fn(); });
+    watcher.observe(view.document.body, { childList: true, subtree: true });
+    const frame = () => { if (!on) return; fn(); if (on) view.requestAnimationFrame(frame); };
+    view.requestAnimationFrame(frame);
+    return () => { on = false; watcher.disconnect(); };
+  }
+  // Logseq's step of the line goes on the press (its pointerdown and pointerup), not on a click alone.
+  function press(el) {
+    const view = win();
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'])
+      el.dispatchEvent(new (type.startsWith('pointer') ? view.PointerEvent : view.MouseEvent)(type, { bubbles: true, cancelable: true, view, button: 0, buttons: type.endsWith('down') ? 1 : 0, pointerType: 'mouse', isPrimary: true }));
+  }
+  // One level out by a press on the last step of the line; false when no line stands.
+  function stepUp() {
+    const last = [...(line()?.querySelectorAll(STEP) || [])].pop();
+    if (last) press(last);
+    return !!last;
+  }
+  // The way out: an up arrow after the last step of the line, kept there; press is what it does. null takes it away.
+  function wayOut(act) {
+    if (!act) { for (const one of host().querySelectorAll('.lk-out')) one.remove(); return; }
+    const at = line(), last = [...(at?.querySelectorAll(STEP) || [])].pop();
+    if (!last) return;
+    const had = at.querySelector(':scope > .lk-out');
+    if (had && had.previousElementSibling === last) return;
+    had?.remove();
+    const arrow = host().createElement('a');
+    arrow.className = 'lk-out'; arrow.tabIndex = 0; arrow.title = 'Step out one level';
+    arrow.setAttribute('role', 'button'); arrow.setAttribute('aria-label', 'Step out one level');
+    arrow.innerHTML = icon('arrow-up', 14);
+    const go = event => { event.preventDefault(); event.stopPropagation(); act(); };
+    arrow.addEventListener('click', go);
+    arrow.addEventListener('pointerdown', event => event.stopPropagation());
+    arrow.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') go(event); });
+    last.after(arrow);
+  }
+  /* Focused as a press on its dot focuses, Logseq's own way in, which also starts the new view at its top (a bare change of
+     address would keep how far the page was scrolled). */
+  function into(uuid) { const dot = rowOf(blockIn(uuid) || host().body)?.querySelector('.bullet-container'); if (dot) press(dot); }
+  // Where a bullet's row stands now.
+  const top = uuid => { const block = blockIn(uuid); return block ? Math.round(rowOf(block).getBoundingClientRect().top) : null; };
+  // Whether a press fell on a bullet's dot; and the node of the embed a bullet stands in (the target given, else the one written in or selected).
+  const onBullet = target => !!target?.closest?.('.bullet-container, .bullet');
+  const embedOf = target => (target || host().activeElement?.closest?.('.ls-block') || host().querySelector('#main-content-container .ls-block.selected'))
+    ?.closest?.('#main-content-container .embed-block[blockid]')?.getAttribute('blockid') || null;
+  // What a node sits under: the bullet above it, or its page.
+  async function parent(uuid) {
+    const node = await logseq.Editor.getBlock(uuid);
+    if (!node?.parent) return null;
+    const up = node.parent.id === node.page?.id ? await logseq.Editor.getPage(node.page.id) : await logseq.Editor.getBlock(node.parent.id);
+    return up?.uuid || null;
+  }
+  return {
+    CSS: `
+.lk-ghost { position: absolute; overflow: hidden; pointer-events: none; z-index: 9; }
+.lk-ghost > * { position: absolute; }
+.lk-ghost * { transition: none !important; }
+${STEPS} > a.lk-out { display: inline-flex; align-items: center; margin-left: 4px; padding: 0; border-radius: var(--lk-corner); color: var(--lk-quiet) !important; cursor: pointer; text-decoration: none; }
+${STEPS} > a.lk-out:hover, ${STEPS} > a.lk-out:focus-visible { color: var(--lk-text) !important; outline: none; }
+${STEPS} > a.lk-out:focus-visible { background: var(--lk-wash); }`,
+    route, view, play, moves, soon, stepUp, wayOut, into, top, onBullet, embedOf, parent, still,
+    clear() { for (const one of host().querySelectorAll('.lk-ghost, .lk-out')) one.remove(); },
+    address: () => win().location.hash,
+    back(address) { win().location.hash = address; },
+    go: uuid => logseq.App.pushState('page', { name: uuid }),
+    replaced: was => !!main() && sign() !== was.sign,
+    has: uuid => !!blockIn(uuid),
+    focused: () => !!line(),
+    isBullet: async uuid => !!(await logseq.Editor.getBlock(uuid).catch(() => null))?.parent,
+    typing: () => !!host().activeElement?.matches('textarea, input, [contenteditable="true"]'),
+    editing: async () => !!(await logseq.Editor.checkEditing?.()),
+    select: uuid => logseq.Editor.selectBlock?.(uuid),
+    unselect: () => logseq.Editor.clearSelectedBlocks?.(),
+    selected: uuid => !!host().querySelector(`#main-content-container .ls-block.selected[blockid="${uuid}"]`),
+  };
+})();
+
 // Whether one of Logseq's own floats is open (a menu, a list to pick from, a window): a key pressed then is Logseq's.
 const busy = () => !!host().querySelector('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac');
 // The bullet being written in is the one whose text box has the keys. It is "left" when another one has them, or none.
@@ -261,11 +454,12 @@ function left(fn) {
   for (const type of types) doc.addEventListener(type, soon, true);
   return () => { clearTimeout(timer); for (const type of types) doc.removeEventListener(type, soon, true); };
 }
+const KEY_CODES = { '.': 'Period', ',': 'Comma' };
 function key(combo, fn) {
   const parts = combo.toLowerCase().split('+'), code = parts.pop(), want = { mod: parts.includes('mod'), shift: parts.includes('shift'), alt: parts.includes('alt') };
   const onKey = event => {
     const mod = event.metaKey || event.ctrlKey;
-    if (event.code !== (code.length === 1 ? 'Key' + code.toUpperCase() : code) || mod !== want.mod || event.shiftKey !== want.shift || event.altKey !== want.alt) return;
+    if (event.code !== (KEY_CODES[code] || (code.length === 1 ? 'Key' + code.toUpperCase() : code)) || mod !== want.mod || event.shiftKey !== want.shift || event.altKey !== want.alt) return;
     if (fn(event) === false) return;
     event.preventDefault(); event.stopPropagation();
   };
@@ -1205,5 +1399,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { beside, SPLIT, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

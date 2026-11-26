@@ -22,7 +22,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
-| Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
+| Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -131,6 +131,28 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
   value's bullet) stand in the gutter before that edge.
 - Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
   it does in a word beside its icon; a tag's own table leaves out its Tags column.
+
+### Focusing into a bullet and out (`beside/glide.js`, drawn in `ground/touch.js`, timed in `ground/look.js`)
+
+Where Logseq swaps the whole view at once, the bullet you focus into glides from where it stood to the top in about a
+quarter of a second, its children with it, and the rest of the old view fades where it stood. Stepping out runs the same
+glide back, the page fading in round the bullet; the bullet comes back selected with Logseq's own selection, until the view
+changes again. A bullet that lands out of sight is brought to the middle first, and on a longer page the glide waits the
+moment Logseq takes to draw it.
+
+| Do | Result |
+|---|---|
+| Press a bullet's dot, a step of the line above a focused bullet, Back or Forward, or Logseq's keys for focusing | The glide |
+| The faint up arrow after the last step of that line (a press, or Enter or Space on it) | Steps out one level, as pressing that step does |
+| Cmd-. on the bullet that came back selected | Focuses into it again |
+| Cmd-, in a focused bullet, outside the editor | Steps out one level (Logseq alone opens its settings there; everywhere else Cmd-, is still Logseq's) |
+| Cmd-. or Cmd-, while you write in the bullet | Logseq's own; the cursor stays in it and nothing is selected |
+
+A node of an embed, focused into from the outline it is shown in, steps out (the arrow, Cmd-,) back to that outline, not to
+the page it was written on; inside the embed each step goes up one embedded node until then. With the Mac's Reduce motion
+on, nothing moves: the old view only fades. Only the main view moves, not the right sidebar. A view with more than 600
+bullets is not faded, only the bullet glides; a bullet so far down that Logseq has not drawn it gets no glide. Nothing is
+written to the graph. The part has its own switch in the plugin's settings (**Focusing into a bullet and out**).
 
 ### A page's place (`page/place.js`)
 

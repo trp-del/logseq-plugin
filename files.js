@@ -9,6 +9,6 @@ window.PluginFiles = [
   'arrive/search.js', 'arrive/todo.js',
   'write/sure.js', 'write/where.js', 'write/place.js',
   'tend/move.js', 'tend/ontology.js',
-  'beside/calm.js', 'beside/split.js', 'beside/update.js', 'beside/outside.js', 'beside/corner.js',
+  'beside/calm.js', 'beside/split.js', 'beside/glide.js', 'beside/update.js', 'beside/outside.js', 'beside/corner.js',
   'main.js',
 ];
