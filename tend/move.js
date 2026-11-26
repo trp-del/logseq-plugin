@@ -165,7 +165,7 @@ G.part({
       pop.style.left = `${Math.max(8, Math.min(spot.left, doc.defaultView.innerWidth - 440))}px`; pop.style.top = `${spot.bottom + 6}px`;
       doc.body.appendChild(pop);
       const watchEmpty = new (doc.defaultView.MutationObserver)(() => doc.defaultView.setTimeout(() => { if (pop.isConnected && !pop.querySelector('.lk-ask')) { watchEmpty.disconnect(); pop.remove(); } }, 600));   // the line of what was done takes the box's place a moment later
-      ask(pop, { only: ids }).then(() => watchEmpty.observe(pop, { childList: true }));
+      ask(pop, { only: ids }).then(() => watchEmpty.observe(pop, { childList: true })).catch(error => { pop.remove(); G.say(`Move values could not open: ${error?.message || 'Logseq refused'}`, 'warning'); });
     }));
     base.onStop(() => { for (const pop of G.host().querySelectorAll('.lk-table-pop')) pop.remove(); });
     base.onStop(() => { G.moving = { ask() {}, last() {} }; for (const box of G.host().querySelectorAll('.lk-ask')) box.remove(); });

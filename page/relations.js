@@ -70,7 +70,7 @@ G.part({
         if (event.key === 'Enter' && first) { event.preventDefault(); G.touch.open(first.parentElement.dataset.uuid, event.shiftKey); }
         else if (event.key === 'ArrowDown' && first) { event.preventDefault(); first.focus(); }
       };
-      line.addEventListener('contextmenu', event => { event.preventDefault(); G.listview.hiddenMenu({ x: event.clientX, y: event.clientY, from: line }, () => lists.again()).then(shown => { if (!shown) G.say('No list is hidden on the pages it points to.'); }); });
+      line.addEventListener('contextmenu', event => { event.preventDefault(); G.listview.hiddenMenu({ x: event.clientX, y: event.clientY, from: line }, () => lists.again()).catch(() => true).then(shown => { if (!shown) G.say('No list is hidden on the pages it points to.'); }); });
       line.addEventListener('click', onLine); line.addEventListener('keydown', onLine);
       foot.addEventListener('lk-drawn', onDrawn); field.addEventListener('input', onInput); field.addEventListener('keydown', onKey);
       return { head, side: page.side, show() { if (line.getAttribute('aria-expanded') === 'false') fold(); find.hidden = false; field.focus(); field.select(); },

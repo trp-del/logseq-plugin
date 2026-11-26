@@ -158,6 +158,52 @@ const answers = {
     await Wr.setStatus(uuid, to.title);
     return changed(node.uuid, 1, `Marked ${to.title.toLowerCase()}`, uuid === node.uuid ? '' : uuid);
   },
+  /* Todo, as its sidebar section groups it (Overdue, Today, Coming up, Any time): { parts: [{ head, rows: [{ uuid, words, status,
+     day, page, late }] }] }; a status set and taken back; a task added with the day its words say. */
+  async todoList() {
+    const [all, statuses] = await Promise.all([R.tasks(), R.statuses()]), today = D.number(new Date()), key = new Map(statuses.map(one => [one.id, one.name]));
+    const sits = await R.where(all.map(task => task.id)), names = await R.names(all.flatMap(task => W.named(task.words)));
+    return { ok: true, parts: G.todo.groups(all, today).map(list => ({ head: list.name, rows: list.rows.map(task => { const at = (sits.get(task.id) || [])[0];
+      return { uuid: task.uuid, words: W.plain(W.firstLine(task.words).line, names), status: key.get(task.status) || 'todo', day: D.short(task.day), page: at && !at.day ? W.plain(at.words, names) : '', late: !!task.late }; }) })) };
+  },
+  async todoStatus({ uuid, status }) {
+    const one = (await R.statuses()).find(s => s.name === String(status) || s.title.toLowerCase() === String(status).toLowerCase()) || fail('Logseq has no such status.');
+    await Wr.setStatus(uuid, one.title);
+    return { ok: true };
+  },
+  async todoUndo() { await Wr.undo(); return { ok: true }; },
+  async todoAdd({ words }) {
+    const read = G.todo.dayIn(words, D.number(new Date())), text = read ? read.words : String(words || '').trim();
+    const uuid = await Wr.addTask(text, read ? read.day : 0);
+    return { ok: true, uuid, words: text, day: read ? D.short(read.day) : '' };
+  },
+  /* A note from outside Logseq, at the end of today's journal, with the tag asked for: { uuid, page, tag, wrote }. */
+  async note({ words, tag }) {
+    const text = String(words || '').trim(); if (!text) fail('There are no words to write.');
+    const page = await Wr.day(D.number(new Date())), uuid = await Wr.addBullet(page, text, { page: true });
+    let tagged = '';
+    if (tag) { const one = (await R.tags()).get(Number(tag)); if (one) { await Wr.tag(uuid, one.uuid); tagged = one.title; } }
+    return { ok: true, uuid, page: D.short(D.number(new Date())), tag: tagged, wrote: [] };
+  },
+  /* Alfred's Home finds as Search does: with no kind, the kinds whose name holds the words and what holds every word; with a
+     kind, its nodes narrowed by the words. { kinds: [{ id, title, count }], rows, choices: [], months: [] } */
+  async browse({ kind, words, limit }) {
+    const text = String(words || '').trim(), most = Math.min(Number(limit) || 40, 80), tags = await R.tags();
+    if (kind) {
+      const nodes = await R.tagged([...T.under(Number(kind), tags)]), names = await R.names(nodes.flatMap(node => W.named(node.words)));
+      const plain = nodes.map(node => ({ ...node, shown: node.words, words: W.plain(node.words, names) })).sort((a, b) => (b.day || 0) - (a.day || 0));
+      return { ok: true, kinds: [], choices: [], months: [], rows: S.narrow(plain, text).slice(0, most).map(node => row({ ...node, words: node.shown }, names)) };
+    }
+    if (!text) return { ok: true, kinds: [], rows: [], choices: [], months: [] };
+    const counts = T.counts(tags, await R.tagPairs()), found = await R.search(text, most), names = await R.names(found.flatMap(node => W.named(node.words)));
+    const ranked = S.rank(found.map(node => ({ ...node, shown: node.words, words: W.plain(node.words, names) })), text);
+    return { ok: true, kinds: S.kinds(tags, text).slice(0, 6).map(one => ({ id: one.id, title: one.title, count: counts.get(one.id) || 0 })), rows: ranked.map(node => row({ ...node, words: node.shown }, names)), choices: [], months: [] };
+  },
+  /* What the Files panel added, taken away again: { made: "uuid,uuid" }. */
+  async unadd({ made }) {
+    for (const uuid of String(made || '').split(',').map(one => one.trim()).filter(Boolean)) await Wr.remove(uuid);
+    return { ok: true };
+  },
   async undo(request) {
     const steps = Math.max(1, Math.min(Number(request.steps) || 1, 6));
     for (let i = 0; i < steps; i++) { await Wr.undo(); await new Promise(done => setTimeout(done, 350)); }

@@ -11,8 +11,9 @@ logseq.useSettingsSchema([
 // On a cold start Logseq starts a plugin before the graph's database is up: wait for the first read that answers.
 async function graphReady() {
   for (let tries = 0; tries < 150; tries++) {
-    try { await logseq.DB.datascriptQuery('[:find ?t :where [?t :db/ident :logseq.class/Tag]]'); return; } catch (error) { await new Promise(resolve => setTimeout(resolve, 200)); }
+    try { await logseq.DB.datascriptQuery('[:find ?t :where [?t :db/ident :logseq.class/Tag]]'); return true; } catch (error) { await new Promise(resolve => setTimeout(resolve, 200)); }
   }
+  return false;
 }
 async function main() {
   try { void window.parent.document; } catch (error) {
@@ -23,7 +24,9 @@ async function main() {
   // What stands whichever parts run: the look's ground, the pieces of the node, and Logseq's editor asked for.
   const root = G.base('ground'); bases.push(root);
   root.style('look', G.look.faces(String(logseq.baseInfo?.lsr || '')) + G.look.TOKENS + G.look.PRESS + G.menu.CSS + G.undo.CSS + G.ask.CSS + G.line.CSS + G.node.CSS + G.listview.CSS + G.adding.CSS + G.pick.CSS + G.card.CSS + G.timeline.CSS + G.touch.OPENED + G.touch.MARKS);
-  await graphReady();
+  if (!(await graphReady())) G.say('Logseq Plugin needs a DB graph open. It starts its parts anyway; if they stay empty, reload the plugin once the graph is open.', 'warning');
+  // A promise the plugin let fall is said in the console with the plugin's name, never as a red box over the page.
+  root.listen(window, 'unhandledrejection', event => { console.error('Logseq Plugin: a step failed', event.reason); event.preventDefault(); });
   G.touch.editor.start(); root.onStop(() => G.touch.editor.stop());
   G.card.start(); root.onStop(() => G.card.stop());
   root.onStop(G.touch.here());

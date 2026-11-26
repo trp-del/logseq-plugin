@@ -591,10 +591,10 @@ function homePane(go, title, order, lit, tabLabel) {
 // "3 today · 1 late", from Todo's own list; nothing when the Todo part is off.
 function todoCounts() {
   try {
-    const got = pluginModel("todoList", {}) || { parts: [] }, today = (got.parts || []).find(p => p.head === "Today");
+    const got = pluginModel("todoList", {}) || { parts: [] }, part = head => (got.parts || []).find(p => p.head === head);
     const all = (got.parts || []).reduce((n, p) => n + p.rows.length + (p.more || 0), 0);
-    if (!today) return plural(all, "open task");
-    const late = today.rows.filter(r => r.late).length, now = today.rows.length - late;
+    if (!part("Today") && !part("Overdue")) return plural(all, "open task");
+    const late = (part("Overdue") || { rows: [] }).rows.length, now = (part("Today") || { rows: [] }).rows.length;
     return [now ? now + " today" : "", late ? late + " late" : "", !now && !late ? plural(all, "open task") : ""].filter(Boolean).join(" · ");
   } catch (_) { return "Open tasks"; }
 }
@@ -1245,7 +1245,7 @@ function filesProgress() {
   return JSON.stringify(out);
 }
 function filesUndo(made) {
-  try { pluginModel("unadd", { made: csv(made) }); } catch (error) { return JSON.stringify({ update: { ids: { fCard: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  try { pluginModel("unadd", { made: [].concat(made || []).join(",") }); } catch (error) { return JSON.stringify({ update: { ids: { fCard: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
   return JSON.stringify({ update: { ids: { fCard: { text: "Taken back out of the page. The files' copies stay in the graph's assets folder.", colour: "labelColor" }, fUndo: { hidden: true } } } });
 }
 

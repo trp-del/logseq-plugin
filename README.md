@@ -1,6 +1,10 @@
 # Logseq Plugin
 
-A plugin for Logseq DB graphs, being rebuilt from the ground up toward 1.0.0.
+A plugin for Logseq DB graphs (Logseq 2.0 and later, a DB graph open).
+
+**Install.** In Logseq, Settings, Plugins: turn on developer mode, then **Load unpacked plugin** and pick this folder (or
+**Install plugin from GitHub release** with this repository). The plugin needs Logseq's "effect" access to draw on Logseq's
+own page; each part can be switched off in the plugin's settings, and a change there takes effect when the plugin is reloaded.
 
 **A note is a node. The plugin shows any node whole, and lets it be changed wherever it appears.**
 Whole means four things: what the node is (its tags), what it says (its words and bullets), its facts (its properties), and
@@ -15,7 +19,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (the words in Wix Madefor Text, a tag in Brygada 1918, a property's name in Fragment Mono, all carried in `fonts/`). |
 | 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. At the right end of a page's title, its tags and the tags above them; on a tag's page, its parent above the title. |
-| 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
+| 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
 | Beside the stack | `beside/` | Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those from its marketplace, a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
@@ -99,8 +103,7 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   the next change to the graph. Move values keeps its own way back.
 - Delete on a tag or a property asks first, in a box under its line: what goes, how many nodes hold it, a red yes and
   Cancel. The keys wait on Cancel; only a press on the red yes deletes.
-- A key is told only where it is not a common one, as the Mac writes it, with no box: Find's foot says ⌘↩ beside
-  "New page", which makes a page by the words typed and goes to it.
+- A key is told only where it is not a common one, as the Mac writes it, with no box.
 - An opened node rolls out of its line in one short move. A tick box on a line shows under the pointer and stays once
   ticked (no list has tick boxes yet).
 - Three corners (a small one, one for what floats, the round of a press), the sizes of text, and the box a mark stands in
@@ -110,7 +113,10 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 
 As the plugin drew them before 0.9; each can be switched off on its own in the plugin's settings.
 
-- The top bar keeps Ontology, Todo, Logseq's own menu and the sidebar button. Home, back, forward and the plugins button go.
+- The top bar keeps Logseq's own menu and the sidebar button. Home, back, forward, the plugins button and Logseq's search go;
+  Ontology and Todo are in the corner.
+- The left sidebar is words alone: no picture before Journals, Pages, a favourite or a recent page, no section words
+  (Navigations, Favorites, Recent), a gap between the groups, the graph's name alone. Logseq's ? at the bottom right goes.
 - A page's title is a step smaller and tighter.
 - **Add property** is quiet words, a little apart from the rows.
 - A bullet's properties under its words are one quiet line of names and values, wrapping, with no outline; the one being
@@ -133,48 +139,55 @@ Each name opens its tag. On a tag's own page a line above the title says **Paren
 your tags as an outline (not the tag itself, nor a tag under it) and **None (at the top)**, and the one taken is where the tag
 goes, with the Undo arrow at the bottom right.
 
-### Find (`arrive/find.js`)
+### Search (`arrive/search.js`, decided in `core/search.js`)
 
-Cmd-K, or **Find** in the command palette (a setting gives Cmd-K back to Logseq's own search). The window takes most of the screen. A kind you have taken stands before the words as a tag is written, with no capsule round it.
+Cmd-K, the corner, or **Search** in the command palette opens a section of the right sidebar with the keys in its line (a
+setting gives Cmd-K back to Logseq's own search).
 
-- Nothing typed and no kind taken: the field alone, a capsule, with nothing under it.
-- Words typed: kinds whose name they spell, then what Logseq's own search finds.
-- A kind taken (Enter or Tab on it) stands in the line. The list is every node of that kind and of the kinds under it, newest
-  first. Words then narrow it by a node's own words, its tag, a value of one of its properties or its day (`chen oct`). A value
-  that matched and is not in the node's words is said after them.
+- Words typed: only the nodes whose own words hold every word typed, each node once, grouped under its kind (a tag's name;
+  pages with no tag, then lines), pages first, the name itself before the rest. The typed letters are marked a step heavier.
+- A line found in a note says the bullet it sits under; a journal is said once, as the day at the line's end.
+- A kind taken (Ontology's **Show its nodes**) stands before the words. The list is every node of that kind and of the kinds
+  under it, newest first; words then narrow it by a node's words, its tag, a value or its day.
 
 | Do | Result |
 |---|---|
-| Arrow up and down | Walk the list |
-| Enter, or a click on a line | Goes to the node and closes Find; with Shift, opens it in the sidebar |
-| Right arrow, or a click on the arrow | Opens the node in place, in the window |
+| A click on a line, or Enter | Goes to the node in the main view; with Shift, opens it in the sidebar |
+| Down from the line | Walks the lines |
+| Right-click | The line's own menu, as everywhere |
+| Cmd-Enter | Makes a page of the words typed and goes to it |
 | Backspace on an empty line | Lets the kind go |
-| Escape | Back one step: the opened node, the words, the kind, the window |
+| Escape | Empties the words, then lets go of the kind |
 
-A click on a line goes to the node here, where on a page it opens the node in place: Find is for arriving.
+### The corner (`beside/corner.js`)
+
+The bottom right corner holds the plugin's commands, out of the way of what you read and write. Nothing shows there until the
+pointer comes near; then a quiet ···, and a press opens one menu: Search, Todo, Ontology, New page…, then Recycle and Update
+plugins. What is done to a node stays on its right-click.
 
 ### Todo (`arrive/todo.js`)
 
-The checkmark in the toolbar, or **Todo** in the command palette, opens a section of the right sidebar: your open tasks under
-**Today** (due today, or past its day), **Coming up** and **Any time**, each under a small bold word, the words a size smaller
+The corner, or **Todo** in the command palette, opens a section of the right sidebar: your open tasks under **Overdue** (past
+its day), **Today**, **Coming up** and **Any time**, each under a small bold word, the words a size smaller
 than a page's. A task's day stands at the right end of its line, red once it has passed. The line at the top, **Add or find a
 todo**, narrows the list to the tasks holding every word typed, and Return adds what is typed as a task on today's journal. A task set Done or Canceled leaves the list.
 
-Under that line stands a strip of time: a hairline from the first task's month to today, a dot for each listed task that has a
-day, a late one in red, today a short upright line. A press on a dot goes to its task. On the first group's line, at the right,
-two quiet words: **All open** lists the open statuses, each ticked or left out (the last one listed cannot be left out; Show
+Under that line, from five tasks with a day, stands a strip of time: a hairline from the first task's month to today, a dot for
+each listed task that has a day, a late one in red, today a short upright line. A press on a dot goes to its task. At the end
+of the line on top, two quiet words: **All open** lists the open statuses, each ticked or left out (the last one listed cannot be left out; Show
 all brings them back), and **By day** groups the tasks by day, page, parent (the node a task is written under), tag, priority
 or status, and sorts each group by day or by name. All of it is kept for the next time, on this Mac. A second level of
 grouping is not built.
 
 The same list stands on a page of its own, in the middle of the window, at a reading width: **Todo** in the command palette,
-or g then d outside a bullet. **Todo in the sidebar** and the toolbar's checkmark open the section.
+or g then d outside a bullet. **Todo in the sidebar** and the corner open the section.
 
 A day said in the words of a new task becomes its Deadline and leaves the words: today, tomorrow, a weekday ("friday", "by
 friday", "next friday"), "next week" (its Monday), "nov 20", "20 november". It is said at the line's right before Return
-("Friday, Nov 27"). A short weekday ("fri", "sun") counts only after by, on, due or next.
+("Nov 27"). A short weekday ("fri", "sun") counts only after by, on, due or next.
 
-Under a task's words stands where it sits: its page (a journal day by its date), a press goes there. Under a page's or a
+A task carries one mark before its words, its status circle, and one day, its own. Under its words stands the page it sits on
+when that page is not a journal day; a press goes there. Under a page's or a
 parent's heading the row does not say it again.
 
 A task's right-click has **Priority…** (Urgent, High, Medium, Low, and Remove priority when it has one) and **Deadline…**
@@ -260,7 +273,7 @@ journal without a question.
 
 Each tag says at its right how many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
 puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline; its right-click menu has
-Show its nodes (Find, with the tag taken), Put under… and Move to the top. A move is written at once and is two steps of
+Show its nodes (Search, with the tag taken), Put under… and Move to the top. A move is written at once and is two steps of
 Logseq's Undo. The selected tag shows its lines to the tags it is joined with (and those of the tags under it): a tag is
 joined to another when its nodes hold, under one of your properties, nodes of the other. The lines are drawn as the released
 Ontology drew them: one hairline a pair, in the quiet grey, from the edge of an area at one row to the edge at the other,
@@ -269,7 +282,7 @@ and over the band above the areas when they are further apart.
 
 ### Ontology as a page of its own (`tend/ontology.js`)
 
-The toolbar's tree opens Ontology as a page: every top tag is an area with the tags under it as an outline, as many areas side
+The corner opens Ontology as a page: every top tag is an area with the tags under it as an outline, as many areas side
 by side as fit, then the properties. The lines of the selected tag run between the edges of the areas, in
 the gaps and over the band above the areas, never over a name. At the top stand
 the New tag line, **Move values…** (the box, with the property still to choose) and **In the sidebar**, which opens the same
@@ -290,9 +303,9 @@ tick. A property that takes one value is never given a second: those nodes are l
 Afterwards one line says what was done, with one Undo that puts every value back and removes a property the move made; the
 line stays, Logseq closed and opened again, until Done.
 
-### The day in Find
+### The day at a line's end
 
-In Find and in Todo the words start each row and the day stands at the row's right end, right-aligned. In the lists of
+In Search and in Todo the words start each row and the day stands at the row's right end, right-aligned. In the lists of
 Relations the day stands after the bullet, before the words.
 
 ### In a narrow place
@@ -310,7 +323,7 @@ that kind's own line.
 
 ### Ontology (`tend/ontology.js`)
 
-The tree in the toolbar, or **Ontology** in the command palette, opens a section of the right sidebar: your tags as an outline,
+**Ontology in the sidebar** in the command palette, or **In the sidebar** on Ontology's page, opens a section of the right sidebar: your tags as an outline,
 each under the tag it sits under, then your properties by name. A tag and a property are nodes like any other, so a row opens
 in place as Logseq's own page for it. There its name is renamed, and Logseq's own arrow beside the name unfolds what it keeps:
 the tag it extends, its properties, a property's kind and what it takes. Ontology itself writes nothing.
