@@ -150,7 +150,7 @@ a.lk-tag:hover { color: var(--lk-text); }
 .lk-line > input.lk-tick { align-self: center; margin-right: 2px; opacity: 0; }
 .lk-row:is(:hover, :focus-within) > .lk-line > input.lk-tick, .lk-line > input.lk-tick:checked { opacity: 1; }
 .lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }
-.lk-tell { color: var(--lk-quiet); font-size: var(--lk-small); }
+.lk-tell { color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }   /* kept whole: the wide space before it is where the line breaks */
 .lk-dayin { flex: none; line-height: 1; width: var(--lk-dayin, 54px); margin: 0 2px 0 6px; overflow: hidden; white-space: nowrap; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 /* The tag and the value said after the words are set apart by a wide space, not a margin, so where one wraps to a line of its
    own it starts on the words' edge. */
