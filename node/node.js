@@ -413,7 +413,9 @@ G.node.CSS = `
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: flex; align-items: baseline; position: absolute; left: 44px; top: 2px; width: var(--lk-dayin, 54px); padding: 0; color: var(--lk-quiet); z-index: 1; }
 /* On the baseline of the opened node's first line, as on the line's words it stood beside: a strut of the words' line. */
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day::before { content: "\\200b"; width: 0; font-size: var(--lk-words-size); line-height: 24px; }
-.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { margin-left: calc(var(--lk-dayin, 54px) + 10px); }
+/* The band of a node opened in a list of Relations starts at the row's dot and holds the dot and the day; the node itself starts
+   past the day, where the line's words stood. (The owner, 25 November 2026: "this location of grey box": it started under the day.) */
+.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { --lk-open-shift: 0px; padding-left: calc(var(--lk-dayin, 54px) + 10px); }
 .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
 .lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
 .lk-list-head[data-thin] > .lk-list-name { align-items: baseline; }
@@ -452,13 +454,12 @@ G.node.CSS = `
   .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-words { flex: 1 1 0; }
   .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin { order: 9; flex: 0 0 100%; width: auto; margin: -3px 0 3px 20px; line-height: 16px; font-size: var(--lk-label); }
   .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin:empty { display: none; }
-  .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { margin-left: -2px; }   /* measured: the opened node's words stand where its line's words stood */
+  .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { --lk-open-shift: -2px; padding-left: 0; }   /* measured: the opened node's words stand where its line's words stood */
   .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: none; }
   .lk-list:has(.lk-row .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: 20px; }
   .lk-list[data-viewed] .lk-draft .lk-dayin { display: none; }
   .lk-list[data-viewed] > .lk-more.lk-more-link, .lk-list[data-viewed] > .lk-rows > .lk-more.lk-more-link { margin-left: calc(var(--lk-mark-box) + var(--lk-mark-gap)); }
   .lk-list[data-viewed] > .lk-draft { margin-left: -18px; }
-  .lk-row > .lk-open::before { left: 4px; }   /* the side line clear of a value's arrow, which stands in the gutter here */
 }
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
@@ -475,17 +476,19 @@ G.node.CSS = `
 .lk-add .lk-field:focus { border-bottom-color: var(--lk-line); }
 .lk-add .lk-field::placeholder { color: var(--lk-off); }
 .lk-add ~ .lk-rel .lk-row { scroll-margin: 44px 0 8px; }
-.lk-open { margin-left: -2px; position: relative; }
+.lk-open { --lk-open-shift: -2px; margin-left: var(--lk-open-shift); position: relative; }
 /* The levels show: one soft band for the node opened from a row; a node dug into stands under the value it was reached
    through, its rows starting where the value's words start, with a guide line down from the value's arrow. It takes its room
    in one move, once Logseq has drawn it. */
 .lk-row > .lk-open { background: color-mix(in srgb, var(--lk-text) 3.5%, transparent); border-radius: var(--lk-corner); padding: 0 8px 6px 0; }
 /* A line down the left side of the node opened from a row, from under its own line to its foot, as before 0.9. */
-.lk-row > .lk-open::before { content: ""; position: absolute; left: 9px; top: 28px; bottom: 8px; width: 1px; background: var(--lk-line); pointer-events: none; }
+/* ... under the row's dot, as Logseq draws a bullet's line down to its children: the dot's box is the mark's box at the band's start. */
+.lk-row > .lk-open::before { content: ""; position: absolute; left: calc(var(--lk-mark-box) / 2 - .5px - var(--lk-open-shift)); top: 28px; bottom: 8px; width: 1px; background: var(--lk-line); pointer-events: none; }
 .lk-dugopen { position: absolute; right: 0; margin: 0; padding: 0 0 6px; opacity: 0; pointer-events: none; container: lk-list / inline-size; }   /* a dug node is measured by its own width, so where it is narrow its rows take the narrow layout (name over value) */
 .lk-dugopen[data-whole] { opacity: 1; pointer-events: auto; transition: opacity .16s ease .04s; }
 .lk-dugopen.lk-flow { position: relative; margin: 2px 0 6px 28px; }
-.lk-dugopen::before { content: ""; position: absolute; left: -11px; top: 1px; bottom: 8px; width: 1px; background: var(--lk-line); }
+/* The guide line runs down from the middle of the arrow before the value: the arrow's box is 12 wide and ends 4 before the value's words. */
+.lk-dugopen::before { content: ""; position: absolute; left: calc(-1 * (4px + 12px / 2) - .5px); top: 1px; bottom: 8px; width: 1px; background: var(--lk-line); }
 /* What points at the node: under one word and a thin line, apart from the node's own rows. */
 .lk-relhead { display: flex; align-items: center; gap: 10px; margin: 6px 0 0 22px; color: var(--lk-quiet); font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-relhead::after { content: ""; flex: 1; height: 1px; background: var(--lk-hair); }

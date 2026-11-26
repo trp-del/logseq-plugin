@@ -78,9 +78,10 @@ function seat(editor, uuid) {
   const link = [...editor.querySelectorAll(VALUE)].find(one => String(one.getAttribute('data-uuid')).toLowerCase() === uuid && one.closest(ROW) && one.closest('.lk-editor') === editor);
   const row = link?.closest(ROW);
   if (!row) return null;
-  const at = editor.getBoundingClientRect(), r = row.getBoundingClientRect(), v = (link.closest('.property-value-container') || link).getBoundingClientRect();
+  const box = link.closest('.property-value-container') || link, at = editor.getBoundingClientRect(), r = row.getBoundingClientRect(), v = box.getBoundingClientRect();
+  const inset = parseFloat(editor.ownerDocument.defaultView.getComputedStyle(box).paddingLeft) || 0;   // where the value's words start: past the values' own step in a narrow node
   const kind = row.classList.contains('property-pair') ? '.property-pair' : '.bottom-property-pill', n = [...row.parentElement.children].indexOf(row) + 1;
-  return { top: r.bottom - at.top, left: v.left - at.left, row: `${kind}:nth-child(${n}):has(a.page-ref[data-uuid="${uuid}"])`, mark: `:is(${ROW}) a.page-ref[data-uuid="${uuid}"]` };
+  return { top: r.bottom - at.top, left: v.left + inset - at.left, row: `${kind}:nth-child(${n}):has(a.page-ref[data-uuid="${uuid}"])`, mark: `:is(${ROW}) a.page-ref[data-uuid="${uuid}"]` };
 }
 // How wide the longest property name of an opened node is drawn, so its holder can set the names' column to it.
 function names(editor) {
@@ -499,7 +500,7 @@ const OPENED = `
 @container lk-list (max-width: 300px) {
   .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) { grid-template-columns: minmax(0, 1fr) !important; }
   .lk-editor :is(.bottom-property-pill, .property-pair) .property-key-inner { max-width: none; }
-  .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) > :last-child { padding-left: 16px; }
+  .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) > :last-child { padding-left: 16px !important; }   /* the values one step in under their name, so a value's arrow stands inside the node, clear of the guide line it was dug from (the reset of the value's padding above had cancelled it) */
 }
 /* A value that is words is a bullet of Logseq's: its words stand in the values' column, without the bullet. */
 .lk-editor .property-pair .property-block-container { margin: 2px 0 0 !important; font-size: var(--lk-line-size) !important; }
