@@ -471,7 +471,7 @@ G.node.CSS = `
 .lk-day-end .lk-more { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
 .lk-add:has(+ .lk-ask) { position: static; }   /* a box open under it: it scrolls away with the rest, and never floats over the box */
-.lk-add .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
+.lk-add .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0 2px calc(var(--lk-mark-box) + var(--lk-mark-gap) - 18px);   /* the words typed start on the edge of the lists' names below */ box-shadow: none; border-radius: 0; }
 .lk-add .lk-field:focus { border-bottom-color: var(--lk-line); }
 .lk-add .lk-field::placeholder { color: var(--lk-off); }
 .lk-add ~ .lk-rel .lk-row { scroll-margin: 44px 0 8px; }
