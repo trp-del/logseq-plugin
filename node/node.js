@@ -451,18 +451,19 @@ G.node.CSS = `
   .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: none; }
   .lk-list:has(.lk-row .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: 20px; }
   .lk-list[data-viewed] .lk-draft .lk-dayin { display: none; }
-  .lk-list[data-viewed] > .lk-more.lk-more-link, .lk-list[data-viewed] > .lk-rows > .lk-more.lk-more-link { margin-left: 20px; }
+  .lk-list[data-viewed] > .lk-more.lk-more-link, .lk-list[data-viewed] > .lk-rows > .lk-more.lk-more-link { margin-left: calc(var(--lk-mark-box) + var(--lk-mark-gap)); }
   .lk-list[data-viewed] > .lk-draft { margin-left: -18px; }
   .lk-row > .lk-open::before { left: 4px; }   /* the side line clear of a value's arrow, which stands in the gutter here */
 }
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 @container lk-list (max-width: 300px) { .lk-span { display: none; } }
-.lk-more.lk-more-link { margin-left: calc(18px + 16px + 6px + var(--lk-dayin, 54px) + 6px); font-size: inherit; line-height: 24px; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
-.lk-list:not(:has(.lk-dayin)) > .lk-more.lk-more-link { margin-left: 38px; }
-.lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 34px); padding: 2px 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+/* Show more stands on the edge of the rows' words: the arrow's column, the bullet's box and its gap, then (in Relations) the day with its own margins and the gap after it. */
+.lk-more.lk-more-link { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap) + 6px + var(--lk-dayin, 54px) + 2px + var(--lk-mark-gap)); font-size: inherit; line-height: 24px; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-list:not(:has(.lk-dayin)) > .lk-more.lk-more-link { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
+.lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 18px + var(--lk-mark-box) + var(--lk-mark-gap)); padding: 2px 0; text-align: start; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-more:hover { color: var(--lk-text); text-decoration-color: currentColor; }
-.lk-day-end .lk-more { margin-left: 34px; }
+.lk-day-end .lk-more { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
 .lk-add:has(+ .lk-ask) { position: static; }   /* a box open under it: it scrolls away with the rest, and never floats over the box */
 .lk-add .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }

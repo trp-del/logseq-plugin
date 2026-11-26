@@ -175,7 +175,7 @@ a.lk-tag:hover { color: var(--lk-text); }
   .lk-day-end .lk-row > .lk-line { grid-column: 2 / -1; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
   .lk-day-end .lk-row.lk-row > .lk-day.lk-day { grid-column: 3; grid-row: 1; padding: 2px 6px 0 0; margin-top: 0; line-height: 24px; font-size: var(--lk-small); }   /* said twice over, past the rule that steps a task's day in under its circle */
   .lk-row[data-open="1"] { padding-left: 0; }
-  .lk-more { margin-left: 34px; }
+  .lk-more { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
   .lk-open > .lk-rel { margin-left: 8px; }
 }`;
 })();
