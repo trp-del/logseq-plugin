@@ -105,13 +105,13 @@ G.timeline.CSS = `
 .lk-time.lk-time-tall { --lk-time-row: 60px; }
 .lk-time.lk-time-tall.lk-time-laned { --lk-time-row: 40px; }
 .lk-time.lk-time-laned { padding-left: 6.5rem; }
-.lk-time-year { position: absolute; top: 0; left: 0; padding-left: 3px; font-size: var(--lk-label); line-height: 14px; color: var(--lk-quiet); }
+.lk-time-year { position: absolute; top: 0; left: 0; padding-left: calc(var(--lk-mark-box) + var(--lk-mark-gap) - 18px);   /* on the head's words' edge */ font-size: var(--lk-label); line-height: 14px; color: var(--lk-quiet); }
 .lk-time-track { position: relative; height: calc(var(--lanes, 1) * var(--lk-time-row) + 18px); cursor: crosshair; user-select: none; touch-action: none; }
 .lk-time-rule { position: absolute; left: 0; right: 0; top: calc((var(--lane) + 1) * var(--lk-time-row) - 9px); height: 1px; background: var(--lk-line); pointer-events: none; }
 .lk-time-month { position: absolute; bottom: 0; padding-left: 3px; font-size: var(--lk-label); line-height: 14px; color: var(--lk-quiet); pointer-events: none; white-space: nowrap; }
 .lk-time-month::before { content: ""; position: absolute; left: 0; top: -17px; height: 8px; border-left: 1px solid var(--lk-line); }
 .lk-time-today { position: absolute; top: calc(var(--lanes, 1) * var(--lk-time-row) - 17px); height: 16px; border-left: 1.2px solid var(--lk-text); pointer-events: none; }
-.lk-time-today > span { position: absolute; bottom: 100%; right: -4px; font-size: var(--lk-label); line-height: 14px; color: var(--lk-text); white-space: nowrap; }
+.lk-time-today > span { position: absolute; top: calc(-16px - var(--lanes, 1) * var(--lk-time-row) + 17px); right: -4px;   /* on the year's line: back up the track's 16 and the tick's own top */ font-size: var(--lk-label); line-height: 14px; color: var(--lk-text); white-space: nowrap; }
 .lk-time-pick { position: absolute; top: 0; height: calc(var(--lanes, 1) * var(--lk-time-row)); background: var(--lk-wash); border-radius: 3px; pointer-events: none; box-shadow: inset 0 0 0 1px var(--lk-line); }
 .lk-time-dot { position: absolute; top: calc((var(--lane, 0) + 1) * var(--lk-time-row) - 12.5px - var(--pile, 0) * 9px); width: 7px; height: 7px; margin-left: -3.5px; box-sizing: border-box; border-radius: 50%; background: var(--lk-text); opacity: .75; cursor: pointer; }
 .lk-time-dot:hover { opacity: 1; box-shadow: 0 0 0 3px var(--lk-wash); }
@@ -124,7 +124,7 @@ G.timeline.CSS = `
 .lk-time-name .lk-day { color: var(--lk-quiet); }
 .lk-time-name.end { transform: translateX(calc(-100% + 8px)); }
 .lk-time-named .lk-time-today > span { visibility: hidden; }
-.lk-time-lane { position: absolute; left: 0; top: calc(16px + (var(--lane) + 1) * var(--lk-time-row) - 17px); width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--lk-label); line-height: 16px; color: var(--lk-quiet); cursor: pointer; }
+.lk-time-lane { position: absolute; left: calc(var(--lk-mark-box) + var(--lk-mark-gap) - 18px); top: calc(16px + (var(--lane) + 1) * var(--lk-time-row) - 17px); width: 6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--lk-label); line-height: 16px; color: var(--lk-quiet); cursor: pointer; }
 .lk-time-lane:hover, .lk-time-lane.on { color: var(--lk-text); }
 .lk-time-lane.off { opacity: .55; }
 .lk-time-count { color: var(--lk-off); }`;
