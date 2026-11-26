@@ -102,8 +102,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   "New page", which makes a page by the words typed and goes to it.
 - An opened node rolls out of its line in one short move. A tick box on a line shows under the pointer and stays once
   ticked (no list has tick boxes yet).
-- Three corners (a small one, one for what floats, the round of a press) and the sizes of text are named once in
-  `ground/look.js`.
+- Three corners (a small one, one for what floats, the round of a press), the sizes of text, and the box a mark stands in
+  with the gap after it (16 and 4) are named once in `ground/look.js`.
 
 ### Logseq's own screens, quieted (`beside/calm.js`, written in `ground/touch.js`)
 
