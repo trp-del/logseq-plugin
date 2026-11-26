@@ -132,11 +132,12 @@ G.line.CSS = `
 .lk-row[data-open] > .lk-fold svg, [aria-expanded="true"] > .lk-fold svg { transform: rotate(90deg); }
 .lk-fold:hover { color: var(--lk-text); }
 .lk-line { display: flex; align-items: baseline; gap: 4px; padding: 2px 6px 2px 0; border-radius: var(--lk-corner); line-height: 24px; cursor: default; }
+.lk-line > :is(.lk-bul, .lk-status) { align-self: flex-start; }   /* the marks keep the line's first 24, the words and the day stand on one baseline */
 .lk-line:focus-visible { outline: none; background: var(--lk-wash); }
-.lk-bul { flex: none; align-self: flex-start; width: 16px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
+.lk-bul { flex: none; width: 16px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
 .lk-bul::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); }
 .lk-status-icon { display: inline-flex; }
-.lk-status { flex: none; align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; padding: 0; border: 0; background: none; color: var(--lk-quiet); cursor: pointer; }
+.lk-status { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; padding: 0; border: 0; background: none; color: var(--lk-quiet); cursor: pointer; }
 .lk-words { min-width: 0; overflow-wrap: anywhere; }
 .lk-words a.lk-node, .lk-words a.lk-url { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-words a:is(.lk-node, .lk-url):hover { text-decoration-color: currentColor; }
