@@ -229,6 +229,9 @@ G.listview.CSS = `
 /* A kind (in the tag's face) stands on a line of the words' face, so every line of the head is 24 high on one baseline. */
 .lk-tab::before, .lk-head-do::before, .lk-head-end::before { font-family: var(--ls-font-family, inherit); font-size: var(--lk-line-size); font-weight: 400; line-height: 24px; }
 .lk-tab::before { content: "\\200b"; }
+/* Days that are not shown take no line: none to say, or a place too narrow for them. */
+.lk-head-end:empty::before { content: none; }
+@container lk-list (max-width: 300px) { .lk-head-end:not(:has(> :not(.lk-span)))::before { content: none; } }
 .lk-set { font-size: var(--lk-small); }
 .lk-set:hover, .lk-set:focus-visible { color: var(--lk-text); outline: none; }
 .lk-group-head, .lk-since { display: flex; align-items: center; gap: var(--lk-mark-gap); min-height: var(--lk-line-h); margin: 6px 0 0 calc(var(--lk-daycol, 0px)); color: var(--lk-quiet); font-size: var(--lk-line-size); cursor: default; border-radius: 6px; }
