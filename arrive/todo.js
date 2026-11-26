@@ -22,7 +22,7 @@ G.part({
 .lk-page[data-page="lk-todo-page"] { max-width: 720px; margin-inline: auto; }
 /* What is listed and how it is grouped: two quiet words at the right of the first group's line. */
 .lk-todo-view { position: relative; height: 0; z-index: 1; }
-.lk-todo-view > div { position: absolute; right: 0; top: 14px; display: flex; gap: 2px; }
+.lk-todo-view > div { position: absolute; right: 0; top: calc(14px + (var(--lk-line-h) - 24px) / 2); display: flex; gap: 2px; }   /* centred on the first group's head as its name is: the list's 14 above, the head's 28, the words' 24 */
 .lk-todo-view button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; white-space: nowrap; }
 .lk-todo-view button:hover, .lk-todo-view button:focus-visible { background: var(--lk-wash); color: var(--lk-text); outline: none; }
 .lk-todo-view button.on { color: var(--lk-text); }
