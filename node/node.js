@@ -403,7 +403,7 @@ G.node.CSS = `
 .lk-list-head:has(> .lk-list-via:not(:empty)) { flex-wrap: wrap; }
 .lk-list-via { order: -1; flex: 0 0 100%; display: flex; align-items: center; min-height: 24px; }
 .lk-list-via:empty { display: none; }
-.lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 5px 0 2px; font-size: var(--lk-small); color: var(--lk-off); }
+.lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 4px 0 3px; font-size: var(--lk-small); color: var(--lk-off); }
 .lk-list-head[data-one] > :is(.lk-fold, .lk-list-name) { display: none; }
 /* A list of Relations has the day after the bullet, inside the line. Opened, the node stands where its words stood, and its
    day stays where it was. */
@@ -420,7 +420,7 @@ G.node.CSS = `
 .lk-row.lk-fresh > .lk-line > .lk-bul::before { background: var(--lk-text); width: 7px; height: 7px; }   /* made since the page was last open */
 .lk-list[data-picking] .lk-row > .lk-fold { display: none; }
 .lk-row > .lk-tick { grid-column: 2; align-self: start; margin-top: 9px; justify-self: center; position: relative; z-index: 1; }
-.lk-list-head > .lk-list-name > .lk-tick-all { margin: 0 6px 0 -19px; }
+.lk-list-head > .lk-list-name > .lk-tick-all { margin: 0 6px 0 -19px; align-self: center; }
 .lk-row.lk-picked > .lk-line { background: var(--lk-wash); border-radius: 6px; }
 .lk-said { font-weight: 500; }
 /* What a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads, in every place (the owner, 26 November 2026). */
@@ -436,6 +436,24 @@ G.node.CSS = `
 .lk-row[data-open] > .lk-found { display: none; }
 .lk-found .lk-found-rest { display: block; margin: 0; }
 .lk-rows > .lk-more.lk-more-group { display: block; }
+/* A narrow place (the sidebar, a node opened deep): the indents shrink. A row's arrow stands in the gutter where its list's
+   arrow stands, its bullet on the edge the head's words start on, and its day goes under its words, small, in place of a
+   column beside them that would leave the words a few letters wide (the owner, 25 November 2026: "This is a sidebar and you
+   need to account for that especially with indentation"). */
+@container lk-list (max-width: 300px) {
+  .lk-list[data-viewed] > .lk-rows { margin-left: -18px; }
+  .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line { flex-wrap: wrap; }
+  .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-words { flex: 1 1 0; }
+  .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin { order: 9; flex: 0 0 100%; width: auto; margin: -3px 0 3px 20px; line-height: 16px; font-size: var(--lk-label); }
+  .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin:empty { display: none; }
+  .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { margin-left: -2px; }   /* measured: the opened node's words stand where its line's words stood */
+  .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: none; }
+  .lk-list:has(.lk-row .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: 20px; }
+  .lk-list[data-viewed] .lk-draft .lk-dayin { display: none; }
+  .lk-list[data-viewed] > .lk-more.lk-more-link, .lk-list[data-viewed] > .lk-rows > .lk-more.lk-more-link { margin-left: 20px; }
+  .lk-list[data-viewed] > .lk-draft { margin-left: -18px; }
+  .lk-row > .lk-open::before { left: 4px; }   /* the side line clear of a value's arrow, which stands in the gutter here */
+}
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 @container lk-list (max-width: 300px) { .lk-span { display: none; } }

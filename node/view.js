@@ -198,13 +198,19 @@ async function hiddenMenu(at, again) {
 }
 G.listview = { state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED, hiddenMenu, drags, named: () => reads.get(), hidden: () => oneEnd.get() };
 G.listview.CSS = `
-.lk-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 0 24px; min-width: 0; flex: 0 1 auto; }
+/* The kinds, the + and the ⋯ and the days are one run of words that wraps where it must: the + and the ⋯ follow the last kind
+   on whichever line it stands, and the days close that line at its right end (the owner, 25 November 2026, of kinds wrapped one
+   a line beside the + and the days: "I see a lot of problems with alignment of elements"). */
+.lk-list-head > .lk-list-name { flex-wrap: wrap; row-gap: 2px; }
+.lk-tabs { display: contents; }
+.lk-list-name > .lk-tabs > * { margin-right: 24px; }
+.lk-list-name > .lk-tabs > :last-child { margin-right: 0; }
 .lk-head-do { flex: none; display: inline-flex; align-items: center; gap: 12px; height: 24px; margin-left: 8px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
 .lk-tab { appearance: none; position: relative; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: var(--lk-quiet); cursor: pointer; white-space: nowrap; }
 .lk-tab:hover, .lk-tab:focus-visible { color: var(--lk-text); outline: none; }
 .lk-tab:not([data-kind=""]):not(.lk-tabmore):not(.lk-newtab):not([data-kind="@none"]) { font-family: var(--lk-tag-face); }   /* a kind is a tag: in the tag's face */
 .lk-tab.on { color: var(--lk-text); }
-.lk-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 1.5px; border-radius: 1px; background: currentColor; }
+.lk-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1.5px; border-radius: 1px; background: currentColor; }   /* inside the kind's own line: never into the line below ("look at the underline of all") */
 .lk-tab .lk-n { margin-left: .25em; color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-group-head .lk-n, .lk-since .lk-n { margin-left: .25em; font-size: var(--lk-small); font-weight: 400; color: var(--lk-off); font-variant-numeric: tabular-nums; }
 .lk-tabmore { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
@@ -233,5 +239,8 @@ G.listview.CSS = `
 .lk-list[data-drop="above"] { box-shadow: 0 -2px 0 0 var(--lk-text); }
 .lk-list[data-drop="below"] { box-shadow: 0 2px 0 0 var(--lk-text); }
 .lk-list-via[draggable="true"] { cursor: grab; }
-@container lk-list (max-width: 300px) { .lk-head-end { flex: 0 0 100%; margin-left: 0; padding-left: 0; } }`;
+/* Where the place is not wide (the sidebar, a page beside an open sidebar) the days have a line of their own under the head's
+   words, on the words' edge: never alone at the right end of a line of their own. */
+@container lk-list (max-width: 420px) { .lk-head-end { flex: 0 0 100%; margin-left: 0; padding-left: 0; justify-content: flex-start; } .lk-head-end .lk-span { display: inline; } }
+@container lk-list (max-width: 300px) { .lk-list-name > .lk-tabs > * { margin-right: 14px; } .lk-list-name > .lk-tabs > :last-child { margin-right: 0; } }`;
 })();

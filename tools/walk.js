@@ -107,6 +107,17 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-row .lk-line').first().click({ modifiers: ['Shift'] }); await wait(2000);
       return is([(await lists()).map(l => l.where), await page.evaluate(() => String(getSelection()))], [['main', 'sidebar'], '']);
     });
+    await step('a page in the sidebar lies flat on the page\'s ground and shows its place, its properties open and its Relations', async () => {   // the owner, 25 November 2026: "the sidebar is not correctlt styled like pre 0.9 version", "it should have full info like before too"
+      const before = await count('#right-sidebar .sidebar-item');
+      await page.evaluate(u => window.logseq.api.open_in_right_sidebar(u), CHEN); await wait(4000);
+      const got = await page.evaluate(() => {
+        const item = document.querySelector('#right-sidebar .sidebar-item.item-type-page'), look = getComputedStyle(item), box = item.querySelector('.ls-sidebar-page-properties'), clear = c => /^(rgba\(0, 0, 0, 0\)|transparent)$/.test(c);
+        return [look.boxShadow === 'none' && clear(look.backgroundColor) && clear(getComputedStyle(item.querySelector('.sidebar-item-header')).backgroundColor), clear(getComputedStyle(document.querySelector('#right-sidebar .cp__right-sidebar-inner')).backgroundColor) && clear(getComputedStyle(document.querySelector('#right-sidebar')).backgroundColor),
+          !!item.querySelector('.lk-place')?.innerText.trim(), !(box.children.length === 1 && box.querySelector(':scope > div:first-child > button:only-child')), item.querySelectorAll('.lk-relwrap .lk-list').length > 0];
+      });
+      await page.locator('#right-sidebar .sidebar-item.item-type-page').first().locator('.item-actions button').last().click(); await wait(800);
+      return is([got, await count('#right-sidebar .sidebar-item')], [[true, true, true, true, true], before]);
+    });
     await step('a reload of the plugin leaves nothing doubled and nothing behind', async () => {
       await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(5000);
       return is([(await lists()).map(l => l.lists.length), await page.evaluate(() => { const ids = [...document.querySelectorAll('style[id^="lk-style"]')].map(el => el.id); return ids.length - new Set(ids).size; }), await count('.lk-place')], [[1, 0], 0, 1]);

@@ -15,19 +15,23 @@ G.part({
   key: 'relations', title: 'Relations', about: 'Under a page: every node that points at it, one list for each property, and where it is mentioned. Any row opens in place.',
   start(base) {
     base.style('hides', G.touch.HIDES + `
-.lk-relwrap { margin: 10px 0 20px; padding-left: 18px; font-size: 1rem; font-weight: 400; line-height: 24px; letter-spacing: normal; color: var(--lk-text); cursor: auto; }
+/* Measured, one rule (the owner, 25 November 2026: "can you measure things to make sure they are aligned and proper spacing"):
+   a mark stands in a box 16 wide that ends 4 before its words; from the middle of one line to the middle of the next it is 26
+   inside a head, 32 from a head to what it heads, and 54 from one section to the next. */
+.lk-relwrap { margin: 27px 0 20px; padding-left: 18px; font-size: 1rem; font-weight: 400; line-height: 24px; letter-spacing: normal; color: var(--lk-text); cursor: auto; }
 .lk-relwrap:not(:has(.lk-relpage > .lk-list)) { display: none; }
-.lk-relpage { gap: 28px; margin: 22px 0 0; }
+.lk-relpage { gap: 28px; margin: 28px 0 0; }
 .lk-relsec { margin: 0; }
-.lk-relfind-icon { display: inline-flex; align-items: center; width: 17px; margin-left: -18px; padding-right: 1px; color: var(--lk-quiet); }
+.lk-relfind-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 16px; margin: 0 4px 0 -18px; color: var(--lk-quiet); }
 .lk-relsec:not(:has(+ .lk-rel > .lk-list)) { display: none; }
-.lk-relsec > .lk-relhead { display: flex; margin: 0 0 0 -18px; cursor: default; border-radius: 6px; }
+.lk-relsec > .lk-relhead { display: flex; gap: 2px; margin: 0 0 0 -18px; cursor: default; border-radius: 6px; }
+.lk-relsec > .lk-relhead::after { margin-left: 8px; }
 .lk-relsec > .lk-relhead:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-relsec > .lk-relhead .lk-fold { opacity: 0; margin-top: 0; }
 .lk-relsec > .lk-relhead:hover .lk-fold, .lk-relsec > .lk-relhead[aria-expanded="false"] .lk-fold { opacity: 1; }
 .lk-relsec > .lk-relhead[aria-expanded="true"] .lk-fold svg { transform: rotate(90deg); }
 .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) + .lk-rel, .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) > .lk-relfind { display: none; }
-.lk-relfind { display: flex; align-items: center; margin: 8px 0 0; }
+.lk-relfind { display: flex; align-items: center; margin: 6px 0 0; }
 .lk-relfind[hidden] { display: none; }
 .lk-relfind .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
 .lk-relfind .lk-field:focus, .lk-relfind .lk-field:not(:placeholder-shown) { border-bottom-color: var(--lk-line); }

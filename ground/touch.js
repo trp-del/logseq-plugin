@@ -97,11 +97,30 @@ const edit = uuid => logseq.Editor.editBlock(String(uuid));
 // The text box of the bullet being written in, or null.
 const writing = () => { const el = host().activeElement; return el?.tagName === 'TEXTAREA' && el.closest('.ls-block[blockid]') ? el : null; };
 
+/* A page in Logseq's right sidebar. Logseq draws it with no title of its own (its name stands in the section's head), so which
+   page a section shows is read from Logseq's own list of what the sidebar holds, in the sections' order. Answers the page's
+   uuid, '' while it is being read (the pass over the screen runs again once it is), or null for what is no sidebar page. */
+const SIDE_PAGE = '#right-sidebar .sidebar-item.item-type-page';
+const sideUuids = new Map();   // a page's id in the graph -> its uuid, once read
+function sidePage(el) {
+  const item = el.closest(SIDE_PAGE);
+  if (!item) return null;
+  let held = [];
+  try { held = (host().defaultView.logseq.api.get_state_from_store('sidebar/blocks') || []).filter(one => one?.[2] === 'page'); } catch (error) { held = []; }
+  const id = held[[...host().querySelectorAll(SIDE_PAGE)].indexOf(item)]?.[1];
+  if (id == null) return '';
+  if (!sideUuids.has(id)) {
+    sideUuids.set(id, '');
+    Promise.resolve(logseq.Editor.getPage(id)).then(page => { if (page?.uuid) { sideUuids.set(id, String(page.uuid).toLowerCase()); run(); } else sideUuids.delete(id); }).catch(() => sideUuids.delete(id));
+  }
+  return sideUuids.get(id);
+}
 function pages() {
   const out = [];
   for (const el of host().querySelectorAll(PAGE)) {
     if (el.closest(OURS)) continue;
-    const uuid = (el.querySelector(PAGE_NODE) || (el.querySelector('.ls-page-title') ? null : el.querySelector(FIRST_NODE)))?.getAttribute('blockid');
+    const side = sidePage(el);
+    const uuid = side != null ? side : (el.querySelector(PAGE_NODE) || (el.querySelector('.ls-page-title') ? null : el.querySelector(FIRST_NODE)))?.getAttribute('blockid');
     if (uuid) out.push({ el, uuid: uuid.toLowerCase(), feed: !!el.closest(FEED), side: !!el.closest('#right-sidebar') });
   }
   return out;
@@ -117,7 +136,8 @@ function pageFoot(el, name) {
 // Under the title and the page's properties, above the page's own bullets: the last thing inside the title's block. null where
 // the page has no title of its own (a bullet shown as a page).
 function pageUnder(el, name) {
-  const block = el.querySelector(':scope > .page-inner .ls-page-title .ls-block');
+  // A page in the sidebar has no title block: there it is the box that holds the page's properties, above its bullets.
+  const block = el.querySelector(':scope > .page-inner .ls-page-title .ls-block') || (el.closest(SIDE_PAGE) ? el.querySelector(':scope > .page-inner .ls-sidebar-page-properties')?.parentElement : null);
   if (!block) return null;
   let under = [...block.children].find(child => child.classList.contains(name));
   if (!under) { under = host().createElement('div'); under.className = name; block.appendChild(under); }
@@ -126,7 +146,14 @@ function pageUnder(el, name) {
 // Under the title's own row and above the page's properties, inside the title's block.
 function pageHead(el, name, above = false) {
   const row = el.querySelector(':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
-  if (!row) return null;
+  if (!row) {
+    // A page in the sidebar: its name is in the section's head, so what stands by a title stands first in the page, above its properties.
+    const props = el.closest(SIDE_PAGE) ? el.querySelector(':scope > .page-inner .ls-sidebar-page-properties') : null;
+    if (!props) return null;
+    let line = [...props.parentElement.children].find(child => child.classList.contains(name));
+    if (!line) { line = host().createElement('div'); line.className = name; if (above) props.parentElement.prepend(line); else props.before(line); }
+    return line;
+  }
   let head = [...row.parentElement.children].find(child => child.classList.contains(name));
   if (!head) { head = host().createElement('div'); head.className = name; if (above) row.before(head); else row.after(head); }
   return head;
@@ -333,7 +360,9 @@ function section(name, title, draw, path) {
     if (holder) {
       fill(holder);
       // The ground the section stands on, for a piece of it that stays in view while the rest scrolls under it.
-      const ground = holder.ownerDocument.defaultView.getComputedStyle(head.closest('.sidebar-item')).backgroundColor;
+      // A section lies flat on the sidebar, so its own ground may be none: the first ground painted under it is the one.
+      let ground = 'rgba(0, 0, 0, 0)';
+      for (let at = head.closest('.sidebar-item'); at && /^(rgba\(0, 0, 0, 0\)|transparent)$/.test(ground); at = at.parentElement) ground = holder.ownerDocument.defaultView.getComputedStyle(at).backgroundColor;
       if (holder.style.getPropertyValue('--lk-ground') !== ground) holder.style.setProperty('--lk-ground', ground);
     }
     for (const one of [...drawn.keys()]) if (!one.isConnected) clear(one);
@@ -464,6 +493,14 @@ const OPENED = `
 .lk-editor .ls-properties-area, .lk-editor .properties-panel { margin: 0 !important; padding: 0 !important; overflow: visible !important; border-radius: 0 !important; }
 .lk-editor .ls-properties-area { display: block !important; }   /* Logseq drops these rows in a place narrower than 430px (the sidebar, a deep level); the rows here fit, so they stay */
 .lk-editor .ls-block-content-indent { padding-left: 42px !important; }   /* a bullet's other properties start where its first ones do */
+/* In a narrow place (a node opened in the sidebar's lists) there is no room for a column of names beside the values: a
+   property's name stands on a line of its own and its values under it, each whole (the owner, 25 November 2026: "This is a
+   sidebar and you need to account for that"). */
+@container lk-list (max-width: 300px) {
+  .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) { grid-template-columns: minmax(0, 1fr) !important; }
+  .lk-editor :is(.bottom-property-pill, .property-pair) .property-key-inner { max-width: none; }
+  .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) > :last-child { padding-left: 16px; }
+}
 /* A value that is words is a bullet of Logseq's: its words stand in the values' column, without the bullet. */
 .lk-editor .property-pair .property-block-container { margin: 2px 0 0 !important; font-size: var(--lk-line-size) !important; }
 .lk-editor .property-pair .property-block-container .block-control-wrap { display: none !important; }
@@ -569,9 +606,44 @@ ${PILLS}${OUT} .bottom-property-pill > div:first-child { color: var(--lk-quiet) 
 ${PILLS}${OUT} .bottom-property-pill:has(.empty-value):not(:focus-within) { display: none !important; }
 ${PILLS}${OUT} .bottom-property-pill input.ui__input { field-sizing: content; width: auto !important; min-width: 3ch; max-width: 40ch; height: 24px !important; padding: 0 2px !important; border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; }
 ${AREA} .ls-block .bottom-property-edit-icon${OUT} { display: none !important; }`,
-  /* The right sidebar: Logseq's own row on top (Contents, Page graph, Help) is left out; each section has its own head. */
+  /* The right sidebar, as it was before 0.9 (the owner, 25 November 2026: "the sidebar is not correctlt styled like pre 0.9
+     version"; "you can keep same content of section in sidebar but remove asthetic stuff like shadow spacing lines, etc").
+     What a section holds is Logseq's own, untouched. What goes is the dress: Logseq's row on top (Contents, Page graph, Help),
+     the grey ground, each section's card (its shadow, its rounded corners, the band behind its head) and the room Logseq
+     keeps round it. The sidebar stands on the page's own ground; a hairline parts it from the page (still Logseq's handle
+     for its width: seven pixels to catch, the line darker under the pointer), and a thin line parts one section from the next. */
   side: `
-#right-sidebar .cp__right-sidebar-topbar { display: none !important; }`,
+#right-sidebar .cp__right-sidebar-topbar { display: none !important; }
+#right-sidebar, #right-sidebar .cp__right-sidebar-inner, #right-sidebar .cp__right-sidebar-scrollable { background-color: transparent !important; }   /* the page's own ground shows through: the very same, not one a shade off */
+#right-sidebar .sidebar-item-list > .sidebar-item, #right-sidebar .sidebar-item-list > .sidebar-item .sidebar-item-header { box-shadow: none !important; background: transparent !important; border-radius: 0 !important; }
+#right-sidebar .sidebar-item-list > .sidebar-item .sidebar-item-header { box-sizing: border-box; min-height: 32px; }
+#right-sidebar .sidebar-item-list > .sidebar-item ~ .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }
+#right-sidebar .sidebar-item-list { padding-top: 8px !important; padding-bottom: 56px !important; }
+#right-sidebar .resizer { left: -3px !important; width: 7px !important; background: none !important; }
+#right-sidebar .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--lk-hair); transition: background-color .12s ease; }
+#right-sidebar .resizer:is(:hover, :active, :focus)::after { background: var(--lk-line); }
+/* A page in it: its name reads as the link it is; "Open properties" is pressed for the person and left out; no room is held
+   under its bullets (Logseq keeps 60px for them even when there is one). */
+${SIDE_PAGE} .sidebar-item-header .page-title > span:last-child { cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+${SIDE_PAGE} .sidebar-item-header .page-title > span:last-child:hover { text-decoration-color: currentColor; }
+${SIDE_PAGE} .ls-sidebar-page-properties > div:first-child:has(> button:only-child) { display: none !important; }
+${SIDE_PAGE} .sidebar-panel-content .ls-page-blocks { min-height: 0 !important; }
+${SIDE_PAGE} .sidebar-panel-content > .cp__page-inner-wrap { margin-bottom: 8px !important; }
+${SIDE_PAGE} .ls-sidebar-page-properties > hr { display: none !important; }
+/* One edge in the sidebar: the words of every line of a page start where its properties' names start, and the marks (a fold
+   arrow, a list's mark, the + of "Add property", a value's bullet) stand in the gutter before that edge (the owner, 25
+   November 2026: "I see a lot of problems with alignment of elements"). */
+${SIDE_PAGE} .lk-relwrap { padding-left: 0; margin-left: -2px; }
+${SIDE_PAGE} .ls-sidebar-page-properties .ls-new-property { margin-left: -20px; }
+/* Where the sidebar is narrow a property has its name on one line and its values under it, as before 0.9: beside a name
+   150 wide a value would be broken into pieces. Wider, a property reads as it does on the page. */
+${SIDE_PAGE} .sidebar-panel-content { container: lk-side / inline-size; }
+@container lk-side (max-width: 420px) {
+  ${SIDE_PAGE} .ls-sidebar-page-properties .property-pair.property-panel-row { display: block !important; padding-right: 0 !important; }
+  ${SIDE_PAGE} .ls-sidebar-page-properties .property-key-panel { width: auto !important; min-width: 0 !important; }
+  ${SIDE_PAGE} .ls-sidebar-page-properties .property-value-container { margin-left: -22px; }
+  ${SIDE_PAGE} .ls-sidebar-page-properties .properties-panel { overflow: visible !important; }   /* Logseq clips the panel at its edge, which would hide a value's bullet in the gutter */
+}`,
   /* Logseq's tables: the page's own ground under the column names, no lines between columns, a hairline under each row, the
      wash under the pointer; the words in the plugin's greys; a link as a link is everywhere; what each tool does said in a
      word beside its icon; the view's name a word with a short bar under the one in force. */
@@ -627,5 +699,31 @@ function titleEnd(el, name) {
   if (!end) { end = host().createElement('div'); end.className = name; for (const type of ['mousedown', 'pointerdown']) end.addEventListener(type, event => event.stopPropagation()); spot.append(end); }
   return end;
 }
-G.touch = { MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+/* A page in the sidebar as before 0.9: its properties stand open, and its name in the section's head opens the page. Logseq
+   draws the properties shut behind "Open properties", and shut again after the section is folded, opened or redrawn, so the
+   press is made for the person whenever they are shut: never while one of Logseq's own lists or menus is open (a press would
+   close the list under a bullet being written), and at most twice a minute for one section. Gives back what stops it. */
+function sidePages() {
+  const doc = host(), pressed = new WeakMap();
+  const shut = box => box.children.length === 1 ? box.querySelector(':scope > div:first-child > button:only-child') : null;
+  const off = watch(() => {
+    if (busy()) return;
+    const now = Date.now();
+    for (const box of doc.querySelectorAll(`${SIDE_PAGE} .ls-sidebar-page-properties`)) {
+      const press = shut(box), times = (pressed.get(box) || []).filter(at => now - at < 60000);
+      if (!press || times.length >= 2) continue;
+      pressed.set(box, [...times, now]); press.click();
+    }
+  });
+  // Before Logseq takes the press to fold the section; the arrow beside the name still folds it.
+  const onName = event => {
+    const name = event.button ? null : event.target.closest?.(`${SIDE_PAGE} .sidebar-item-header .page-title > span:last-child`);
+    const uuid = name && sidePage(name);
+    if (!uuid) return;
+    event.preventDefault(); event.stopPropagation(); open(uuid, event.shiftKey);
+  };
+  doc.addEventListener('click', onName, true);
+  return () => { off(); doc.removeEventListener('click', onName, true); };
+}
+G.touch = { sidePages, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();
