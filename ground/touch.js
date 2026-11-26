@@ -482,59 +482,60 @@ const logseqCommands = () => {
   }
   return out;
 };
-/* The plugins Logseq runs, each { id, title, version }. mine(): the ones it loads from a folder of the person's own. market():
-   the ones it installed into its own plugin folder, from its marketplace or from a GitHub release. updates(list) asks Logseq's own updater (the one behind "Check for updates" on its
-   plugins page) for each plugin of market() with a newer release on GitHub, one after another; Logseq downloads it and loads it
-   again, as from its plugins page. It answers { updated: [{ title, version, to }], same, failed: [{ title, why }] }.
+/* The plugins Logseq runs, each { id, title, version }, as Update plugins took them before the rebuild (0.5.17, the owner,
+   26 November 2026: "u p is still not working. look to pre 0.6.0 to find it correctly used").
+   market() (async): the ones Logseq installed itself, from its marketplace or a GitHub release, read from Logseq's own list of
+   installed plugins (iir), each with the repository its releases come from. mine(): the ones it loads from a folder.
+   updates(list) hands each plugin of market() to Logseq's own updater, the one "Check update" on its card uses, one after
+   another, this plugin last; Logseq fetches the newest release and, if it is newer, puts it in and loads the plugin again.
+   It answers { updated: [{ title, version, to }], same, failed: [{ title, why }] }.
    reload(ids) has Logseq load the folder ones again, this plugin last: its own code ends there. What keep() is given outlives
    that reload for a minute, for took() to hand to the plugin's next run, once. */
-const LOADED = 'lk.plugins-before', MARKET = 'https://raw.githubusercontent.com/logseq/marketplace/master/plugins.json';
-// The GitHub repository a plugin names for itself ("owner/name"): Logseq's "Install plugin from GitHub release" keeps it as repo,
-// and a plugin's package.json may give it as repository.
-const ownRepo = options => {
-  const said = options?.repo || options?.repository?.url || options?.repository || '';
-  const found = typeof said === 'string' && said.match(/(?:github\.com[/:])?([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/);
-  return found ? found[1] : '';
+const LOADED = 'lk.plugins-before';
+const repoOf = entry => {
+  const address = typeof entry?.repository === 'string' ? entry.repository : entry?.repository?.url;
+  return entry?.repo || /github\.com[/:]([^/]+\/[^/]+?)(\.git)?\/?$/.exec(address || '')?.[1] || '';
 };
 const listed = filter => {
   const core = host().defaultView.LSPluginCore;
-  return core ? [...core.registeredPlugins.values()].filter(filter).map(one => ({ id: one.id, title: one.options?.title || one.options?.name || one.id, version: one.options?.version || '', repo: ownRepo(one.options) })) : [];
+  return core ? [...core.registeredPlugins.values()].filter(filter).map(one => ({ id: one.id, title: one.options?.title || one.options?.name || one.id, version: one.options?.version || '' })) : [];
 };
-// Logseq's updater answers on its own channel; the answer for one plugin, or null after two minutes.
+async function fromRelease() {
+  let installed = {};
+  try { installed = await logseq.App.getStateFromStore('plugin/installed-plugins') || {}; } catch (error) { return new Map(); }
+  return new Map(Object.values(installed).filter(entry => entry?.iir && entry.id).map(entry => [entry.id, entry]));
+}
+// Logseq's updater answers on its own channel and says the outcome itself; the answer for one plugin, or null after a minute.
 function asked(apis, pkg) {
   return new Promise(resolve => {
     let timer = null;
-    const heard = (event, data) => {
-      const said = data || event, payload = said?.payload || {};
-      if (payload.id !== pkg.id) return;
-      apis.removeListener('lsp-updates', heard); clearTimeout(timer); resolve(said);
-    };
+    const done = said => { apis.removeListener('lsp-updates', heard); clearTimeout(timer); resolve(said); };
+    const heard = (a, b) => { const said = b || a; if (said?.payload?.id === pkg.id && !said['only-check']) done(said); };
     apis.addListener('lsp-updates', heard);
-    timer = setTimeout(() => { apis.removeListener('lsp-updates', heard); resolve(null); }, 120000);
-    Promise.resolve(apis.doAction(['updateMarketPlugin', pkg, 'js-obj'])).catch(error => { apis.removeListener('lsp-updates', heard); clearTimeout(timer); resolve({ status: 'error', payload: { 'error-code': String(error?.message || error) } }); });
+    timer = setTimeout(() => done(null), 60000);
+    Promise.resolve(apis.doAction(['updateMarketPlugin', { ...pkg, 'only-check': false }])).catch(error => done({ status: 'error', payload: { id: pkg.id, 'error-code': String(error?.message || error) } }));
   });
 }
 const plugins = {
+  async market() {
+    const release = await fromRelease();
+    return listed(one => release.has(one.id) && !one.disabled).map(one => { const entry = release.get(one.id); return { ...one, repo: repoOf(entry), name: entry.name, theme: !!entry.theme, effect: !!entry.effect }; });
+  },
   mine: () => listed(one => !one.isInstalledInLocalDotRoot && !one.isWebPlugin),
-  market: () => listed(one => one.isInstalledInLocalDotRoot && !one.isWebPlugin && !one.disabled),
+  now: id => listed(one => one.id === id)[0] || null,
   async updates(list) {
-    const out = { updated: [], same: [], failed: [] }, apis = host().defaultView.apis;
+    const out = { updated: [], same: [], failed: [] }, apis = host().defaultView.apis, own = logseq.baseInfo.id;
     if (!list.length) return out;
     if (!apis?.doAction) { out.failed = list.map(one => ({ ...one, why: 'this Logseq lends plugins no updater' })); return out; }
-    let packages;
-    try { packages = (await (await fetch(MARKET)).json()).packages || []; } catch (error) { out.failed = list.map(one => ({ ...one, why: "Logseq's list of plugins could not be read" })); return out; }
-    for (const one of list) {
-      // One from Logseq's marketplace is updated from the repository its list names; one installed from its GitHub release, from its own.
-      const listing = packages.find(pkg => pkg.id === one.id && pkg.repo) || (one.repo ? { id: one.id, repo: one.repo } : null);
-      if (!listing) { out.failed.push({ ...one, why: 'it names no GitHub repository to update from' }); continue; }
-      let latest = '';
-      try { const answer = await fetch(`https://api.github.com/repos/${listing.repo}/releases/latest`); if (answer.ok) latest = (await answer.json()).tag_name || ''; } catch (error) { /* said below */ }
-      if (!latest) { out.failed.push({ ...one, why: 'GitHub did not answer' }); continue; }
-      if (!G.update.newer(latest, one.version)) { out.same.push(one); continue; }
-      const said = await asked(apis, { ...listing, id: one.id, title: one.title, version: one.version, theme: Boolean(listing.theme), effect: Boolean(listing.effect) });
-      const payload = said?.payload || {};
-      if (said?.status === 'completed') out.updated.push({ ...one, to: payload['installed-version'] || payload.installedVersion || latest.replace(/^v/i, '') });
-      else out.failed.push({ ...one, why: said ? String(payload['error-code'] || payload.errorCode || 'Logseq refused').replace(/^[\s:[]+|\]$/g, '') : 'no answer from Logseq' });
+    for (const one of [...list.filter(p => p.id !== own), ...list.filter(p => p.id === own)]) {
+      if (!one.repo) { out.failed.push({ ...one, why: 'it names no GitHub repository to update from' }); continue; }
+      if (one.id === own) plugins.keep({ list: [], market: out, own: one });   // a newer copy of this plugin ends this code: the next run says it
+      const said = await asked(apis, { id: one.id, repo: one.repo, version: one.version, title: one.title, name: one.name, theme: one.theme, effect: one.effect });
+      const payload = said?.payload || {}, code = String(payload['error-code'] || payload.errorCode || '');
+      if (one.id === own && said?.status !== 'completed') plugins.took();   // no newer copy came: nothing waits to be said
+      if (said?.status === 'completed') out.updated.push({ ...one, to: payload['installed-version'] || payload.installedVersion || '' });
+      else if (/no-new-version|up.to.date|latest/i.test(code)) out.same.push(one);
+      else out.failed.push({ ...one, why: said ? code.replace(/^[\s:[]+|\]$/g, '') || 'Logseq refused' : 'no answer from Logseq' });
     }
     return out;
   },
