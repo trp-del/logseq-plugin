@@ -7,7 +7,7 @@
    opts.make(words) -> { word, take } offers a line for words no line has, and opts.enter(words) takes the words themselves.
    opts.quiet: a list offered while a bullet is being written, as Logseq offers its own: the keys stay in the bullet, nothing is
    lit until an arrow is pressed, Enter takes only a lit line, Escape lets go, and any other key lets go and goes on into the
-   bullet, so carrying on writing is the answer no. */
+   bullet, so carrying on writing is the answer no. opts.lit: the line of a quiet list that is lit from the start. */
 (function () {
 const G = window.PluginDoor;
 let close = null;
@@ -84,6 +84,7 @@ G.menu = (at, items, opts = {}) => {
     return done;
   }
   if (!opts.quiet) (rows().find(row => row.classList.contains('on')) || rows()[0])?.focus({ preventScroll: true });
+  else if (opts.lit != null) light(opts.lit);
   return done;
 };
 G.menu.CSS = `

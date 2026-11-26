@@ -63,9 +63,9 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | On | Do | Result |
 |---|---|---|
 | The word Relations | Click | Folds the whole section, kept for the page. Right-click: the lists hidden where they point, to show again |
-| The find line (from twenty nodes up, or **Relations: find in them**) | Type words | Every list narrows to them. "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the lists back to that day, the later nodes faint under a "since" line; a week earlier, a week later and Today step the day. Enter opens the first node found, Down goes to it, Escape empties the line |
+| The find line (from twenty nodes up, or **Relations: find in them**) | Type words | Every list narrows to them, ten nodes and then **Show more**, as any list. A node found by what it holds under a property says so under its line: the property, its values with the words marked, and **Show the rest**, which opens the node (from three letters; twenty nodes at most). "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the lists back to that day, the later nodes faint under a "since" line; a week earlier, a week later and Today step the day. Enter opens the first node found, Down goes to it, Escape empties the line |
 | A list's head | Click a kind | A list whose nodes hold different tags names its three most held kinds, each with its count, All first; a kind narrows the list to it, "and 2 more" lists the rest. "2 new" narrows to the nodes made since the page was last open, which also carry a darker dot |
-| The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
+| The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole; a group shows twelve nodes, then **Show more**), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
 | | Reads back as… | How the property reads on the pages it points to. By grammar unless you type a name: "Prescribed by" reads "Prescribed", "Symptom of" reads "Symptoms", "Provider" reads "Provider of", a plain noun keeps its name |
 | | Hide where it points | The list is no longer shown on the pages the property points to |
 | | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first. One line then says what was done, with an Undo |
@@ -223,9 +223,17 @@ In an opened node a property's name is a size under the words; a value that is a
 
 In Relations the head of a property's list is two lines. The first is the property's mark and name. The second says how many
 nodes the list holds and of what ("4 Transfers", or "53 nodes" where their tags differ) and, at its right end, from when to
-when; a press on it folds the list. A list of one node has nothing to count: its head is the first line alone. Where every row
-of a list has the same tag, a + stands on the head: a press makes one more node of that kind on today's journal, pointing here
-through the list's property, opens it in place and puts the caret in it.
+when; a press on it folds the list. A list of one node has nothing to count: its head is the first line alone.
+
+A + stands on the head. A press opens a line to type in at the list's end, laid out as a row is: the + where a row has its
+bullet, then the new node's name, then the tag it will get (the kind most of the list's nodes are; a press on it lists the
+others, and "no tag"). Under the name stands what the node will hold: the list's property with this page. Enter makes the
+node. Where most of the list's nodes are pages, a page is made at once; otherwise the line first asks where the node goes:
+today's journal, this page, or a page found by what is typed there, the place chosen last lit. Cmd-Enter also opens what was
+made in the sidebar. What was made gets the Undo arrow, and the line stays open, empty, for the next one. Escape steps back,
+then lets the line go; a press elsewhere lets an empty line go. In a grouped list each group's line has its own + under the
+pointer: the node gets the group's tag, or the group's value under the property the list is grouped by, and goes to today's
+journal without a question.
 
 ### Ontology: counts, moving a tag, the lines between tags
 

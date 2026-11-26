@@ -86,6 +86,10 @@ function shape(list, view = {}, find = {}, today = 0) {
   const tabs = every.length > 1 ? [{ kind: '', word: 'All', n: found.length }, ...counted.slice(0, 3).map(one => ({ kind: one.name || '@none', word: one.name || 'No tag', n: one.n }))].map(tab => ({ ...tab, on: (view.kind || '') === tab.kind })) : [];
   let rows = !view.kind ? all : view.kind === '@new' ? all.filter(isNew) : all.filter(row => (row.tag || '@none') === view.kind);
   rows = rows.filter(row => holds(row, tokens(find.words)));
+  /* A node found by what it holds under a property says where: that property and its values, under its line. Only from three
+     letters (a number at once), so the first letters narrow the list without opening and shutting whole blocks of it. */
+  const want = tokens(find.words), opens = String(find.words || '').trim().length >= 3 || /^\d+$/.test(String(find.words || '').trim());
+  if (want.length && opens) rows = rows.map(row => ({ ...row, hits: Object.entries(row.held || {}).filter(([name, values]) => name !== list.own_name && values.some(value => want.some(word => String(value).toLowerCase().includes(word)))).map(([name, values]) => ({ name, values })) }));
   rows = rows.map(row => { const day = dayBy(row, view.date || ''); return { ...row, goesBy: day, dayShown: day && day !== own ? day : 0, lacks: lacked.get(row.uuid) || '' }; });
   const inSpan = row => !view.span || (row.goesBy >= view.span[0] && row.goesBy <= view.span[1]), inLane = row => !view.lane || view.lane.of(row) === view.lane.at;
   const timed = rows;
@@ -109,7 +113,7 @@ function shape(list, view = {}, find = {}, today = 0) {
       const at = held.get(name); at.nodes++; for (const value of values) at.values.add(value);
     }
     const best = [...held].filter(([, at]) => at.nodes * 2 >= rows.length && at.values.size > 1).sort((a, b) => b[1].nodes - a[1].nodes || a[1].values.size - b[1].values.size || a[0].localeCompare(b[0]))[0];
-    if (best) rows = rows.map(row => { const text = ((row.held || {})[best[0]] || []).join(', '); return { ...row, tell: text && !String(row.plain ?? row.words ?? '').toLowerCase().includes(text.toLowerCase()) ? `${best[0]} ${text}` : '' }; });
+    if (best) rows = rows.map(row => { const text = ((row.held || {})[best[0]] || []).join(', '); return { ...row, tell: text && !(row.hits || []).some(hit => hit.name === best[0]) && !String(row.plain ?? row.words ?? '').toLowerCase().includes(text.toLowerCase()) ? `${best[0]} ${text}` : '' }; });
   }
   let groups = null;
   if (view.group) {

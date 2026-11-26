@@ -6,8 +6,8 @@
                                                  [{ key, kind, name, tag, rows, face }] (a list with no name has no head; face 'tag' or
                                                  'prop' draws its rows' words as tags or properties are drawn); opts: press(row,
                                                  event) -> true when the place takes a press on a line itself, few (rows before Show
-                                                 all), none (words to say when there is nothing), add(list) -> the uuid of a
-                                                 node it made for a list's + , key(row, event) -> true when the place takes a key
+                                                 all), none (words to say when there is nothing), add: true where a property's
+                                                 list has a + that opens the line to type a new node in (node/add.js), key(row, event) -> true when the place takes a key
                                                  on a line, more(row) -> the place's own lines for a row's menu. Gives back { off(), again() }
      G.node.adder(holder, name, add, failed)     a line at the head of holder that adds (a task, a tag); gives back what removes it
      G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away */
@@ -143,7 +143,7 @@ const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null, offDigs = null;
 function listing(el, read, opts = {}) {
-  const state = { el, read, all: new Set(), turn: 0, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: opts.add || null, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
+  const state = { el, read, all: new Set(), turn: 0, hits: 0, draft: null, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
   state.redraw = () => { if (state.last && el.isConnected) draw(state, ...state.last); };
   state.again = () => load(state);
   mounted.set(el, state);
@@ -162,6 +162,7 @@ function listing(el, read, opts = {}) {
       for (const type of EVENTS) el.removeEventListener(type, onEvent);
       el.removeEventListener('lk-closed', onClosed);
       for (const row of el.querySelectorAll('.lk-row[data-open]')) close(row);
+      G.adding.drop(state, false);
       el.replaceChildren();
       if (!mounted.size) { offChanged?.(); offChanged = null; offDigs?.(); offDigs = null; offKeys?.(); }
     },
@@ -191,11 +192,7 @@ function related(el, uuid) {
     }
     total = made.reduce((n, list) => n + list.rows.length, 0);
     return G.view.ordered(made, G.listview.order(uuid));
-  }, { view, few: 10, add: async list => {
-    const [tags, target] = await Promise.all([G.read.tags(), G.read.node(uuid)]), those = [...tags.values()].filter(tag => tag.title === list.one);
-    if (those.length !== 1 || !target) throw new Error(`no one tag is called ${list.one}`);
-    return G.write.addNode(those[0].uuid, list.prop.ident, target.id);
-  } });
+  }, { view, few: 10, add: true });
   const offDrags = G.listview.drags(mounted.get(el));
   return { ...handle, off() { offDrags(); handle.off(); }, rows: () => total, day: () => view.own, find(words) { view.find = G.view.parse(words, D.number(new Date())); mounted.get(el)?.redraw(); } };
 }
@@ -231,6 +228,7 @@ function sync(parent, wanted, keyOf, make, update) {
 }
 function draw(state, made, names, statuses) {
   const doc = state.el.ownerDocument, today = D.number(new Date());
+  state.hits = 0;   // how many found nodes say where they were found, this drawing
   const wanted = made.length || !state.none ? made : [{ key: 'none', kind: 'none', name: state.none, rows: [] }];
   sync(state.el, wanted, list => list.key, () => {
     const box = doc.createElement('div'); box.className = 'lk-list';
@@ -244,7 +242,7 @@ function draw(state, made, names, statuses) {
        prefer the two line of oriiginal"): the property's mark and name on the first, and under it the count with its kind in
        the words' own face, the + and the days. A list of one node has nothing to count, so its head is the first line alone. */
     const said = list.said || list.tag || '', via = list.kind === 'property', made = G.listview.shape(state, list, names, today);
-    const plus = state.add && via && list.one ? `<button type="button" class="lk-plus" title="Add a ${G.esc(list.one)}" aria-label="Add a ${G.esc(list.one)}">${G.touch.icon('plus', 14)}</button>` : '';
+    const plus = state.add && via ? `<button type="button" class="lk-plus" title="Add a ${G.esc(list.one || 'node')}" aria-label="Add a ${G.esc(list.one || 'node')}">${G.touch.icon('plus', 14)}</button>` : '';   // on a list of several kinds too: the new node gets the kind most of them are
     const span = list.from ? `<span class="lk-span">${G.esc(D.short(list.from, today))} to ${G.esc(D.short(list.to, today))}</span>` : '';
     const lined = via || (made && list.count);   // two lines: what the list is, then what it holds
     const first = lined ? `${via ? G.touch.icon('hierarchy', 13) : ''}<span class="${via || list.kind === 'due' ? 'lk-prop' : 'lk-plain'}">${G.esc(list.name)}</span>${list.count ? '' : plus}` : '';
@@ -266,12 +264,15 @@ function draw(state, made, names, statuses) {
     box.toggleAttribute('data-picking', !!made?.picking);
     box.toggleAttribute('data-viewed', !!made);
     sync(rowsEl, items, item => item.key, item => {
-      const el = doc.createElement('div');
+      if (item.type === 'draft') return G.adding.el(state);
+      const el = doc.createElement(item.type === 'more' ? 'button' : 'div');
       if (item.type !== 'row') return el;
       el.className = 'lk-row';
-      el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold" aria-label="Open">${ARROW}</button><div class="lk-line" role="button" tabindex="0"></div>`;
+      // In a list of Relations a row's arrow is the thin one its head has, as before the rebuild; elsewhere Logseq's own.
+      el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold${made ? ' lk-fold-thin' : ''}" aria-label="Open">${made ? CHEV : ARROW}</button><div class="lk-line" role="button" tabindex="0"></div>`;
       return el;
     }, (el, item) => {
+      if (item.type === 'draft') return;
       if (item.type !== 'row') { G.listview.paint(el, item, today); return; }
       const row = item.row;
       el.dataset.uuid = row.uuid; el.dataset.status = row.status || ''; el.dataset.page = row.isPage ? '1' : '';
@@ -288,6 +289,16 @@ function draw(state, made, names, statuses) {
       if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; if (want.length) hit(line.querySelector('.lk-words'), want); }
       G.undo.dress(el);   // the node changed last keeps its arrow through a redraw
+      /* Found by what it holds under a property: that property and its values under the line, the words marked, and "Show
+         the rest", which opens the node. Twenty a drawing at most; the others are found by their line alone. */
+      let found = el.querySelector(':scope > .lk-found');
+      const hits = made?.finding && !item.faint && state.hits < 20 ? (row.hits || []) : [];
+      if (hits.length) {
+        state.hits++;
+        const said = hits.map(one => `<div class="lk-found-prop"><span class="lk-prop">${G.esc(one.name)}</span> <span class="lk-words">${G.esc(one.values.join(', '))}</span></div>`).join('') + '<button type="button" class="lk-more lk-found-rest">Show the rest</button>' + `<!--${G.esc(want.join(' '))}-->`;
+        if (!found) { found = doc.createElement('div'); found.className = 'lk-found'; el.appendChild(found); }
+        if (found.lkHtml !== said) { found.innerHTML = said; found.lkHtml = said; for (const words of found.querySelectorAll('.lk-words')) hit(words, want); }
+      } else found?.remove();
     });
     box.hidden = !!made?.finding && !made.rows.length && !made.since.length;   // while finding, a list with nothing found is left out
     G.pick.bar(state, box, made);
@@ -296,11 +307,12 @@ function draw(state, made, names, statuses) {
     if (hidden > 0 && !isFolded) {
       if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
       more.textContent = `Show ${hidden} more`; more.dataset.fewer = '';   // how many wait, before the press (the owner, 25 November 2026)
-    } else if (made && !isFolded && state.view.all.has(list.key) && !made.finding && !made.picking && !made.groups && made.rows.length > state.few + 2) {
+    } else if (made && !isFolded && state.view.all.has(list.key) && !made.picking && !made.groups && made.rows.length > state.few + 2) {
       if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
       more.textContent = 'Show fewer'; more.dataset.fewer = '1';
     } else more?.remove();
     more?.classList.toggle('lk-more-link', !!made);
+    if (state.add) G.adding.keep(state, box, list);   // the line begun from the list's + stands at its end
   });
 }
 // The words being found, marked where they stand in a line's words.
@@ -316,22 +328,6 @@ function hit(words, want) {
     const mark = doc.createElement('mark'); mark.className = 'lk-hit'; rest.replaceWith(mark); mark.appendChild(rest);
   }
 }
-/* + on a list's head: one more node of the list's kind, pointing here through the list's property. It is made on today's
-   journal, shown in the list, opened in place, and the caret stands in it. */
-async function addTo(state, box) {
-  const list = box?.lkList, view = state.el.ownerDocument.defaultView;
-  if (!list || !state.add || box.dataset.adding) return;
-  box.dataset.adding = '1';
-  try {
-    const uuid = String(await state.add(list) || '').toLowerCase();
-    for (let tries = 0; uuid && tries < 30; tries++) {
-      const row = state.el.querySelector(`.lk-row[data-uuid="${uuid}"]`);
-      if (row) { if (!row.dataset.open) open(row); const page = row.querySelector(':scope > .lk-open > .lk-editor'); if (page) G.touch.editor.whole(page, () => G.touch.edit(uuid)); break; }   // the caret as soon as Logseq has drawn the node
-      await new Promise(done => view.setTimeout(done, 150));
-    }
-  } catch (error) { G.say(`It could not be added: ${error?.message || 'Logseq refused'}`, 'warning'); }
-  delete box.dataset.adding;
-}
 function handle(state, event) {
   const target = event.target;
   if (!(target instanceof target.ownerDocument.defaultView.Element)) return;
@@ -339,6 +335,10 @@ function handle(state, event) {
   if (target.closest('.lk-rel') !== state.el) return;
   const row = target.closest('.lk-row');
   if (row && target.closest('.lk-open')?.closest('.lk-row') === row) return;   // inside the opened node everything is Logseq's
+  if (target.closest('.lk-draft')) return;   // the line a new node is typed in has its own ears
+  if (row && target.closest('.lk-found')) { if (event.type === 'click' && target.closest('.lk-found-rest')) { event.preventDefault(); event.stopPropagation(); open(row); } return; }
+  const plus = target.closest('.lk-plus');
+  if (plus) { if (event.type === 'click') { event.preventDefault(); event.stopPropagation(); G.adding.start(state, plus.closest('.lk-list'), plus.closest('.lk-group-head')?.lkGroup || null); } return; }
   if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
   if (state.view && G.pick.act(state, event)) { event.stopPropagation(); return; }
   if (state.view && G.timeline.act(state, event)) { event.stopPropagation(); return; }
@@ -346,14 +346,12 @@ function handle(state, event) {
   if (row && event.type === 'keydown' && state.key && target.matches('.lk-line') && state.key(row, event)) { event.preventDefault(); event.stopPropagation(); return; }
   if (row && G.line.act(event, row, state.more)) { event.stopPropagation(); return; }
   if (state.view && !row && G.listview.act(state, event)) { event.stopPropagation(); return; }
-  const plus = target.closest('.lk-plus');
-  if (plus) { if (event.type === 'click') { event.preventDefault(); event.stopPropagation(); addTo(state, plus.closest('.lk-list')); } return; }
   const head = target.closest('.lk-list-head');
   if (head && head.parentElement.dataset.kind !== 'none' && (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
     if (target.closest('.lk-tick, button')) return;
     event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); state.redraw(); return;
   }
-  if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } state.redraw(); return; }
+  if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-more').dataset.gkey || target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } state.redraw(); return; }
   if (event.type === 'keydown' && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && target.matches('.lk-line, .lk-list-head')) {
     const stops = [...state.el.querySelectorAll('.lk-line, .lk-list-head')].filter(el => el.closest('.lk-rel') === state.el && el.offsetParent);
     const next = stops[stops.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)];
@@ -430,6 +428,14 @@ G.node.CSS = `
 .lk-list-head:has(> .lk-list-via:not(:empty)) .lk-fold { opacity: 1; }   /* on the count's line the arrow stays in view, faint, as it was */
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
 .lk-span { margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* A row's arrow in a list of Relations: the thin one, faint until the row is under the pointer. */
+.lk-row > .lk-fold.lk-fold-thin svg { width: 13px; height: 13px; }
+/* Where a found node holds the words: the property and its values under its line, on the words' own edge. */
+.lk-row > .lk-found { grid-column: 3; min-width: 0; padding: 0 6px 4px 20px; font-size: 14px; line-height: 21px; }
+.lk-list:has(.lk-row .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: calc(20px + var(--lk-dayin, 54px) + 12px); }
+.lk-row[data-open] > .lk-found { display: none; }
+.lk-found .lk-found-rest { display: block; margin: 0; }
+.lk-rows > .lk-more.lk-more-group { display: block; }
 .lk-plus { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 4px; padding: 0; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); opacity: .55; cursor: pointer; }
 .lk-plus:hover, .lk-plus:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 @container lk-list (max-width: 300px) { .lk-span { display: none; } }

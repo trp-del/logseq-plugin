@@ -56,16 +56,21 @@ function head(state, list, made, plus, today) {
   return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}</span><span class="lk-head-do">${plus}${dots}</span><span class="lk-head-end">${said}${days ? `<span class="lk-span">${G.esc(days)}</span>` : ''}</span>`;
 }
 // What stands under the head, in order: a group's line, a node's row, the line saying since when.
+const GROUP_FEW = 12;   // a group's nodes before its own "Show more", as before the rebuild
 function items(state, list, made, few) {
-  const out = [], row = (one, under = '', faint = false) => ({ type: 'row', key: under ? `${one.uuid}@${under}` : one.uuid, row: one, faint, picking: made.picking, picked: made.picked.has(one.uuid) });
+  const by = viewOf(list.key).group || '', out = [], row = (one, under = '', faint = false) => ({ type: 'row', key: under ? `${one.uuid}@${under}` : one.uuid, row: one, faint, picking: made.picking, picked: made.picked.has(one.uuid) });
   if (made.groups) {
     for (const group of made.groups) {
       const shut = G.node.folded.has(`${list.key}/${group.key}`);
-      out.push({ type: 'group', key: `g:${group.key}`, group, shut });
-      if (!shut) for (const one of group.rows) out.push(row(one, `g:${group.key}`));
+      const draft = G.adding.item(state, list, group), gkey = `${list.key}/${group.key}/all`, whole = made.picking || state.view.all.has(gkey) || group.rows.length <= GROUP_FEW;
+      // + on a group: a node here, with the group's tag, or its value under the property the list is grouped by (not for a month, nor for those with none).
+      out.push({ type: 'group', key: `g:${group.key}`, group: { ...group, by, byTag: by === 'Tag' }, shut: shut && !draft, plus: list.kind === 'property' && by !== 'Month' && (by === 'Tag' || !!group.key) });
+      if (draft) out.push({ type: 'draft', key: 'draft' });
+      if (!shut || draft) { for (const one of whole ? group.rows : group.rows.slice(0, GROUP_FEW)) out.push(row(one, `g:${group.key}`));
+        if (group.rows.length > GROUP_FEW && !made.picking) out.push({ type: 'more', key: `m:${group.key}`, gkey, n: group.rows.length - GROUP_FEW, fewer: whole }); }
     }
   } else {
-    const all = made.finding || made.picking || state.view.all.has(list.key) || made.rows.length <= few;
+    const all = made.picking || state.view.all.has(list.key) || made.rows.length <= few;   // while finding too: a few, then "Show more", as before the rebuild
     for (const one of all ? made.rows : made.rows.slice(0, few)) out.push(row(one));
     out.hidden = all ? 0 : made.rows.length - few;
   }
@@ -74,11 +79,12 @@ function items(state, list, made, few) {
 }
 // A group's line or the since line, drawn into its element.
 function paint(el, item, today) {
+  if (item.type === 'more') { const words = item.fewer ? 'Show fewer' : `Show ${item.n} more`; el.className = 'lk-more lk-more-link lk-more-group'; el.type = 'button'; el.dataset.gkey = item.gkey; el.dataset.fewer = item.fewer ? '1' : ''; if (el.textContent !== words) el.textContent = words; return; }
   const html = item.type === 'group'
-    ? `<span class="lk-fold">${G.node.CHEV}</span><span class="${item.group.tag ? 'lk-tag' : 'lk-group-name'}">${G.esc(item.group.name)}</span><span class="lk-n">${item.group.rows.length}</span>`
+    ? `<span class="lk-fold">${G.node.CHEV}</span><span class="${item.group.tag ? 'lk-tag' : 'lk-group-name'}">${G.esc(item.group.name)}</span><span class="lk-n">${item.group.rows.length}</span>${item.plus ? `<button type="button" class="lk-plus" title="Add a node here" aria-label="Add a node here">${icon('plus', 12)}</button>` : ''}`
     : `<span>since ${G.esc(D.short(item.day, today))}</span><span class="lk-n">${item.n}</span>`;
   el.className = item.type === 'group' ? 'lk-group-head' : 'lk-since';
-  if (item.type === 'group') { el.setAttribute('role', 'button'); el.tabIndex = 0; el.setAttribute('aria-expanded', String(!item.shut)); el.dataset.group = item.group.key; }
+  if (item.type === 'group') { el.setAttribute('role', 'button'); el.tabIndex = 0; el.setAttribute('aria-expanded', String(!item.shut)); el.dataset.group = item.group.key; el.lkGroup = item.group; }
   if (el.lkHtml !== html) { el.innerHTML = html; el.lkHtml = html; }
 }
 // View: what a list goes by. One line per setting with its value beside it; a press opens its choices.

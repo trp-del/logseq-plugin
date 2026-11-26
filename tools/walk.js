@@ -284,14 +284,20 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
         return [...document.querySelectorAll(sel)].filter(l => l.dataset.kind === 'property' && l.querySelector('.lk-said')).map(l => { const name = left(l.querySelector('.lk-list-via .lk-prop')), said = left(l.querySelector('.lk-said')); return [name.bottom <= said.top + 1, Math.abs(name.left - said.left) < 1.5, /^\d+ \S/.test(l.querySelector('.lk-said').innerText)]; }); }, MAIN);
       return is([heads.length > 0, heads.every(h => h[0] && h[1] && h[2])], [true, true]);
     });
-    await step('+ on a list\'s head adds a node of its kind that points here, opens it, and leaves the caret in it', async () => {
-      const list = page.locator(MAIN, { has: page.locator('.lk-plus') }).first(), before = await list.locator(':scope > .lk-rows > .lk-row').count(), name = await list.evaluate(el => el.lkList.prop.title);
-      await list.locator('.lk-plus').click(); await wait(3800);
-      const where = await page.evaluate(() => [document.activeElement?.tagName, !!document.activeElement?.closest('.lk-open')]);
-      await page.keyboard.type('Zzadded here', { delay: 20 }); await page.keyboard.press('Escape'); await wait(2500);
+    await step('+ on a list\'s head opens a line to type a new node in at the list\'s end; Enter makes it pointing here, the Undo arrow takes it back', async () => {   // the owner, 25 November 2026: "the actual feature were well developed"
+      const list = page.locator(MAIN, { has: page.locator('.lk-list-head .lk-plus') }).first(), name = await list.evaluate(el => el.lkList.prop.title);
+      await list.locator('.lk-list-head .lk-plus').click(); await wait(700);
+      const line = await page.evaluate(() => { const d = document.querySelector('.lk-draft'), f = d?.querySelector('input'); return d ? [d === d.parentElement.lastElementChild, document.activeElement === f, /^Add an? /.test(f.placeholder), d.querySelector('.lk-draft-props .lk-prop').innerText] : null; });
+      await page.keyboard.type('Zzadded here', { delay: 20 }); await page.keyboard.press('Enter'); await wait(900);
+      if (await page.evaluate(() => document.querySelector('.lk-draft input')?.dataset.step === 'where')) { await page.keyboard.press('Enter'); await wait(600); }   // where it goes: Enter is today's journal
+      await wait(2500);
       const held = await box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?pn :where [?b :block/title "Zzadded here"] [?b ?a ?v] [?v :block/uuid #uuid "${u}"] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :block/title ?pn]]`)).flat(), CHEN);
-      await page.keyboard.press('Escape'); await wait(600);
-      return is([where, (await list.locator(':scope > .lk-rows > .lk-row').count()) >= before, held], [['TEXTAREA', true], true, [name]]);
+      const stays = await page.evaluate(() => { const f = document.querySelector('.lk-draft input'); return [!!f, f?.value]; });
+      await page.keyboard.press('Escape'); await wait(400);
+      const gone = await page.evaluate(() => document.querySelectorAll('.lk-draft').length);
+      await list.locator('.lk-row .lk-undo').first().click(); await wait(3500);
+      const left = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?b :block/title "Zzadded here"] (not [?b :logseq.property/deleted-at])]')).length);   // a page made goes to Logseq's Recycle
+      return is([line, held, stays, gone, left], [[true, true, true, name], [name], [true, ''], 0, 0]);
     });
     await step('the arrow before a value that is a node opens that node under its value, in the same rows; Escape closes the deepest first', async () => {   // the owner, 25 November 2026: "does not allow me to dig", "this does not look like a coherent system to dig"
       const hash = await page.evaluate(() => location.hash);

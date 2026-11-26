@@ -280,3 +280,12 @@ test('a timeline runs from the first node\'s month to today, a dot on each node\
   const lanes = time.lanesBy([{ held: { Topic: ['A'] } }, { held: { Topic: ['A'] } }, { held: { Topic: ['B'] } }, { held: {} }], 'Topic');
   assert.deepEqual([lanes.names, lanes.counts], [['A', 'B', 'others'], [2, 1, 1]]);
 });
+
+test('a node found by what it holds under a property says which property, from three letters; never the list\'s own', () => {
+  const list = { key: 'k', kind: 'property', own_name: 'Paid from', rows: [
+    { uuid: 'a', words: 'Gas', tag: 'Purchase', held: { 'Charged by': ['Shell'], 'Paid from': ['Shell account'] } },
+    { uuid: 'b', words: 'Shelves', tag: 'Purchase', held: { 'Charged by': ['Ikea'] } }] };
+  const found = view.shape(list, {}, { words: 'she', upTo: 0 }, 20261125).rows;
+  assert.deepEqual(found.map(row => [row.uuid, row.hits.map(hit => hit.name)]).sort(), [['a', ['Charged by']], ['b', []]]);
+  assert.equal(view.shape(list, {}, { words: 'sh', upTo: 0 }, 20261125).rows.some(row => row.hits), false);
+});

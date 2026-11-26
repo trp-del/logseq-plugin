@@ -28,6 +28,7 @@
      read.recycled()          Logseq's Recycle, newest first: [{ uuid, words, isPage, from, at }]
      read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled)
      read.journal(day)        the uuid of a day's journal page, or '' when the graph has none
+     read.pageNamed(name)     the page of that very name, { uuid, gone } (gone: it lies in Logseq's Recycle), or null
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
      read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
@@ -349,5 +350,14 @@ async function writing(uuid) {
     page: isId(pageId) ? { id: pageId, tags: tagsFor(pageId), day: Number(pageDay) || 0 } : null, dated };
 }
 
-G.read = { recycled, held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+// The page of a name, as Logseq keeps names (small letters); one in the Recycle is answered too, and said to be gone.
+async function pageNamed(name) {
+  const low = String(name || '').trim().toLowerCase();
+  if (!low) return null;
+  const [found, gone] = await Promise.all([q(`[:find ?u :where [?b :block/name ${JSON.stringify(low)}] [?b :block/uuid ?u]]`), q(`[:find ?u :where [?b :block/name ${JSON.stringify(low)}] [?b :logseq.property/deleted-at] [?b :block/uuid ?u]]`)]);
+  if (!found.length) return null;
+  const lost = new Set(gone.map(([u]) => String(u))), live = found.map(([u]) => String(u)).find(u => !lost.has(u));
+  return live ? { uuid: live.toLowerCase(), gone: false } : { uuid: String(found[0][0]).toLowerCase(), gone: true };
+}
+G.read = { pageNamed, recycled, held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

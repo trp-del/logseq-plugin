@@ -13,7 +13,8 @@
      write.setValues(uuid, ident, raws, { ref, many })  what a node holds under a property, set to exactly these
      write.dropProperty(uuid)       a property removed, by its page
      write.moveTag(uuid, to, from)  a tag put under another (to) or at the top (''), and taken from under the tags in from
-     write.addNode(tag, ident, id)  a new empty bullet on today's journal, tagged, pointing at node id through a property; its uuid
+     write.addNode(tag, ident, id, { words, page })  a new bullet (on today's journal, or at a page's end), tagged, pointing at
+                                    node id through a property; answers { uuid, steps }
      write.placeTag(uuid, under)    a tag put under another tag (in place of where it sat)
      write.setText(uuid, ident, value), setDay(uuid, ident, day), clear(uuid, ident), newPage(name, tag)
                                     words or a number, a day, nothing at all under a property; a new page, tagged
@@ -79,15 +80,17 @@ G.write = {
     if (!made?.uuid) throw new Error(`Logseq did not make “${title}”`);
     return String(made.uuid);
   },
-  // A new, empty bullet at the end of today's journal that holds a tag and points at a node through a property; answers its uuid.
-  async addNode(tag, ident, id) {
+  /* A new bullet that points at a node through a property, with a tag when one is given; answers { uuid, steps }, steps being
+     how many of Logseq's Undos take it away again. words: what it says (none: an empty bullet); page: the page it goes to the
+     end of (none: today's journal). */
+  async addNode(tag, ident, id, { words = '', page = '' } = {}) {
     if (!/^user\.property\/[\w.-]+$/.test(String(ident)) || !Number.isSafeInteger(id) || id <= 0) throw new Error('a new node points at a node of the graph through one of your properties');
-    const page = await G.read.journal(G.days.number(new Date())) || String((await logseq.Editor.createJournalPage(new Date()))?.uuid || '');
-    if (!UUID.test(page)) throw new Error('today’s journal could not be found');
-    const made = String((await logseq.Editor.appendBlockInPage(page, ''))?.uuid || '');
-    await logseq.Editor.addBlockTag(sure(made), sure(tag));
-    await logseq.Editor.upsertBlockProperty(made, ident, id, { entityId: true });
-    return made;
+    const to = page ? sure(page) : await G.read.journal(G.days.number(new Date())) || String((await logseq.Editor.createJournalPage(new Date()))?.uuid || '');
+    if (!UUID.test(to)) throw new Error('today’s journal could not be found');
+    const made = String((await logseq.Editor.appendBlockInPage(to, String(words || '')))?.uuid || '');
+    if (tag) await logseq.Editor.addBlockTag(sure(made), sure(tag));
+    await logseq.Editor.upsertBlockProperty(sure(made), ident, id, { entityId: true });
+    return { uuid: made, steps: tag ? 3 : 2 };
   },
   placeTag: (uuid, under) => logseq.Editor.addTagExtends(sure(uuid), sure(under)),
   // A new, empty line at the end of what a node keeps under it; answers its uuid.
