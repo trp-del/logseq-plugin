@@ -231,7 +231,7 @@ G.listview.CSS = `
 .lk-tab::before { content: "\\200b"; }
 .lk-set { font-size: var(--lk-small); }
 .lk-set:hover, .lk-set:focus-visible { color: var(--lk-text); outline: none; }
-.lk-group-head, .lk-since { display: flex; align-items: center; gap: 2px; min-height: var(--lk-line-h); margin: 6px 0 0 calc(var(--lk-daycol, 0px)); color: var(--lk-quiet); font-size: var(--lk-line-size); cursor: default; border-radius: 6px; }
+.lk-group-head, .lk-since { display: flex; align-items: center; gap: var(--lk-mark-gap); min-height: var(--lk-line-h); margin: 6px 0 0 calc(var(--lk-daycol, 0px)); color: var(--lk-quiet); font-size: var(--lk-line-size); cursor: default; border-radius: 6px; }
 .lk-group-head:first-child { margin-top: 0; }
 .lk-group-head:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-group-head .lk-fold { opacity: 1; margin-top: 0; }

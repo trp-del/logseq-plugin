@@ -393,7 +393,7 @@ G.node.CSS = `
 .lk-list[data-face="tag"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-tag-face); }
 .lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: var(--lk-prop-size); letter-spacing: -.01em; }
 .lk-list[data-kind="none"] .lk-fold { visibility: hidden; }
-.lk-list-head { display: flex; align-items: center; gap: 2px; min-height: 28px; margin-left: -18px; cursor: default; border-radius: var(--lk-corner); }
+.lk-list-head { display: flex; align-items: center; gap: var(--lk-mark-gap); min-height: 28px; margin-left: -18px; cursor: default; border-radius: var(--lk-corner); }
 .lk-list-head:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-list-head .lk-fold { opacity: 0; margin-top: 0; }
 .lk-list-head:hover .lk-fold, .lk-list-head:focus-visible .lk-fold, .lk-list-head[aria-expanded="false"] .lk-fold { opacity: 1; }
@@ -401,9 +401,10 @@ G.node.CSS = `
 .lk-plain { color: var(--lk-quiet); }
 .lk-list-name { flex: 1; min-width: 0; display: flex; align-items: baseline; }   /* the kinds (in the tag's face), All and the counts share one baseline */
 .lk-list-head:has(> .lk-list-via:not(:empty)) { flex-wrap: wrap; }
-.lk-list-via { order: -1; flex: 0 0 100%; display: flex; align-items: center; min-height: 24px; }
+.lk-list-via { order: -1; flex: 0 0 100%; display: flex; align-items: flex-start; min-height: 24px; }
 .lk-list-via:empty { display: none; }
-.lk-list-via > :is(svg, .ti):first-child { flex: none; width: 13px; height: 13px; margin: 0 4px 0 3px; font-size: var(--lk-small); color: var(--lk-off); }
+.lk-list-via > svg:first-child { flex: none; width: 13px; height: 13px; margin: 5.5px 5.5px 0 1.5px; color: var(--lk-off); }
+.lk-list-via > .ti:first-child { flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: var(--lk-mark-box); height: 24px; margin: 0 var(--lk-mark-gap) 0 0; font-size: var(--lk-small); color: var(--lk-off); }   /* the mark's box, on the name's first line */
 .lk-list-head[data-one] > :is(.lk-fold, .lk-list-name) { display: none; }
 /* A list of Relations has the day after the bullet, inside the line. Opened, the node stands where its words stood, and its
    day stays where it was. */

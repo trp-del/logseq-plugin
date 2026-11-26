@@ -126,7 +126,7 @@ G.line.CSS = `
 .lk-day-end .lk-row > .lk-open { grid-column: 2 / -1; }
 .lk-row[data-open="1"] > .lk-line { display: none; }
 .lk-row[data-open="soon"] > .lk-open { height: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole */
-.lk-fold { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
+.lk-fold { display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
 .lk-fold svg { width: 14px; height: 14px; transition: transform .12s ease; }
 .lk-row:hover > .lk-fold, .lk-row:focus-within > .lk-fold, .lk-row[data-open] > .lk-fold, .lk-list-head .lk-fold { opacity: 1; }
 .lk-row[data-open] > .lk-fold svg, [aria-expanded="true"] > .lk-fold svg { transform: rotate(90deg); }

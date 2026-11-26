@@ -21,6 +21,7 @@ G.look = {
   --lk-words-size: 16px; --lk-small: 13px; --lk-label: 12px; --lk-prop-size: .9em;   /* the sizes: a page's words (a window's and a menu's are --lk-line-size), small, a label; a property's name a touch under the words beside it */
   --lk-corner: 6px; --lk-corner-float: 10px; --lk-corner-round: 999px;   /* three corners: a lit line, a field and a small box; what floats; a press */
   --lk-line-size: 14px; --lk-line-lead: 21px; --lk-line-h: 28px;
+  --lk-mark-box: 16px; --lk-mark-gap: 4px;   /* a mark before words (a bullet, a fold arrow, a list's mark) stands in a box 16 wide that ends 4 before them */
   --lk-coming: var(--rx-green-11, #18794e); --lk-going: var(--rx-red-10, #dc3e42); }`,
   /* What is pressed, and what a change will do. One kind for each job: the yes that decides (filled), a plain press (a quiet
      capsule), a third-level press (no ground), the red yes, a tick box. What a change brings is green text; what it takes away is struck
