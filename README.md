@@ -186,7 +186,7 @@ A day said in the words of a new task becomes its Deadline and leaves the words:
 friday", "next friday"), "next week" (its Monday), "nov 20", "20 november". It is said at the line's right before Return
 ("Nov 27"). A short weekday ("fri", "sun") counts only after by, on, due or next.
 
-A task carries one mark before its words, its status circle, and one day, its own. Under its words stands the page it sits on
+A task carries its bullet and its status circle before its words, and one day, its own. Under its words stands the page it sits on
 when that page is not a journal day; a press goes there. Under a page's or a
 parent's heading the row does not say it again.
 
