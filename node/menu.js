@@ -2,6 +2,8 @@
      G.menu(at, items, opts)   at: the element pressed, or { x, y, from } for a right-click;
                                items: { word, icon?, on?, depth?, face?, goes?, value?, take } | { group } | { gap: true }
                                (goes: what takes something away, in red; value: a quiet word at the line's end, what a setting is at)
+   item.sub: the choices under a line (an array, or a function answering one), shown as a menu of its own beside it, as the
+   Mac's menus do: the line carries a chevron, and pointing at it, Right, Enter or a press opens it; Left or Escape goes back.
    One menu at a time; a second closes the first.
    opts.find: a line to type in at the list's head, which narrows it (true, or the words it shows while empty); with it,
    opts.make(words) -> { word, take } offers a line for words no line has, and opts.enter(words) takes the words themselves.
@@ -11,35 +13,57 @@
 (function () {
 const G = window.PluginDoor;
 let close = null;
-G.menu = (at, items, opts = {}) => {
-  close?.();
+G.menu = (at, items, opts = {}) => { close?.(); return make(at, items, opts, null); };
+function make(at, items, opts, parent) {
   const from = at.from || at, doc = from.ownerDocument, win = doc.defaultView;
   const menu = doc.createElement('div'); menu.className = 'lk-menu'; menu.setAttribute('role', 'menu');
   menu.innerHTML = (opts.find ? `<input class="lk-menu-find" type="text" placeholder="${G.esc(opts.find === true ? 'Find' : opts.find)}" aria-label="${G.esc(opts.find === true ? 'Find' : opts.find)}" spellcheck="false" autocomplete="off">` : '') + items.map((item, i) => item.gap ? '<div class="lk-gap"></div>' : item.group ? `<div class="lk-group">${G.esc(item.group)}</div>`
-    : `<button type="button" class="lk-item${item.on ? ' on' : ''}${item.goes ? ' lk-goes' : ''}" role="menuitem" data-i="${i}" data-face="${item.face || ''}" style="padding-left: ${8 + (item.depth || 0) * 16}px"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span><span>${G.esc(item.word)}</span>${item.value ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}</button>`).join('');
+    : `<button type="button" class="lk-item${item.sub ? ' lk-has-sub' : ''}${item.on ? ' on' : ''}${item.goes ? ' lk-goes' : ''}" role="menuitem" data-i="${i}" data-face="${item.face || ''}" style="padding-left: ${8 + (item.depth || 0) * 16}px"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span><span>${G.esc(item.word)}</span>${item.value && !item.sub ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}${item.sub ? `<span class="lk-item-sub">${G.touch.icon('chevron-right', 14)}</span>` : ''}</button>`).join('');
   doc.body.appendChild(menu);
   const box = at.from ? { left: at.x, right: at.x, top: at.y, bottom: at.y } : from.getBoundingClientRect();
   const w = menu.offsetWidth, h = menu.offsetHeight;
+  if (parent) {   // beside the line it opens from, on the right where there is room, else on the left
+    const side = parent.menu.getBoundingClientRect(), right = side.right - 2 + w <= win.innerWidth - 8;
+    menu.style.left = (right ? side.right - 2 : Math.max(8, side.left + 2 - w)) + 'px';
+    menu.style.top = Math.max(8, Math.min(box.top - 4, win.innerHeight - h - 8)) + 'px';
+  } else
   menu.style.left = Math.max(8, Math.min(box.left, win.innerWidth - w - 8)) + 'px';
   if (opts.quiet) {
     // Never over the line being written: under it where there is room for a good part of the list, else above it; the list scrolls.
     const below = win.innerHeight - box.bottom - 12, above = box.top - 12, under = h <= below || below >= 220 || below >= above, room = Math.min(320, Math.max(120, under ? below : above));
     menu.style.maxHeight = room + 'px';
     menu.style.top = (under ? box.bottom + 4 : Math.max(8, box.top - 4 - Math.min(h, room))) + 'px';
-  } else menu.style.top = (box.bottom + 4 + h > win.innerHeight - 8 ? Math.max(8, box.top - 4 - h) : box.bottom + 4) + 'px';
+  } else if (!parent) menu.style.top = (box.bottom + 4 + h > win.innerHeight - 8 ? Math.max(8, box.top - 4 - h) : box.bottom + 4) + 'px';
   const rows = () => [...menu.querySelectorAll('.lk-item')];
-  const done = (refocus = true) => { if (close !== done) return; close = null; for (const off of offs) off(); menu.remove(); if (refocus && !opts.quiet) from.focus?.({ preventScroll: true }); };
-  const take = row => { const item = items[Number(row.dataset.i)]; done(); item?.take?.(); };
+  let child = null, gone = false;
+  const shut = () => { if (gone) return; gone = true; child?.shut(); child = null; for (const off of offs) off(); menu.remove(); };
+  const done = (refocus = true) => {
+    if (parent) { shut(); parent.child = null; if (refocus) from.focus?.({ preventScroll: true }); return; }
+    if (close !== done) return; close = null; shut(); if (refocus && !opts.quiet) from.focus?.({ preventScroll: true });
+  };
+  const all = () => { let top = self; while (top.parent) top = top.parent; top.done(false); };   // a choice taken closes every menu open
+  const self = { menu, parent, shut, done, get child() { return child; }, set child(c) { child = c; } };
+  const openSub = (row, focus) => {
+    const item = items[Number(row.dataset.i)]; if (!item?.sub) return;
+    if (child && child.from === row) { if (focus) child.first(); return; }
+    child?.shut(); child = null;
+    const subItems = typeof item.sub === 'function' ? item.sub() : item.sub;
+    child = make(row, subItems, { focusFirst: focus }, self); child.from = row;
+  };
+  const take = row => { const item = items[Number(row.dataset.i)]; if (item?.sub) return openSub(row, true); all(); item?.take?.(); };
   const onKey = event => {
     const all = rows(), now = all.indexOf(doc.activeElement);
-    if (event.key === 'Escape') done();
+    if (event.key === 'Escape' || (parent && event.key === 'ArrowLeft')) done();
     else if (event.key === 'ArrowDown') all[(now + 1) % all.length]?.focus();
     else if (event.key === 'ArrowUp') all[(now - 1 + all.length) % all.length]?.focus();
+    else if (event.key === 'ArrowRight' && all[now]?.classList.contains('lk-has-sub')) openSub(all[now], true);
     else if (event.key === 'Tab') done();
     else return;
     event.preventDefault(); event.stopPropagation();
   };
-  const outside = event => { if (!menu.contains(event.target)) done(false); };
+  const inside = target => { for (let at = self; at; at = at.child) if (at.menu.contains(target)) return true; return false; };
+  const outside = event => { if (parent) return; if (!inside(event.target)) done(false); };   // the first menu watches for a press outside every one open
+  const hover = event => { const row = event.target.closest('.lk-item'); if (!row || !menu.contains(row)) return; if (row.classList.contains('lk-has-sub')) openSub(row, false); else if (child) { child.shut(); child = null; } };
   const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); return () => target.removeEventListener(type, fn, opts); };
   let lit = -1;
   const light = to => { const all = rows(); if (!all.length) return; lit = (to + all.length) % all.length; all.forEach((row, i) => row.classList.toggle('lit', i === lit)); all[lit].scrollIntoView({ block: 'nearest' }); };
@@ -51,10 +75,11 @@ G.menu = (at, items, opts = {}) => {
     else { if (!/^(Shift|Control|Alt|Meta|CapsLock)$/.test(event.key)) done(false); return; }   // writing on: let go, and the key goes on into the bullet
     event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.();
   };
-  const offs = [opts.quiet ? on(doc, 'keydown', onQuietKey, true) : on(menu, 'keydown', onKey), on(menu, 'click', event => { const row = event.target.closest('.lk-item'); if (row) take(row); }),
+  const offs = [opts.quiet ? on(doc, 'keydown', onQuietKey, true) : on(menu, 'keydown', onKey), on(menu, 'click', event => { const row = event.target.closest('.lk-item'); if (row) take(row); }), on(menu, 'pointerover', hover),
     ...(opts.quiet ? [on(menu, 'mousedown', event => event.preventDefault())] : []),
-    on(doc, 'pointerdown', outside, true), on(doc, 'wheel', outside, { capture: true, passive: true }), on(win, 'blur', () => done(false)), on(win, 'resize', () => done(false))];
-  close = done;
+    ...(parent ? [] : [on(doc, 'pointerdown', outside, true), on(doc, 'wheel', event => { if (!inside(event.target)) done(false); }, { capture: true, passive: true }), on(win, 'blur', () => done(false)), on(win, 'resize', () => done(false))])];
+  if (!parent) close = done;
+  self.first = () => (rows().find(row => row.classList.contains('on')) || rows()[0])?.focus({ preventScroll: true });
   if (opts.find) {
     /* A list with a line to type in: the words narrow it, an arrow lights a line, Enter takes the lit one (the first, when none
        is lit). opts.make(words) answers a line for words no line has ("+ New option: …", Logseq's own words); opts.enter(words)
@@ -81,12 +106,13 @@ G.menu = (at, items, opts = {}) => {
       event.preventDefault(); event.stopPropagation();
     }), on(extra, 'click', event => { event.stopPropagation(); if (made) { done(); made.take(); } }));
     field.focus({ preventScroll: true }); lightIn(items.findIndex(item => item.on) >= 0 ? seen().findIndex(row => row.classList.contains('on')) : 0);
-    return done;
+    return parent ? self : done;
   }
-  if (!opts.quiet) (rows().find(row => row.classList.contains('on')) || rows()[0])?.focus({ preventScroll: true });
+  if (parent) { if (opts.focusFirst) self.first(); return self; }
+  if (!opts.quiet) self.first();
   else if (opts.lit != null) light(opts.lit);
   return done;
-};
+}
 G.menu.CSS = `
 .lk-menu { position: fixed; z-index: 9999; min-width: 11rem; max-width: min(22rem, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow-y: auto; padding: 4px; border-radius: var(--lk-corner-float);
   background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); color: var(--lk-text); }
@@ -98,6 +124,8 @@ G.menu.CSS = `
 .lk-menu .lk-item-icon { display: inline-flex; width: 18px; justify-content: center; color: var(--lk-quiet); flex: none; }
 .lk-menu .lk-item-icon:empty { display: none; }
 .lk-menu .lk-item-on { margin-left: auto; display: inline-flex; color: var(--lk-quiet); }
+.lk-menu .lk-item-sub { margin-left: auto; display: inline-flex; color: var(--lk-quiet); }
+.lk-menu .lk-item-on + .lk-item-sub { margin-left: 4px; }
 .lk-menu .lk-group { padding: 4px 8px 2px; font-size: var(--lk-label); color: var(--lk-quiet); }
 .lk-menu .lk-gap { height: 1px; margin: 4px 8px; background: var(--lk-hair); }
 .lk-menu [hidden] { display: none !important; }

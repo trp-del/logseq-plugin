@@ -28,7 +28,7 @@ function statusHtml(node, statuses) {
   return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
 function html(node, { names, statuses, tagShown, day }) {
-  return `<span class="lk-bul" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? `\u2002<span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
+  return `<span class="lk-bul" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? `\u2002<span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
 }
 
 async function pickStatus(at, row) {
@@ -137,6 +137,9 @@ G.line.CSS = `
 .lk-bul { flex: none; width: 16px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
 .lk-bul::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); }
 .lk-status-icon { display: inline-flex; }
+/* A task carries one mark before its words, its status circle, standing where the bullet stands; its words keep the edge of every other line. */
+.lk-line > .lk-bul:has(+ .lk-status) { display: none; }
+.lk-line > .lk-bul:has(+ .lk-status) + .lk-status { margin-left: 20px; }
 .lk-status { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; padding: 0; border: 0; background: none; color: var(--lk-quiet); cursor: pointer; }
 .lk-words { min-width: 0; overflow-wrap: anywhere; }
 .lk-words a.lk-node, .lk-words a.lk-url { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }

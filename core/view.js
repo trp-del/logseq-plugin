@@ -83,7 +83,7 @@ function shape(list, view = {}, find = {}, today = 0) {
     for (const row of all) { const name = common.find(one => !(row.held || {})[one]); if (name) lacked.set(row.uuid, name); } }
   // While words or a day narrow the list, its kinds count what was found, and the head says how many there are today.
   const found = all.filter(row => holds(row, tokens(find.words)) && !(find.upTo && dayBy(row, view.date || '') > find.upTo)), counted = find.words || find.upTo ? kinds(found) : every;
-  const tabs = every.length > 1 ? [{ kind: '', word: 'All', n: found.length }, ...counted.slice(0, 3).map(one => ({ kind: one.name || '@none', word: one.name || 'No tag', n: one.n }))].map(tab => ({ ...tab, on: (view.kind || '') === tab.kind })) : [];
+  const tabs = every.length > 1 ? [{ kind: '', word: 'All', n: found.length }, ...counted.slice(0, every.length === 4 ? 4 : 3).map(one => ({ kind: one.name || '@none', word: one.name || 'No tag', n: one.n }))].map(tab => ({ ...tab, on: (view.kind || '') === tab.kind })) : [];
   let rows = !view.kind ? all : view.kind === '@new' ? all.filter(isNew) : all.filter(row => (row.tag || '@none') === view.kind);
   rows = rows.filter(row => holds(row, tokens(find.words)));
   /* A node found by what it holds under a property says where: that property and its values, under its line. Only from three
@@ -133,7 +133,7 @@ function shape(list, view = {}, find = {}, today = 0) {
   if (view.group) said.push(view.group === 'Month' ? 'By month' : `By ${view.group === 'Tag' ? 'tag' : view.group}`);
   if (view.date) said.push(view.date === 'none' ? 'No date' : view.date);
   if (view.sort) said.push(view.sort === 'changed' ? 'Last changed first' : view.sort === 'name' ? 'By name' : 'By tag');
-  return { tabs, more: Math.max(0, every.length - 3), rows, groups, since: later, count: rows.length, of: oneTag ? (rows.length === 1 ? oneTag : plural(oneTag)) : (rows.length === 1 ? 'node' : 'nodes'),
+  return { tabs, more: every.length === 4 ? 0 : Math.max(0, every.length - 3), one: oneTag, rows, groups, since: later, count: rows.length, of: oneTag ? (rows.length === 1 ? oneTag : plural(oneTag)) : (rows.length === 1 ? 'node' : 'nodes'),
     from: from !== to ? from : 0, to: from !== to ? to : 0, said, fresh, total: all.length,
     dots: timed.filter(row => row.goesBy).map(row => ({ day: row.goesBy, uuid: row.uuid, title: String(row.plain ?? row.words ?? ''), off: !(inSpan(row) && inLane(row)), row })).sort((a, b) => a.day - b.day) };
 }

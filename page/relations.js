@@ -33,7 +33,7 @@ G.part({
 .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) + .lk-rel, .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) > .lk-relfind { display: none; }
 .lk-relfind { display: flex; align-items: center; margin: 6px 0 0; }
 .lk-relfind[hidden] { display: none; }
-.lk-relfind .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
+.lk-relfind .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
 .lk-relfind .lk-field:focus, .lk-relfind .lk-field:not(:placeholder-shown) { border-bottom-color: var(--lk-line); }
 .lk-relfind .lk-field::placeholder { color: var(--lk-quiet); }
 .lk-relsec > .lk-relhead .lk-fold { opacity: .45 !important; }

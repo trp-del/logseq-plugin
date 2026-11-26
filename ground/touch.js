@@ -543,6 +543,18 @@ const OPENED = `
   .lk-editor :is(.bottom-property-pill, .property-pair) .property-key-inner { max-width: none; }
   .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) > :last-child { padding-left: 16px !important; }   /* the values one step in under their name, so a value's arrow stands inside the node, clear of the guide line it was dug from (the reset of the value's padding above had cancelled it) */
 }
+/* A task opened from its line keeps the line's start (the owner, 26 November 2026, fault 31-33): its status circle and words stay
+   where they stood, no bullet before them and no priority mark added (the priority is set from the right-click, as on the line),
+   the tag Task left out as the line leaves it out, and in a narrow place no line for "Show hidden properties". */
+.lk-editor .ls-block > .block-main-container:has(.block-left.positioned-properties) > .block-control-wrap .bullet-container { visibility: hidden !important; }
+.lk-editor .block-left.positioned-properties { margin-left: 3px !important; }
+.lk-editor .block-left.positioned-properties > .property-value-inner:has([class*="ls-icon-priority"]) { display: none !important; }
+.lk-editor .block-tag:has(> div > a.tag[data-ref="task"]), .lk-editor .block-tag:has(a.tag[data-ref="task"]):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }
+.lk-editor .ls-block-right:has(.block-tags):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }
+.lk-editor .block-main-container:has(> div > div > .block-main-content .block-left.positioned-properties) .positioned-properties.block-below { margin-left: 25px !important; width: auto !important; }   /* a task's properties start under its words */
+@container lk-list (max-width: 520px) {
+  .lk-editor button.bottom-property-pill.bottom-property-hidden-toggle-btn:has(> .ls-icon-chevron-down) { display: none !important; }
+}
 /* A value that is words is a bullet of Logseq's: its words stand in the values' column, without the bullet. */
 .lk-editor .property-pair .property-block-container { margin: 2px 0 0 !important; font-size: var(--lk-line-size) !important; }
 .lk-editor .property-pair .property-block-container .block-control-wrap { display: none !important; }

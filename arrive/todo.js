@@ -20,9 +20,9 @@ G.part({
 .lk-todo-hint:empty { display: none; }
 /* On its own page the list keeps a reading width and stands in the middle. */
 .lk-page[data-page="lk-todo-page"] { max-width: 720px; margin-inline: auto; }
-/* What is listed and how it is grouped: two quiet words at the right of the first group's line. */
-.lk-todo-view { position: relative; height: 0; z-index: 1; }
-.lk-todo-view > div { position: absolute; right: 0; top: calc(14px + (var(--lk-line-h) - 24px) / 2); display: flex; gap: 2px; }   /* centred on the first group's head as its name is: the list's 14 above, the head's 28, the words' 24 */
+/* What is listed and how it is grouped: two quiet words at the end of the line on top, since they change every group. */
+.lk-todo-view { flex: none; margin-left: auto; }
+.lk-todo-view > div { display: flex; gap: 2px; }
 .lk-todo-view button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; white-space: nowrap; }
 .lk-todo-view button:hover, .lk-todo-view button:focus-visible { background: var(--lk-wash); color: var(--lk-text); outline: none; }
 .lk-todo-view button.on { color: var(--lk-text); }
@@ -42,7 +42,7 @@ G.part({
         doc.defaultView.setTimeout(() => narrow(), 0);   // the line empties without a key: the list is whole again, and the day said at its right goes
         return made;
       }, 'The task could not be added');
-      const field = holder.firstElementChild.firstElementChild, hint = doc.createElement('span'); hint.className = 'lk-todo-hint'; field.after(hint);
+      const field = holder.firstElementChild.firstElementChild, hint = doc.createElement('span'); hint.className = 'lk-todo-hint'; field.after(hint); hint.after(viewEl);
       // What is typed in that line narrows the list to the tasks holding every word of it; Return still adds it as a new task.
       let typed = '';
       const holds = task => { const words = String(task.words).toLowerCase(); return typed.split(/\s+/).every(word => words.includes(word)); };
@@ -58,8 +58,8 @@ G.part({
         const listed = all.filter(task => !out.has(titleOf.get(task.status) || ''));
         // The strip of time: every listed task that has a day, a late one in red; a press on a dot goes to its line.
         const dots = listed.filter(task => task.day).map(task => ({ day: task.day, title: plain(task.words), uuid: task.uuid, late: task.day < today }));
-        timeEl.hidden = dots.length < 2;
-        if (dots.length >= 2) G.timeline.strip(timeEl, dots, today, dot => { const line = holder.querySelector(`.lk-row[data-uuid="${dot.uuid}"] > .lk-line`); if (line) { line.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); line.focus({ preventScroll: true }); } });
+        timeEl.hidden = dots.length < 5;   // a strip of two or three dots says less than the lines under it
+        if (dots.length >= 5) G.timeline.strip(timeEl, dots, today, dot => { const line = holder.querySelector(`.lk-row[data-uuid="${dot.uuid}"] > .lk-line`); if (line) { line.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); line.focus({ preventScroll: true }); } });
         const left = open.filter(status => out.has(status.title)), shown = open.filter(status => !out.has(status.title));
         const [showEl, byEl] = viewEl.firstElementChild.children;
         showEl.textContent = left.length ? (shown.length <= 2 ? shown.map(status => status.title).join(', ') : `${shown.length} statuses`) : 'All open'; showEl.classList.toggle('on', !!left.length);
@@ -67,13 +67,13 @@ G.part({
         showEl.lkOpen = open;
         // Where each task sits: its page, then the bullet it is under. Said under a task's words, except what the group's own heading says.
         const sits = await G.read.where(listed.map(task => task.id));
-        const tasks = (typed ? listed.filter(holds) : listed).map(task => { const at = sits.get(task.id) || []; return { ...task, at, where: by === 'page' ? at.slice(1) : by === 'parent' ? [] : at.slice(0, 1) }; });
+        const tasks = (typed ? listed.filter(holds) : listed).map(task => { const at = sits.get(task.id) || []; return { ...task, at, where: by === 'page' ? at.slice(1) : by === 'parent' ? [] : at.slice(0, 1).filter(step => !step.day) }; });   // a journal is only a day, and a task says one day: its own
         if (by === 'day') return G.todo.groups(tasks, today, sort);
         if (by === 'status') return G.todo.by('status', tasks, today, task => titleOf.get(task.status) || '', statuses.map(status => status.title), sort);
         if (by === 'tag') return G.todo.by('tag', tasks, today, task => task.tag && task.tag !== 'Task' ? task.tag : '', [], sort);
         if (by === 'priority') return G.todo.by('priority', tasks, today, task => task.priority, PRIORITIES, sort);
         if (by === 'parent') return G.todo.by('parent', tasks, today, task => plain(task.at[task.at.length - 1]?.words), [], sort);
-        return G.todo.by('page', tasks, today, task => plain(task.at[0]?.words), [], sort);
+        return G.todo.by('page', tasks, today, task => task.at[0]?.day ? G.days.short(task.at[0].day) : plain(task.at[0]?.words), [], sort);
       };
       // A task's right-click: its priority and its deadline, each from a short list, with the way back at the task's line.
       const more = (row, at) => {
@@ -90,7 +90,7 @@ G.part({
       const list = G.node.listing(holder.lastElementChild, read, { few: 30, none: 'No open tasks', more });
       const narrow = () => {
         const now = field.value.trim().toLowerCase(), said = G.todo.dayIn(field.value, G.days.number(new Date()));
-        hint.textContent = said ? new Date(Math.floor(said.day / 10000), Math.floor(said.day / 100) % 100 - 1, said.day % 100).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) : '';
+        hint.textContent = said ? G.days.short(said.day) : '';   // a day is written one way everywhere
         if (now !== typed) { typed = now; list.again(); }
       };
       field.addEventListener('input', narrow); field.addEventListener('keyup', narrow);

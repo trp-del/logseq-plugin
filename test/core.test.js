@@ -118,10 +118,10 @@ test('words narrow by a node\'s words, its tag, a value of its, or its day, and 
   assert.deepEqual(find.narrow(nodes, '').length, 3);
   assert.deepEqual(find.narrow(nodes, 'nothing'), []);
 });
-test('tasks stand under Today, Coming up and Any time; an overdue one says its day', () => {
+test('tasks stand under Overdue, Today, Coming up and Any time; an overdue one says its day', () => {
   const got = todo.groups([{ uuid: 'a', words: 'Pay', day: 20261125 }, { uuid: 'b', words: 'Dispute', day: 20261118 }, { uuid: 'c', words: 'Move', day: 20261130 }, { uuid: 'd', words: 'Call', day: 0 }], 20261125);
-  assert.deepEqual(got.map(l => [l.name, l.rows.map(r => r.uuid)]), [['Today', ['b', 'a']], ['Coming up', ['c']], ['Any time', ['d']]]);
-  assert.deepEqual(got[0].rows.map(r => r.dayShown), [20261118, 0]);
+  assert.deepEqual(got.map(l => [l.name, l.rows.map(r => r.uuid)]), [['Overdue', ['b']], ['Today', ['a']], ['Coming up', ['c']], ['Any time', ['d']]]);
+  assert.deepEqual([got[0].rows.map(r => r.dayShown), got[1].rows.map(r => r.dayShown)], [[20261118], [0]]);
   assert.deepEqual(todo.groups([], 20261125), []);
   // 25 November 2026 is a Wednesday.
   const dayIn = words => todo.dayIn(words, 20261125);
@@ -137,7 +137,7 @@ test('tasks stand under Today, Coming up and Any time; an overdue one says its d
   assert.equal(dayIn('Buy milk'), null);
   const sorted = todo.by('status', [{ uuid: 'a', words: 'Pay', day: 20261125, s: 'Todo' }, { uuid: 'b', words: 'Call', day: 0, s: 'Doing' }, { uuid: 'c', words: 'Old', day: 20261101, s: 'Todo' }, { uuid: 'd', words: 'Odd', day: 0, s: '' }], 20261120, task => task.s, ['Backlog', 'Todo', 'Doing']);
   assert.deepEqual(sorted.map(list => [list.name, list.rows.map(row => row.uuid), list.rows.map(row => row.late)]), [['Todo', ['c', 'a'], [true, false]], ['Doing', ['b'], [false]], ['No status', ['d'], [false]]]);
-  assert.deepEqual(got[0].rows.map(r => r.late), [true, false], 'a task past its day is late, one due today is not');
+  assert.deepEqual([got[0].rows.map(r => r.late), got[1].rows.map(r => r.late)], [[true], [false]], 'a task past its day is late, one due today is not');
   assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
 });
 const { sure } = require('../core/sure.js'), { above } = require('../core/tags.js');

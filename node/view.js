@@ -47,13 +47,13 @@ function head(state, list, made, plus, today) {
     kinds = made.tabs.map(one => tab(one.kind, one.word, one.n, one.on)).join('');
     if (made.kind && made.kind !== '@new' && !made.tabs.some(one => one.kind === made.kind)) kinds += tab(made.kind, made.kind === '@none' ? 'No tag' : made.kind, made.count, true);
     if (made.more) kinds += `<button type="button" class="lk-tab lk-tabmore">and ${made.more} more</button>`;
-  } else kinds = `<span class="lk-said">${made.count} ${G.esc(made.of)}</span>`;
+  } else kinds = tab(made.one || '', made.one || 'All', made.count, false);   // one kind: the same tab every head has, its name and count (the owner's marked page, 26 Nov: "Recommended, then Recommendations")
   if (made.fresh) kinds += tab('@new', `${made.fresh} new`, null, made.kind === '@new', ' lk-newtab');
   const dots = `<button type="button" class="lk-dots" title="View and more" aria-label="View and more">${icon('dots', 16)}</button>`;
   const said = made.said.length ? `<button type="button" class="lk-set" title="View">${G.esc(made.said.join(' · '))}</button>` : '';
-  const finding = !!(state.view.find.words || state.view.find.upTo), days = made.from ? `${D.short(made.from, today)} to ${D.short(made.to, today)}` : '';
+  const finding = !!(state.view.find.words || state.view.find.upTo);
   if (finding && made.total !== made.count) kinds += `<span class="lk-today">${made.total} today</span>`;
-  return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}</span><span class="lk-head-do">${plus}${dots}</span><span class="lk-head-end">${said}${days ? `<span class="lk-span">${G.esc(days)}</span>` : ''}</span>`;
+  return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}</span><span class="lk-head-do">${plus}${dots}</span><span class="lk-head-end">${said}</span>`;   // the days stand on the rows: a span on the head said them twice
 }
 // What stands under the head, in order: a group's line, a node's row, the line saying since when.
 const GROUP_FEW = 12;   // a group's nodes before its own "Show more", as before the rebuild
@@ -87,43 +87,44 @@ function paint(el, item, today) {
   if (item.type === 'group') { el.setAttribute('role', 'button'); el.tabIndex = 0; el.setAttribute('aria-expanded', String(!item.shut)); el.dataset.group = item.group.key; el.lkGroup = item.group; }
   if (el.lkHtml !== html) { el.innerHTML = html; el.lkHtml = html; }
 }
-// View: what a list goes by. One line per setting with its value beside it; a press opens its choices.
-function menu(state, box, at) {
+// View: what a list goes by, as an ordinary menu: a line per setting, its choices in a menu beside it, the one in force ticked.
+function viewItems(state, box) {
   const list = box.lkList, key = list.key, now = viewOf(key), offers = V.offers(list.rows), view = state.view;
   const set = change => { setView(key, change); state.redraw(); };
-  const choose = (title, name, choices) => () => G.menu(at, [{ group: title }, ...choices.map(([value, word, face]) => ({ word, face, on: (now[name] || '') === value, take: () => set({ [name]: value }) }))]);
-  const dateWord = value => !value ? 'Date or journal' : value === 'none' ? 'No date' : value === 'Journal' ? 'Day written' : value;
+  const choose = (title, name, choices) => choices.map(([value, word, face]) => ({ word, face, on: (now[name] || '') === value, take: () => set({ [name]: value }) }));
   const sortWord = { '': 'Day', changed: 'Last changed', name: 'Name', tag: 'Tag' };
   const keys = [...state.el.querySelectorAll(':scope > .lk-list')].map(one => one.dataset.key), at0 = keys.indexOf(key);
   const move = by => { orders.set({ ...orders.get(), [view.uuid]: V.moved(keys, key, by) }); state.again(); };
   const picking = view.picking.has(key);
-  const timeline = { word: 'Timeline', value: !now.timeline ? 'Hidden' : now.timeline === 'line' ? (now.tall ? 'Taller' : 'One line') : `By ${now.timeline}`, take: () => G.menu(at, [{ group: 'Timeline' },
+  const timeline = { word: 'Timeline', sub: [
     { word: 'Hidden', on: !now.timeline, take: () => { view.spans.delete(key); view.lanes.delete(key); view.lit.delete(key); set({ timeline: '' }); } }, { word: 'One line', on: now.timeline === 'line', take: () => { view.lanes.delete(key); set({ timeline: 'line' }); } },
     ...offers.groups.filter(name => name !== 'Tag' && name !== 'Month').map(name => ({ word: `By ${name}`, face: 'prop', on: now.timeline === name, take: () => { view.lanes.delete(key); set({ timeline: name }); } })),
-    ...(now.timeline ? [{ gap: true }, { word: 'Taller', on: !!now.tall, take: () => set({ tall: now.tall ? '' : '1' }) }] : [])]) };
+    ...(now.timeline ? [{ gap: true }, { word: 'Taller', on: !!now.tall, take: () => set({ tall: now.tall ? '' : '1' }) }] : [])] };
   // The order and the words the plugin had before the rebuild: Group by, Sort by, Timeline, Date; then Pick nodes; then moving the list.
-  G.menu(at, [
-    { word: 'Group by', value: now.group || 'None', take: choose('Group by', 'group', [['', 'None'], ...offers.groups.map(name => [name, name, name === 'Tag' || name === 'Month' ? '' : 'prop'])]) },
-    { word: 'Sort by', value: sortWord[now.sort || ''], take: choose('Sort by', 'sort', [['', 'Day'], ...offers.sorts.map(name => [name, sortWord[name]])]) },
+  return [
+    { word: 'Group by', sub: choose('Group by', 'group', [['', 'None'], ...offers.groups.map(name => [name, name, name === 'Tag' || name === 'Month' ? '' : 'prop'])]) },
+    { word: 'Sort by', sub: choose('Sort by', 'sort', [['', 'Day'], ...offers.sorts.map(name => [name, sortWord[name]])]) },
     timeline,
-    { word: 'Date', value: dateWord(now.date || ''), take: choose('Date', 'date', [['', 'Date or journal'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]) },
-    { word: picking ? 'Stop picking' : 'Pick nodes', icon: icon('square-check'), take: () => { if (picking) { view.picking.delete(key); view.picked.delete(key); } else view.picking.add(key); state.redraw(); } },
+    { word: 'Date', sub: choose('Date', 'date', [['', 'Date or journal'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]) },
+    { gap: true },
+    { word: picking ? 'Stop picking' : 'Pick nodes', take: () => { if (picking) { view.picking.delete(key); view.picked.delete(key); } else view.picking.add(key); state.redraw(); } },
     ...(at0 > 0 || (at0 >= 0 && at0 < keys.length - 1) ? [{ gap: true }] : []),
-    ...(at0 > 0 ? [{ word: 'Move up', icon: icon('arrow-up'), take: () => move(-1) }] : []),
-    ...(at0 >= 0 && at0 < keys.length - 1 ? [{ word: 'Move down', icon: icon('arrow-down'), take: () => move(1) }] : []),
-  ]);
+    ...(at0 > 0 ? [{ word: 'Move up', take: () => move(-1) }] : []),
+    ...(at0 >= 0 && at0 < keys.length - 1 ? [{ word: 'Move down', take: () => move(1) }] : []),
+  ];
 }
+const menu = (state, box, at) => G.menu(at, viewItems(state, box));
 // A property's name, right-clicked: View, how it reads back, and hiding it where it points.
 function nameMenu(state, box, at) {
   const list = box.lkList;
   if (list.kind !== 'property') return menu(state, box, at);
   const title = list.prop.title, give = name => { const all = { ...reads.get() }; if (name && name !== G.reads.back(title)) all[title] = name; else delete all[title]; reads.set(all); state.again(); };
-  G.menu(at, [{ group: title },
-    { word: 'View', icon: icon('arrows-sort'), value: '›', take: () => menu(state, box, at) },
+  G.menu(at, [
+    { word: 'View', sub: () => viewItems(state, box) },
     { gap: true },
-    { word: 'Reads back as…', icon: icon('cursor-text'), take: () => G.menu(at, [{ group: `How ${title} reads on the pages it points to` }, { word: G.reads.back(title), value: 'by grammar', on: !reads.get()[title], take: () => give('') },
+    { word: 'Reads back as…', take: () => G.menu(at, [{ group: `How ${title} reads on the pages it points to` }, { word: G.reads.back(title), value: 'by grammar', on: !reads.get()[title], take: () => give('') },
       ...(G.reads.back(title) === title ? [] : [{ word: title, value: 'its own name', on: reads.get()[title] === title, take: () => give(title) }])], { find: 'Or type how it reads', enter: give }) },
-    { word: 'Hide where it points', icon: icon('eye-off'), take: () => { oneEnd.set([...new Set([...oneEnd.get(), list.prop.ident])]); state.again(); G.say(`${list.name} is no longer listed on the pages it points to. Right-click the word Relations to bring it back.`); } },
+    { word: 'Hide where it points', take: () => { oneEnd.set([...new Set([...oneEnd.get(), list.prop.ident])]); state.again(); G.say(`${list.name} is no longer listed on the pages it points to. Right-click the word Relations to bring it back.`); } },
   ]);
 }
 // Every kind of a list with its count, for "and 3 more".

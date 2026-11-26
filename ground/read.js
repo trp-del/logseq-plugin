@@ -23,7 +23,7 @@
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
      read.held(ids)           id -> { name: [words] }   the same, told apart by the property's name
-     read.where(ids)          id -> [{ uuid, words }]   where a bullet sits: its page, then the bullet it is under
+     read.where(ids)          id -> [{ uuid, words, day }]   where a bullet sits: its page (day: a journal's, else 0), then the bullet it is under
      read.firstLines(id, n)   the first lines a node keeps under it
      read.recycled()          Logseq's Recycle, newest first: [{ uuid, words, isPage, from, at }]
      read.tasks()             the open tasks, each a node whose day is the day it is due (Deadline, else Scheduled), with its priority's name
@@ -268,10 +268,10 @@ async function held(ids) {
 async function where(ids) {
   const list = [...new Set(ids)].filter(isId), out = new Map();
   if (!list.length) return out;
-  const [pages, parents] = await Promise.all([q(`[:find ?b ?pg ?u ?t :where ${among('?b', list)} [?b :block/page ?pg] [?pg :block/uuid ?u] [?pg :block/title ?t]]`),
+  const [pages, parents] = await Promise.all([q(`[:find ?b ?pg ?u ?t ?d :where ${among('?b', list)} [?b :block/page ?pg] [?pg :block/uuid ?u] [?pg :block/title ?t] [(get-else $ ?pg :block/journal-day 0) ?d]]`),
     q(`[:find ?b ?p ?u ?t :where ${among('?b', list)} [?b :block/parent ?p] [?p :block/uuid ?u] [?p :block/title ?t]]`)]);
-  const page = new Map(pages.map(([b, pg, u, t]) => [b, { id: pg, uuid: String(u).toLowerCase(), words: String(t ?? '') }]));
-  for (const [b, at] of page) out.set(b, [{ uuid: at.uuid, words: at.words }]);
+  const page = new Map(pages.map(([b, pg, u, t, d]) => [b, { id: pg, uuid: String(u).toLowerCase(), words: String(t ?? ''), day: Number(d) || 0 }]));
+  for (const [b, at] of page) out.set(b, [{ uuid: at.uuid, words: at.words, day: at.day }]);
   for (const [b, p, u, t] of parents) if (page.get(b) && page.get(b).id !== p) out.get(b).push({ uuid: String(u).toLowerCase(), words: W.firstLine(String(t ?? '')).line });
   return out;
 }

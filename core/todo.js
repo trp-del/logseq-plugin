@@ -1,20 +1,22 @@
 /* Tasks, grouped by when they are due. No Logseq here.
    groups(tasks, today) answers the lists a Todo shows, in order, empty ones left out:
-     Today      due today or before it and still open, the longest overdue first (a row past its day is late: true)
+     Overdue    due before today and still open, the longest overdue first, each saying its day (late: true)
+     Today      due today
      Coming up  due after today, the soonest first
      Any time   no day, by their words
    A task: { uuid, words, day } with day the day it is due (0 for none). Shaped as the lists of what points at a node are, so
    one piece draws both. */
 (function (root) {
 function groups(tasks, today, sort = 'day') {
-  const by = { today: [], coming: [], any: [] };
-  for (const task of tasks) (task.day ? (task.day <= today ? by.today : by.coming) : by.any).push(task);
+  const by = { late: [], today: [], coming: [], any: [] };
+  for (const task of tasks) (task.day ? (task.day < today ? by.late : task.day === today ? by.today : by.coming) : by.any).push(task);
   const words = (a, b) => String(a.words).localeCompare(String(b.words)) || String(a.uuid).localeCompare(String(b.uuid));
   const dated = sort === 'name' ? words : (a, b) => a.day - b.day || words(a, b);
-  by.today.sort(dated); by.coming.sort(dated); by.any.sort(words);
+  by.late.sort(dated); by.today.sort(dated); by.coming.sort(dated); by.any.sort(words);
   const row = (task, shown) => ({ ...task, tagShown: !!task.tag && task.tag !== 'Task', dayShown: shown ? task.day : 0, late: !!task.day && task.day < today });   // every row here is a task: the tag Task says nothing
   return [
-    { key: 'todo:today', kind: 'group', name: 'Today', tag: '', rows: by.today.map(task => row(task, task.day !== today)) },
+    { key: 'todo:late', kind: 'group', name: 'Overdue', tag: '', rows: by.late.map(task => row(task, true)) },
+    { key: 'todo:today', kind: 'group', name: 'Today', tag: '', rows: by.today.map(task => row(task, false)) },
     { key: 'todo:coming', kind: 'group', name: 'Coming up', tag: '', rows: by.coming.map(task => row(task, true)) },
     { key: 'todo:any', kind: 'group', name: 'Any time', tag: '', rows: by.any.map(task => row(task, false)) },
   ].filter(list => list.rows.length);

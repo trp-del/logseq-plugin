@@ -243,9 +243,9 @@ function draw(state, made, names, statuses) {
        the words' own face, the + and the days. A list of one node has nothing to count, so its head is the first line alone. */
     const said = list.said || list.tag || '', via = list.kind === 'property', made = G.listview.shape(state, list, names, today);
     const plus = state.add && via ? `<button type="button" class="lk-plus" title="Add a ${G.esc(list.one || 'node')}" aria-label="Add a ${G.esc(list.one || 'node')}">${G.touch.icon('plus', 14)}</button>` : '';   // on a list of several kinds too: the new node gets the kind most of them are
-    const span = list.from ? `<span class="lk-span">${G.esc(D.short(list.from, today))} to ${G.esc(D.short(list.to, today))}</span>` : '';
+    const span = '';   // the days stand on the rows: a span on the head said them twice
     const lined = via || (made && list.count);   // two lines: what the list is, then what it holds
-    const first = lined ? `${via ? G.touch.icon('hierarchy', 13) : ''}<span class="${via || list.kind === 'due' ? 'lk-prop' : 'lk-plain'}">${G.esc(list.name)}</span>${list.count ? '' : plus}` : '';
+    const first = lined ? `<span class="${via || list.kind === 'due' ? 'lk-prop' : 'lk-plain'}">${G.esc(list.name)}</span>${list.count ? '' : plus}` : '';
     const name = made && list.count ? G.listview.head(state, list, made, plus, today) : via ? (list.count ? `<span class="lk-said">${G.esc(list.tag ? said : `${said} nodes`)}</span>${plus}${span}` : '')
       : `<span class="${list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}${span}`;
     if (head.children[1].innerHTML !== first) head.children[1].innerHTML = first;
@@ -349,7 +349,7 @@ function handle(state, event) {
   const head = target.closest('.lk-list-head');
   if (head && head.parentElement.dataset.kind !== 'none' && (event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
     if (target.closest('.lk-tick, button')) return;
-    event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); state.redraw(); return;
+    event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); state.view?.kinds.delete(head.parentElement.dataset.key); state.redraw(); return;   // a folded list keeps no kind chosen
   }
   if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-more').dataset.gkey || target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } state.redraw(); return; }
   if (event.type === 'keydown' && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && target.matches('.lk-line, .lk-list-head')) {
@@ -401,7 +401,12 @@ G.node.CSS = `
 .lk-plain { color: var(--lk-quiet); }
 .lk-list-name { flex: 1; min-width: 0; display: flex; align-items: baseline; }   /* the kinds (in the tag's face), All and the counts share one baseline */
 .lk-list-head:has(> .lk-list-via:not(:empty)) { flex-wrap: wrap; }
-.lk-list-via { order: -1; flex: 0 0 100%; display: flex; align-items: flex-start; min-height: 24px; }
+.lk-list-via { flex: 1 1 0; min-width: 0; display: flex; align-items: flex-start; min-height: 24px; }
+/* A property's list: the arrow and the property's name on the first line, the kinds under the name (one head for every list). */
+.lk-list-head:has(> .lk-list-via:not(:empty)) > .lk-list-name { flex: 0 0 100%; padding-left: calc(var(--lk-mark-box) + var(--lk-mark-gap)); }
+.lk-list-head[aria-expanded="false"]:has(> .lk-list-via:not(:empty)) > .lk-list-name { display: none; }   /* closed: one line, its name */
+.lk-list-head[aria-expanded="false"]:has(> .lk-list-via:not(:empty)) { padding-bottom: 0; }
+.lk-list-via > .lk-prop { color: var(--lk-text); font-size: var(--lk-line-size); line-height: 24px; }   /* what the list is: the property, in the ink, at the size of the lines it heads */
 .lk-list-via:empty { display: none; }
 .lk-list-via > svg:first-child { flex: none; width: 13px; height: 13px; margin: 5.5px 5.5px 0 1.5px; color: var(--lk-off); }
 .lk-list-via > .ti:first-child { flex: none; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: var(--lk-mark-box); height: 24px; margin: 0 var(--lk-mark-gap) 0 0; font-size: var(--lk-small); color: var(--lk-off); }   /* the mark's box, on the name's first line */
@@ -422,7 +427,6 @@ G.node.CSS = `
 .lk-list-head[data-thin] > .lk-fold { opacity: .45 !important; }
 .lk-list-head[data-thin]:hover > .lk-fold { opacity: .8 !important; }
 .lk-list-head[data-plain] > .lk-list-via > .lk-plain { font-size: var(--lk-line-size); }
-.lk-row.lk-fresh > .lk-line > .lk-bul::before { background: var(--lk-text); width: 7px; height: 7px; }   /* made since the page was last open */
 .lk-list[data-picking] .lk-row > .lk-fold { display: none; }
 .lk-row > .lk-tick { grid-column: 2; align-self: start; justify-self: center; position: relative; z-index: 1; }
 .lk-row > input.lk-tick[type=checkbox] { margin: calc(2px + (24px - 14px) / 2) 0 0; }   /* on the middle of the line's first line: its 2 above, its 24, the tick's 14 */
