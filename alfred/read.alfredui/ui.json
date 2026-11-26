@@ -1,0 +1,182 @@
+{
+ "bundleid": "com.openai.alfred.logseq-db.read",
+ "log": {
+  "level": "info",
+  "internal": true,
+  "path": "logseq-read.log",
+  "timestamp": true
+ },
+ "variablesconfig": {
+  "LOGSEQ_TOKEN": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_HOST": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "LOGSEQ_PORT": {
+   "src": "variable",
+   "scriptenv": true
+  },
+  "query": {
+   "src": "args[0]"
+  },
+  "n_uuid": {
+   "default": "",
+   "scriptenv": true
+  },
+  "n_path": {
+   "default": "",
+   "scriptenv": true
+  },
+  "n_titles": {
+   "default": "",
+   "scriptenv": true
+  },
+  "n_from": {
+   "default": "",
+   "scriptenv": true
+  },
+  "n_steps": {
+   "default": "",
+   "scriptenv": true
+  },
+  "n_edit": {
+   "default": "",
+   "scriptenv": true
+  },
+  "k_shown": {
+   "default": "",
+   "scriptenv": true
+  }
+ },
+ "pulse": {
+  "src": "keys",
+  "args": [
+   "{var:k_shown}",
+   "nGo",
+   "nKeys"
+  ],
+  "interval": 0.12,
+  "intervalmode": "delay"
+ },
+ "window": {
+  "padding": 26,
+  "size": {
+   "width": 900
+  },
+  "root": {
+   "type": "view",
+   "layout": "inline",
+   "direction": "vertical",
+   "spacing": 12,
+   "events": [
+    {
+     "triggers": "launched",
+     "action": {
+      "type": "script",
+      "src": "do",
+      "args": [
+       "open",
+       "{var:query}"
+      ]
+     }
+    }
+   ],
+   "components": [
+    {
+     "type": "label",
+     "id": "nTrail",
+     "text": "",
+     "colour": "secondaryLabelColor",
+     "font": {
+      "size": 14
+     },
+     "linebreak": "truncatetail",
+     "constraints": {
+      "position": "left"
+     }
+    },
+    {
+     "type": "view",
+     "layout": "border",
+     "spacing": 12,
+     "constraints": {
+      "stretch": "horizontal"
+     },
+     "components": [
+      {
+       "type": "label",
+       "id": "nTitle",
+       "text": "Reading…",
+       "font": {
+        "size": 22,
+        "weight": "semibold"
+       },
+       "linebreak": "truncatetail",
+       "constraints": {
+        "region": "centre",
+        "position": "left"
+       }
+      },
+      {
+       "type": "view",
+       "layout": "inline",
+       "spacing": 14,
+       "constraints": {
+        "region": "right",
+        "position": "centre"
+       },
+       "components": [
+        {
+         "type": "label",
+         "id": "nTags",
+         "text": "",
+         "colour": "secondaryLabelColor",
+         "font": {
+          "size": 17,
+          "name": "New York"
+         }
+        },
+        {
+         "type": "label",
+         "id": "nDay",
+         "text": "",
+         "colour": "secondaryLabelColor",
+         "font": {
+          "size": 14
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "view",
+     "id": "nBody",
+     "layout": "inline",
+     "direction": "vertical",
+     "spacing": 0,
+     "constraints": {
+      "stretch": "horizontal"
+     },
+     "components": [
+      {
+       "type": "label",
+       "id": "nNote",
+       "text": "",
+       "colour": "labelColor",
+       "font": {
+        "size": 14
+       },
+       "constraints": {
+        "position": "left"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

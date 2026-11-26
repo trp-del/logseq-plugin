@@ -1,0 +1,113 @@
+{
+ "type": "dataview",
+ "id": "searchList",
+ "constraints": {
+  "region": "centre",
+  "size": {
+   "height": 66
+  }
+ },
+ "placeholder": "",
+ "behaviour": {
+  "selection": {
+   "wrap": "vertical"
+  }
+ },
+ "cell": {
+  "height": 66,
+  "init": {
+   "rRow.background": null
+  },
+  "selected": {
+   "rRow.background": "quaternaryLabelColor"
+  },
+  "root": {
+   "type": "view",
+   "id": "rRow",
+   "layout": "border",
+   "padding": 10,
+   "spacing": 12,
+   "cornerradius": 12,
+   "components": [
+    {
+     "type": "imageview",
+     "id": "rIcon",
+     "contenttintcolour": "secondaryLabelColor",
+     "constraints": {
+      "region": "left",
+      "position": "centre",
+      "size": {
+       "width": 26,
+       "height": 26
+      }
+     }
+    },
+    {
+     "type": "view",
+     "layout": "inline",
+     "direction": "vertical",
+     "spacing": 3,
+     "constraints": {
+      "region": "centre",
+      "size": {
+       "height": 46
+      }
+     },
+     "components": [
+      {
+       "type": "label",
+       "id": "rTitle",
+       "font": {
+        "size": 18
+       },
+       "linebreak": "truncatetail",
+       "constraints": {
+        "position": "left",
+        "size": {
+         "height": 24
+        }
+       }
+      },
+      {
+       "type": "label",
+       "id": "rSub",
+       "colour": "secondaryLabelColor",
+       "font": {
+        "size": 14
+       },
+       "linebreak": "truncatetail",
+       "constraints": {
+        "position": "left",
+        "size": {
+         "height": 19
+        }
+       }
+      }
+     ]
+    },
+    {
+     "type": "label",
+     "id": "rUuid",
+     "hidden": true
+    }
+   ]
+  }
+ },
+ "data": {
+  "type": "basic",
+  "src": []
+ },
+ "events": [
+  {
+   "triggers": "changed",
+   "action": {
+    "type": "script",
+    "src": "pane",
+    "args": [
+     "{value:searchList.selected.rUuid.text}"
+    ],
+    "async": true
+   }
+  }
+ ]
+}

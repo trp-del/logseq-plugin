@@ -1,0 +1,4 @@
+#!/bin/zsh
+# A node whole: the lit line changed, so the foot's guide (shown while Option is held) is the lit line's own.
+# $1 what ↩ does to the line, $2 the other keys; both come from the line itself and hold no quote or backslash.
+print -r -- "{\"update\":{\"ids\":{\"nGo\":{\"text\":\"${1//[\"\\]/}\"},\"nKeys\":{\"text\":\"${2//[\"\\]/}\"}}}}"

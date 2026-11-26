@@ -15,7 +15,25 @@ function span(day) {
   const from = new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100).getTime();
   return { from, to: from + 86400000 };
 }
-const api = { valid, number, short, span };
+/* A day as a person types it, read into Logseq's number; 0 where no one day is meant.
+   today, tomorrow, yesterday; 2026-11-18; nov 18, 18 nov, november 18 2026 (a year left out is the year we are in). */
+const FULL = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+function typed(text, today = number(new Date())) {
+  const said = String(text == null ? '' : text).trim().toLowerCase().replace(/(\d)(st|nd|rd|th)\b/g, '$1').replace(/[,.]/g, ' ').replace(/\s+/g, ' ').trim();
+  const real = (y, m, d) => { const at = new Date(y, m - 1, d); return at.getFullYear() === y && at.getMonth() === m - 1 && at.getDate() === d ? y * 10000 + m * 100 + d : 0; };
+  const shift = by => number(new Date(Math.floor(today / 10000), Math.floor(today / 100) % 100 - 1, today % 100 + by));
+  if (said === 'today') return today;
+  if (said === 'tomorrow') return shift(1);
+  if (said === 'yesterday') return shift(-1);
+  const iso = said.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) return real(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  const monthOf = word => word.length >= 3 ? FULL.findIndex(name => name.startsWith(word)) + 1 : 0;
+  const first = said.match(/^([a-z]+) (\d{1,2})(?: (\d{4}))?$/), second = said.match(/^(\d{1,2}) ([a-z]+)(?: (\d{4}))?$/);
+  const month = first ? monthOf(first[1]) : second ? monthOf(second[2]) : 0, day = first ? Number(first[2]) : second ? Number(second[1]) : 0;
+  const year = Number((first || second || [])[3]) || Math.floor(today / 10000);
+  return month && day ? real(year, month, day) : 0;
+}
+const api = { valid, number, short, span, typed };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).days = api;
 })(typeof window !== 'undefined' ? window : globalThis);

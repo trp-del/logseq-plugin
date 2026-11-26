@@ -1,0 +1,3 @@
+#!/bin/zsh
+# Search: the nodes with these words, answered by logseq.js (panel-search), in Alfred UI's JSON.
+exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-search "$@"
