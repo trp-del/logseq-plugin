@@ -139,8 +139,6 @@ G.line.CSS = `
 .lk-bul.lk-folded::before { box-shadow: 0 0 0 4.8px var(--lk-bullet-ring); }   /* it holds lines: the ring Logseq puts round a folded bullet, 16 across (the owner, 26 November 2026: the bullet as before 0.9) */
 .lk-status-icon { display: inline-flex; }
 /* A task carries one mark before its words, its status circle, standing where the bullet stands; its words keep the edge of every other line. */
-.lk-line > .lk-bul:has(+ .lk-status) { display: none; }
-.lk-line > .lk-bul:has(+ .lk-status) + .lk-status { margin-left: 20px; }
 .lk-status { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; padding: 0; border: 0; background: none; color: var(--lk-quiet); cursor: pointer; }
 .lk-words { min-width: 0; overflow-wrap: anywhere; }
 .lk-words a.lk-node, .lk-words a.lk-url { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }

@@ -436,7 +436,6 @@ G.node.CSS = `
 .lk-list[data-viewed] > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:not(:empty)) + .lk-row:has(> .lk-line > .lk-dayin:empty) { margin-top: 10px; }
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:empty) > .lk-open { padding-left: 0; }
 .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
-.lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]:has(> .lk-line > .lk-status)::before { content: none; }   /* a task's line has its circle, not a dot: opened, it keeps the circle alone */
 .lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
 .lk-list-head[data-thin] > .lk-list-name { align-items: baseline; }
 .lk-list-head[data-thin] > .lk-fold { opacity: 1 !important; }   /* the one arrow, in the quiet grey every arrow has, never fainter */
