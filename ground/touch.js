@@ -561,11 +561,13 @@ const OPENED = `
    where they stood, no bullet before them and no priority mark added (the priority is set from the right-click, as on the line),
    the tag Task left out as the line leaves it out, and in a narrow place no line for "Show hidden properties". */
 .lk-editor .ls-block > .block-main-container:has(.block-left.positioned-properties) > .block-control-wrap .bullet-container { visibility: hidden !important; }
-.lk-editor .block-left.positioned-properties { margin-left: 3px !important; }
+.lk-editor .block-left.positioned-properties { margin-left: 2px !important; }
+.lk-editor .block-left.positioned-properties :is(.ui__icon, .ui__icon svg) { width: 18px !important; height: 18px !important; }   /* the circle the line draws, 18 across, so the words stay where the line's stood */
 .lk-editor .block-left.positioned-properties > .property-value-inner:has([class*="ls-icon-priority"]) { display: none !important; }
 .lk-editor .block-tag:has(> div > a.tag[data-ref="task"]), .lk-editor .block-tag:has(a.tag[data-ref="task"]):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }
 .lk-editor .ls-block-right:has(.block-tags):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }
 .lk-editor .block-main-container:has(> div > div > .block-main-content .block-left.positioned-properties) .positioned-properties.block-below { margin-left: 25px !important; width: auto !important; }   /* a task's properties start under its words */
+.lk-editor .ls-block:has(> .block-main-container > div > div > .block-main-content .block-left.positioned-properties) > .ls-block-content-indent > .ls-properties-area { margin-left: 25px !important; }   /* and the hidden ones, when shown, on the same edge (the owner's pictures of a consultation in Relations, 26 November 2026) */
 @container lk-list (max-width: 520px) {
   .lk-editor button.bottom-property-pill.bottom-property-hidden-toggle-btn:has(> .ls-icon-chevron-down) { display: none !important; }
 }
