@@ -12,18 +12,26 @@ G.part({
 .lk-ontology { padding: 4px 4px 16px 22px; }
 .lk-ontology > .lk-rel { position: relative; }
 .lk-ontology .lk-row > .lk-fold { visibility: hidden; }   /* nothing opens under a tag or a property here */
-.lk-ontology .lk-row.lk-chosen > .lk-line { background: var(--lk-wash); }
+.lk-ontology .lk-row.lk-chosen > .lk-line:is(:focus-visible, :hover) { background: var(--lk-wash); }   /* lit only where the keys or the pointer are: a row left chosen keeps its lines, not a wash (the owner's marked page, 26 Nov) */
+.lk-ontology .lk-list[data-face="tag"] > .lk-rows > .lk-row[style*="--lk-depth: 0;"] .lk-words { font-weight: 600; }   /* a top tag heads its tree */
+.lk-ontology .lk-line > .lk-num { margin-left: 8px; }   /* a tag's count right after its name */
 .lk-ontology .lk-line .lk-words { cursor: pointer; }
 .lk-page { padding: 0 0 48px; }
 .lk-page-title { font-size: var(--ls-page-title-size, 2rem); font-weight: 600; line-height: 1.25; margin: 0 0 18px; color: var(--lk-text); }
-.lk-map { --lk-ground: var(--lk-paper); padding-left: 22px; display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; }
-.lk-map > .lk-add { order: 1; flex: 1 1 180px; max-width: 362px; position: static; }   /* on its own page the line that adds scrolls with the page */
+.lk-map { --lk-ground: var(--lk-paper); padding-left: 0; display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; }
+.lk-map > .lk-add { order: 1; flex: 1 1 180px; max-width: 362px; position: static; margin-left: 0; padding-left: 0; background: none; }   /* one line, no box: the same width as its underline */   /* on its own page the line that adds scrolls with the page */
 .lk-map > .lk-values { order: 2; margin: 0 0 12px auto; }   /* the two presses stand beside the line where there is room, under it where there is not: never over it (found by hand) */
 .lk-map > .lk-side { order: 3; margin-bottom: 12px; }
 .lk-map > .lk-ask { order: 4; flex: 0 0 100%; min-width: 0; }
 .lk-map > .lk-rel { order: 5; flex: 0 0 100%; min-width: 0; }
-.lk-map > .lk-rel { display: grid; grid-template-columns: repeat(2, minmax(232px, 340px)); justify-content: space-between; gap: 56px 44px; align-items: start; padding: 34px 26px 0 0; container-type: normal; }   /* the columns are counted as the areas are drawn */
+.lk-map > .lk-rel { display: grid; grid-template-columns: repeat(2, minmax(232px, 340px)); justify-content: space-between; gap: 56px 44px; align-items: start; padding: 34px 26px 0 0; margin-left: -18px; container-type: normal; }   /* one left edge: the title, the line that adds and the top tags' dots (the owner's marked page, 26 Nov) */   /* the columns are counted as the areas are drawn */
 .lk-map > .lk-rel > .lk-list { container: lk-list / inline-size; min-width: 0; }
+/* Properties under the tag trees, across the whole width in columns as the trees stand, its head a top tag's: never one run off the screen, and in the same place whatever the width. */
+.lk-map > .lk-rel > .lk-list[data-face="prop"] { grid-column: 1 / -1; }
+.lk-map > .lk-rel > .lk-list[data-face="prop"] > .lk-rows { columns: 232px; column-gap: 44px; }
+.lk-map > .lk-rel > .lk-list[data-face="prop"] > .lk-rows > .lk-row { break-inside: avoid; }
+.lk-ontology .lk-list[data-face="prop"] > .lk-list-head .lk-plain { font-weight: 600; color: var(--lk-text); }
+.lk-map > .lk-rel > .lk-list[data-face="prop"] > .lk-list-head { margin-left: 0; }   /* its name on the dots' edge */
 .lk-joins { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .lk-joins { color: var(--lk-text); }
 .lk-joins path { fill: none; stroke: currentColor; stroke-opacity: .5; stroke-width: 1; }   /* a hairline in the quiet grey, in light and dark alike */
@@ -79,7 +87,7 @@ G.part({
       const columns = () => {
         if (!wide) return;
         const view = doc.defaultView, css = view.getComputedStyle(rel), gap = parseFloat(css.columnGap) || 0, inner = rel.clientWidth - (parseFloat(css.paddingLeft) || 0) - (parseFloat(css.paddingRight) || 0);
-        const n = Math.max(1, Math.min(rel.querySelectorAll(':scope > .lk-list').length || 1, Math.floor((inner + gap) / (NARROW + gap)))), want = `repeat(${n}, minmax(${NARROW}px, ${WIDE}px))`;
+        const n = Math.max(1, Math.min(rel.querySelectorAll(':scope > .lk-list[data-face="tag"]').length || 1, Math.floor((inner + gap) / (NARROW + gap)))), want = `repeat(${n}, minmax(${NARROW}px, ${WIDE}px))`;
         if (rel.style.gridTemplateColumns !== want) rel.style.gridTemplateColumns = want;
       };
       const lines = () => {
@@ -177,8 +185,8 @@ G.part({
         } });
       let offSide = null;
       if (wide) {   // the outline beside a page you are reading: one press away
-        const side = doc.createElement('button'); side.type = 'button'; side.className = 'lk-btn lk-low lk-side'; side.textContent = 'In the sidebar';
-        const values = doc.createElement('button'); values.type = 'button'; values.className = 'lk-btn lk-low lk-values'; values.textContent = 'Move values…';
+        const side = doc.createElement('button'); side.type = 'button'; side.className = 'lk-btn lk-side'; side.textContent = 'In the sidebar';
+        const values = doc.createElement('button'); values.type = 'button'; values.className = 'lk-btn lk-values'; values.textContent = 'Move values…';
         const open = () => section.open(), ask = () => G.moving.ask(holder, {});
         side.addEventListener('click', open); values.addEventListener('click', ask); (holder.querySelector(':scope > .lk-add') || holder.firstElementChild).after(values, side);
         offSide = () => { side.removeEventListener('click', open); values.removeEventListener('click', ask); side.remove(); values.remove(); };
