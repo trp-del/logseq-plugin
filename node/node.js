@@ -420,8 +420,11 @@ G.node.CSS = `
 .lk-list-head[data-plain] > .lk-list-via > .lk-plain { font-size: var(--lk-line-size); }
 .lk-row.lk-fresh > .lk-line > .lk-bul::before { background: var(--lk-text); width: 7px; height: 7px; }   /* made since the page was last open */
 .lk-list[data-picking] .lk-row > .lk-fold { display: none; }
-.lk-row > .lk-tick { grid-column: 2; align-self: start; margin-top: 9px; justify-self: center; position: relative; z-index: 1; }
-.lk-list-head > .lk-list-name > .lk-tick-all { margin: 0 6px 0 -19px; align-self: center; }
+.lk-row > .lk-tick { grid-column: 2; align-self: start; justify-self: center; position: relative; z-index: 1; }
+.lk-row > input.lk-tick[type=checkbox] { margin: calc(2px + (24px - 14px) / 2) 0 0; }   /* on the middle of the line's first line: its 2 above, its 24, the tick's 14 */
+/* The tick for all stands in the mark's box where the head's arrow stands, which gives way to it as a row's arrow does. */
+.lk-list-head > .lk-list-name > .lk-tick-all { margin: 0 calc(var(--lk-mark-gap) + (var(--lk-mark-box) - 14px) / 2) 0 calc((var(--lk-mark-box) - 14px) / 2 - var(--lk-mark-box) - var(--lk-mark-gap)); align-self: center; }
+.lk-list[data-picking] > .lk-list-head > .lk-fold { visibility: hidden; }
 .lk-row.lk-picked > .lk-line { background: var(--lk-wash); border-radius: 6px; }
 .lk-said { font-weight: 500; }
 /* What a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads, in every place (the owner, 26 November 2026). */
