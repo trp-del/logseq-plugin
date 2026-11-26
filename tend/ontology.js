@@ -27,7 +27,26 @@ G.part({
 .lk-joins { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .lk-joins { color: var(--lk-text); }
 .lk-joins path { fill: none; stroke: currentColor; stroke-opacity: .5; stroke-width: 1; }   /* a hairline in the quiet grey, in light and dark alike */
-.lk-ontology:not(.lk-map) > .lk-rel { padding-right: 20px; }   /* room at the right for the bracket of a tag's lines */`);
+.lk-ontology:not(.lk-map) > .lk-rel { padding-right: 20px; }   /* room at the right for the bracket of a tag's lines */
+/* Tick tags, then act on all of them: one line of presses over the map, and a line to find a tag by, at its right. */
+.lk-ont-bar { order: 4; flex: 0 0 100%; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; min-height: 32px; margin: 2px 0 0; font-size: var(--lk-small); }
+.lk-ont-said { margin-right: 8px; color: var(--lk-quiet); white-space: nowrap; }
+.lk-ont-bar[data-n]:not([data-n="0"]) .lk-ont-said { color: var(--lk-text); }
+.lk-ont-bar .lk-btn { font-size: inherit; }
+.lk-ont-bar .lk-btn.lk-goes { color: var(--lk-going); }
+.lk-ont-find { margin-left: auto; flex: 0 1 180px; min-width: 100px; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
+.lk-ont-find:focus { border-bottom-color: var(--lk-line); }
+.lk-ont-find::placeholder { color: var(--lk-off); }
+.lk-ont-bar > .lk-ask { flex: 0 0 100%; }
+.lk-ont-merge { max-width: 520px; margin: 4px 0 10px; padding: 12px; border-radius: var(--lk-corner-float); box-shadow: 0 0 0 1px var(--lk-line); display: flex; flex-direction: column; gap: 6px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
+.lk-ont-merge .lk-ask-head { font-weight: 600; }
+.lk-ont-merge .lk-ask-head .lk-tag { font-weight: 400; color: var(--lk-text); }
+.lk-ont-merge .lk-ask-note { color: var(--lk-quiet); font-size: var(--lk-small); }
+.lk-ont-merge .lk-answers { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.lk-ont-merge .lk-tag.lk-going { color: var(--lk-going); }
+.lk-ont-merge .lk-tag.lk-coming { color: var(--lk-coming); }
+.lk-ont-rename { flex: 0 0 100%; display: flex; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.lk-ont-rename .lk-field { flex: 0 1 280px; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-line); outline: 0; background: none; color: inherit; font: inherit; font-family: var(--lk-tag-face); font-size: var(--lk-words-size); line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }`);
     /* One drawing for both places. In the sidebar: one outline. On the page: every top tag an area of its own, side by side,
        so the lines between tags run in the gaps and over the band above the areas. */
     const draw = (holder, wide) => {
@@ -136,12 +155,138 @@ G.part({
         if (!out) { const to = above(row, d); if (to) move(uuid, to.dataset.uuid); }
         else if (d > 0) move(uuid, d > 1 ? above(row, d - 2)?.dataset.uuid || '' : '');
       };
+      /* Tick tags, then act on all of them (the owner chose this old part, 26 November 2026), on the page of its own. A tick box
+         stands before every tag, shown under the pointer and once ticked. Over the map, one line: what is ticked, then Merge…
+         (two tags), Move up a level, Move under…, Rename (one tag), Delete, and × to untick; at its right, a line that narrows
+         the map to the tags whose names hold what is typed, each with the tags above it. Every action is written at once and
+         leaves the Undo arrow, which takes all of it back. */
+      const picked = new Set(), countOf = new Map(); let bar = null, wanted = '';
+      const fresh = async () => { G.read.forget(); const tags = await G.read.tags(); return { tags, of: new Map([...tags.values()].map(tag => [tag.uuid, tag])) }; };
+      const say = () => {
+        if (!bar) return;
+        const n = picked.size; bar.dataset.n = String(n);
+        bar.querySelector('.lk-ont-said').textContent = n ? `${n} ${n === 1 ? 'tag' : 'tags'} picked` : 'Tick tags, then';
+        for (const button of bar.querySelectorAll('button[data-do]')) { const does = button.dataset.do; if (does === 'none') button.hidden = !n; else button.disabled = does === 'merge' ? n !== 2 : does === 'rename' ? n !== 1 : !n; }
+      };
+      const ticks = () => {
+        if (!wide) return;
+        const rows = [...rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows > .lk-row')], here = new Set(rows.map(row => row.dataset.uuid));
+        if (!wanted) for (const uuid of [...picked]) if (!here.has(uuid)) picked.delete(uuid);   // a tag that went (merged, deleted) is no longer picked
+        for (const row of rows) {
+          const line = row.querySelector(':scope > .lk-line'); if (!line) continue;
+          let tick = line.querySelector(':scope > input.lk-tick');
+          if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', `Pick ${line.querySelector('.lk-words')?.textContent.trim() || 'this tag'}`); line.prepend(tick); }
+          tick.checked = picked.has(row.dataset.uuid);
+        }
+        say();
+      };
+      const moveAll = async to => {   // to: a tag's uuid, '' for the top, or 'up' for one level out
+        try {
+          const { tags, of } = await fresh(); let steps = 0, last = '';
+          for (const uuid of picked) {
+            const tag = of.get(uuid); if (!tag) continue;
+            const from = tag.parents.map(id => tags.get(id)?.uuid).filter(Boolean);
+            const dest = to === 'up' ? (tag.parents.length ? tags.get(tags.get(tag.parents[0])?.parents[0])?.uuid || '' : null) : to;
+            if (dest == null || dest === uuid || (from.length === 1 && from[0] === dest) || (!from.length && dest === '')) continue;
+            steps += await G.write.moveTag(uuid, dest, from); last = uuid;
+          }
+          if (last) G.undo.mark(last, steps);
+        } catch (error) { G.say(`The tags could not all be moved: ${error?.message || 'Logseq refused'}`, 'warning'); }
+      };
+      const act = async (does, button) => {
+        if (does === 'none') { picked.clear(); return ticks(); }
+        if (does === 'up') return moveAll('up');
+        const { tags, of } = await fresh(), mine = [...picked].map(uuid => of.get(uuid)).filter(Boolean);
+        if (!mine.length) return;
+        if (does === 'under') {
+          const below = new Set(mine.flatMap(tag => [...G.find.under(tag.id, tags)])), others = new Map([...tags].filter(([id]) => !below.has(id)));
+          return void G.menu(button, [...G.find.tree(others).map(({ tag: one, depth }) => ({ word: one.title, depth, face: 'tag', take: () => moveAll(one.uuid) })), { gap: true }, { word: 'The top', take: () => moveAll('') }], { find: `Move ${mine.length} picked ${mine.length === 1 ? 'tag' : 'tags'} to…` });
+        }
+        if (does === 'delete') {
+          const nodes = mine.reduce((sum, tag) => sum + (countOf.get(tag.uuid) || 0), 0);
+          return void G.ask.gone(bar, { words: mine.length === 1 ? `Delete the tag “${mine[0].title}”?` : `Delete ${mine.length} tags?`,
+            note: nodes ? `${nodes} ${nodes === 1 ? 'node holds' : 'nodes hold'} ${mine.length === 1 ? 'it' : 'them'}. ${mine.length === 1 ? 'It is' : 'They are'} taken off every one of them.` : '', yes: mine.length === 1 ? 'Delete the tag' : `Delete ${mine.length} tags`,
+            take: async () => { let steps = 0; for (const tag of mine) { await G.write.remove(tag.uuid, true); steps++; } G.undo.mark(mine[mine.length - 1].uuid, steps); picked.clear(); list.again(); } });
+        }
+        if (does === 'merge') {
+          /* Two tags made one, shown before it is made: the first ticked goes into the second (or the other way round, on "Keep
+             the other name"). Every node that held the tag that goes holds the one that stays; the tags under it move under the
+             one that stays; then the tag that goes is deleted. Links in words to the tag that goes are not rewritten. */
+          bar.querySelector('.lk-ont-merge')?.remove();
+          let [from, into] = mine;
+          const box = doc.createElement('div'); box.className = 'lk-ask lk-ont-merge';
+          const paint = async () => {
+            const nodes = await G.read.tagged([from.id]), names = await G.read.names(nodes.flatMap(node => G.words.named(node.words)));
+            const kids = [...tags.values()].filter(tag => tag.parents.includes(from.id) && tag.id !== into.id);
+            box.innerHTML = `<div class="lk-ask-head">Merge <span class="lk-tag">${G.esc(from.title)}</span> into <span class="lk-tag">${G.esc(into.title)}</span></div>`
+              + nodes.slice(0, 4).map(node => `<div class="lk-ont-will">${G.esc(G.words.plain(node.words, names) || 'Untitled')} <span class="lk-tag lk-going">${G.esc(from.title)}</span> <span class="lk-tag lk-coming">${G.esc(into.title)}</span></div>`).join('')
+              + `<div class="lk-ask-note">${nodes.length} ${nodes.length === 1 ? 'node' : 'nodes'}${nodes.length > 4 ? `, ${nodes.length - 4} more not shown` : ''}${kids.length ? ` · ${kids.length} ${kids.length === 1 ? 'tag' : 'tags'} under ${G.esc(from.title)} ${kids.length === 1 ? 'moves' : 'move'} under ${G.esc(into.title)}` : ''} · the tag ${G.esc(from.title)} is then deleted</div>`
+              + `<div class="lk-answers"><button type="button" class="lk-accent" data-go="yes">Merge</button><button type="button" class="lk-btn lk-low" data-go="no">Cancel</button><button type="button" class="lk-btn lk-low" data-go="swap">Keep the other name</button></div>`;
+            box.lkPlan = { nodes, kids };
+            box.querySelector('[data-go="yes"]').focus();
+          };
+          bar.appendChild(box); await paint();
+          box.addEventListener('click', async event => {
+            const go = event.target.closest('[data-go]')?.dataset.go; if (!go) return;
+            event.stopPropagation();
+            if (go === 'no') return void box.remove();
+            if (go === 'swap') { [from, into] = [into, from]; return void paint(); }
+            for (const button of box.querySelectorAll('button')) button.disabled = true;
+            let steps = 0;
+            try {
+              for (const node of box.lkPlan.nodes) { await G.write.tag(node.uuid, into.uuid); await G.write.untag(node.uuid, from.uuid); steps += 2; }
+              for (const kid of box.lkPlan.kids) steps += await G.write.moveTag(kid.uuid, into.uuid, [from.uuid]);
+              await G.write.remove(from.uuid, true); steps++;
+              G.undo.mark(into.uuid, steps); picked.clear();
+            } catch (error) { G.say(`The tags could not be merged whole: ${error?.message || 'Logseq refused'}. What was written can be taken back with Undo, ${steps} ${steps === 1 ? 'step' : 'steps'}.`, 'warning'); }
+            box.remove(); list.again();
+          });
+          box.addEventListener('keydown', event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); box.remove(); } });
+          return;
+        }
+        if (does === 'rename') {
+          bar.querySelector('.lk-ont-rename')?.remove();
+          const tag = mine[0], box = doc.createElement('div'); box.className = 'lk-ont-rename';
+          box.innerHTML = `<input class="lk-field" type="text" aria-label="The tag’s name" spellcheck="false" autocomplete="off"><button type="button" class="lk-accent" data-go="yes">Rename</button><button type="button" class="lk-btn lk-low" data-go="no">Cancel</button>`;
+          const field = box.firstElementChild; field.value = tag.title; bar.appendChild(box); field.focus(); field.select();
+          const go = async yes => {
+            const name = field.value.trim(); box.remove();
+            if (!yes || !name || name === tag.title) return;
+            if ([...tags.values()].some(one => one.id !== tag.id && one.title.trim().toLowerCase() === name.toLowerCase())) return void G.say(`A tag named “${name}” is there already. Merge the two instead.`, 'warning');
+            try { await G.undo.after(tag.uuid, G.write.rename(tag.uuid, name)); list.again(); } catch (error) { G.say(`The tag could not be renamed: ${error?.message || 'Logseq refused'}`, 'warning'); }
+          };
+          box.addEventListener('click', event => { const does = event.target.closest('[data-go]')?.dataset.go; if (does) { event.stopPropagation(); go(does === 'yes'); } });
+          field.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); go(true); } else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); go(false); } });
+        }
+      };
+      let offBar = null;
+      if (wide) {
+        bar = doc.createElement('div'); bar.className = 'lk-ont-bar';
+        bar.innerHTML = `<span class="lk-ont-said"></span><button type="button" class="lk-btn lk-low" data-do="merge">Merge…</button><button type="button" class="lk-btn lk-low" data-do="up">Move up a level</button><button type="button" class="lk-btn lk-low" data-do="under">Move under…</button><button type="button" class="lk-btn lk-low" data-do="rename">Rename</button><button type="button" class="lk-btn lk-low lk-goes" data-do="delete">Delete</button><button type="button" class="lk-btn lk-low" data-do="none" aria-label="Untick all" title="Untick all" hidden>×</button><input class="lk-ont-find" type="text" placeholder="Find a tag" aria-label="Find a tag" spellcheck="false" autocomplete="off">`;
+        rel.before(bar);
+        const onBar = event => { const button = event.target.closest('button[data-do]'); if (button && button.parentElement === bar && !button.disabled) act(button.dataset.do, button); };
+        const find = bar.querySelector('.lk-ont-find'), onFind = () => { const now = find.value.trim().toLowerCase(); if (now !== wanted) { wanted = now; list.again(); } };
+        const onFindKey = event => { if (event.key === 'Escape' && find.value) { event.preventDefault(); event.stopPropagation(); find.value = ''; onFind(); } };
+        // A press on a tick box ticks it and does nothing else: it is not a press on the tag's line.
+        const onTick = event => { const tick = event.target.closest?.('input.lk-tick'); if (!tick || !rel.contains(tick)) return; event.stopPropagation(); if (event.type !== 'click') return; const uuid = tick.closest('.lk-row')?.dataset.uuid; if (!uuid) return; if (tick.checked) picked.add(uuid); else picked.delete(uuid); say(); };
+        bar.addEventListener('click', onBar); find.addEventListener('input', onFind); find.addEventListener('keydown', onFindKey);
+        for (const type of ['click', 'mousedown', 'pointerdown', 'keydown']) rel.addEventListener(type, onTick, true);
+        rel.addEventListener('lk-drawn', ticks);
+        say();
+        offBar = () => { for (const type of ['click', 'mousedown', 'pointerdown', 'keydown']) rel.removeEventListener(type, onTick, true); rel.removeEventListener('lk-drawn', ticks); bar.remove(); };
+      }
       const list = G.node.listing(rel, async () => {
         const tags = await G.read.tags(), tree = G.find.tree(tags), props = [...(await G.read.properties()).values()].sort((a, b) => a.title.localeCompare(b.title));
         const [tagNodes, propNodes, pairs] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.byUuids(props.map(prop => prop.uuid)), G.read.tagPairs()]);
         const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.find.counts(tags, pairs), idOf = new Map(tree.map(row => [row.tag.uuid, row.tag.id]));
         ids = idOf; tagIndex = tags; joins = await G.read.relations();
-        const tagRows = tagNodes.map(node => ({ ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(idOf.get(node.uuid)) || 0 }));
+        let tagRows = tagNodes.map(node => ({ ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(idOf.get(node.uuid)) || 0 }));
+        countOf.clear(); for (const row of tagRows) countOf.set(row.uuid, row.count);
+        if (wanted) {   // the tags whose names hold what is typed, each with the tags above it
+          const keep = new Set();
+          tagRows.forEach((row, i) => { if (!String(row.words).toLowerCase().includes(wanted)) return; keep.add(i); for (let j = i - 1, d = row.depth; j >= 0 && d > 0; j--) if (tagRows[j].depth < d) { keep.add(j); d = tagRows[j].depth; } });
+          tagRows = tagRows.filter((row, i) => keep.has(i));
+        }
         const propList = { key: 'ontology:properties', kind: 'group', name: 'Properties', tag: '', face: 'prop', rows: propNodes.map(plain) };
         if (!wide) return [{ key: 'ontology:tags', kind: 'group', name: 'Tags', tag: '', face: 'tag', rows: tagRows }, propList].filter(one => one.rows.length);
         const areas = [];   // each top tag with the tags under it
@@ -183,7 +328,7 @@ G.part({
         side.addEventListener('click', open); values.addEventListener('click', ask); (holder.querySelector(':scope > .lk-add') || holder.firstElementChild).after(values, side);
         offSide = () => { side.removeEventListener('click', open); values.removeEventListener('click', ask); side.remove(); values.remove(); };
       }
-      return () => { sized?.disconnect(); offSide?.(); offAdd(); list.off(); };
+      return () => { sized?.disconnect(); offSide?.(); offBar?.(); offAdd(); list.off(); };
     };
     const section = G.touch.section('lk-ontology', 'Ontology', holder => draw(holder, false), TREE);
     const page = G.touch.page('lk-ontology', 'Ontology', holder => draw(holder, true));

@@ -474,6 +474,28 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await goto(CHEN);
       return is([told.length > 0, rows ? asked : 'nothing to delete', after], [true, rows ? 'Leave it' : 'nothing to delete', rows]);
     });
+    // ---- Ontology's page: tick tags, then act on all of them (the owner chose this old part, 26 November 2026)
+    await step('ticked tags are moved together, the bar says how many, and one press on the arrow puts all of them back', async () => {
+      await page.locator('#head [title^="Ontology"]').first().click(); await wait(4000);
+      const tagRows = '.lk-map .lk-list[data-face="tag"] .lk-row', shapeAll = () => page.evaluate(sel => [...document.querySelectorAll(sel)].map(r => [r.querySelector('.lk-words').innerText, Number(r.style.getPropertyValue('--lk-depth')) || 0]), tagRows);
+      const before = await shapeAll(), deep = before.map((row, i) => [row[1], i]).filter(([d]) => d >= 2).slice(0, 2).map(([, i]) => i);
+      for (const i of deep) { const row = page.locator(tagRows).nth(i); await row.hover(); await row.locator('input.lk-tick').click(); await wait(200); }
+      const said = await page.locator('.lk-ont-said').innerText();
+      await page.locator('.lk-ont-bar [data-do="up"]').click(); await wait(4000);
+      const moved = JSON.stringify(await shapeAll()) !== JSON.stringify(before);
+      await page.locator('.lk-undo').first().click(); await wait(5000);
+      const back = JSON.stringify(await shapeAll()) === JSON.stringify(before);
+      await page.locator('.lk-ont-bar [data-do="none"]').click().catch(() => {});
+      return is([deep.length, said, moved, back], [2, '2 tags picked', true, true]);
+    });
+    await step('Find a tag narrows the map to the tags that hold the words, each with the tags above it', async () => {
+      const tagRows = '.lk-map .lk-list[data-face="tag"] .lk-row', all = await count(tagRows);
+      const name = await page.locator(tagRows).last().locator('.lk-words').innerText();
+      await page.locator('.lk-ont-find').fill(name.slice(0, 5)); await wait(1500);
+      const found = await page.locator(tagRows + ' .lk-words').allInnerTexts();
+      await page.locator('.lk-ont-find').fill(''); await wait(1500);
+      return is([found.length > 0 && found.length < all, found.some(t => t.toLowerCase().includes(name.slice(0, 5).toLowerCase())), await count(tagRows)], [true, true, all]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

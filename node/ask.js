@@ -35,7 +35,8 @@ function gone(row, { words, note = '', yes = 'Delete', take }) {
 }
 G.ask = { gone };
 G.ask.CSS = `
-.lk-row > .lk-ask-gone { grid-column: 2 / -1; max-width: 420px; margin: 4px 0 10px; padding: 12px; border-radius: var(--lk-corner-float); box-shadow: 0 0 0 1px var(--lk-line); display: flex; flex-direction: column; gap: 6px; font-family: var(--ls-font-family, inherit); font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
+.lk-row > .lk-ask-gone { grid-column: 2 / -1; }
+.lk-ask-gone { max-width: 420px; margin: 4px 0 10px; padding: 12px; border-radius: var(--lk-corner-float); box-shadow: 0 0 0 1px var(--lk-line); display: flex; flex-direction: column; gap: 6px; font-family: var(--ls-font-family, inherit); font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-ask-gone .lk-ask-head { font-weight: 600; }
 .lk-ask-gone .lk-ask-note { color: var(--lk-quiet); font-size: var(--lk-small); }
 .lk-ask-gone .lk-answers { display: flex; align-items: center; gap: 8px; margin-top: 4px; }`;

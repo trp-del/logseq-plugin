@@ -4,6 +4,7 @@
    from the plugin each went back with one Undo, the Task tag Logseq had added going with the status).
      write.setStatus(uuid, title)   a task's status, by the name Logseq shows it under
      write.remove(uuid, isPage)     a bullet deleted; a page sent to Logseq's Recycle
+     write.rename(uuid, name)       a page given another name
      write.addTask(words, day)      a new bullet at the end of today's journal, its status Todo, its Deadline the day when one is given; answers its uuid
      write.setPriority(uuid, title) a task's priority by its name, or taken off with none
      write.setDeadline(uuid, day)   a task's deadline, or taken off with 0
@@ -26,6 +27,8 @@ const G = window.PluginDoor;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sure = uuid => { if (!UUID.test(String(uuid || ''))) throw new Error('a node is changed by its id, and none was given'); return String(uuid); };
 G.write = {
+  // A page (a tag, a property) given another name, as Logseq's own rename does it.
+  rename(uuid, name) { const to = String(name || '').trim(); if (!to) throw new Error('a name is needed'); return logseq.Editor.renamePage(sure(uuid), to); },   // by its id: by its old name Logseq 2.0.2 refuses (tried 26 November 2026)
   setStatus: (uuid, title) => logseq.Editor.upsertBlockProperty(sure(uuid), 'logseq.property/status', String(title)),
   remove: (uuid, isPage) => isPage ? logseq.Editor.deletePage(sure(uuid)) : logseq.Editor.removeBlock(sure(uuid)),
   // A day as Logseq's own date picker writes it: that day's start, in this Mac's time.

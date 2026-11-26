@@ -278,6 +278,27 @@ press beside the name, or the arrow keys, selects the row, which shows a tag's l
 Shift-Tab move the selected tag (one move at a time: a second key waits for the first to show); the right-click menu is the
 same in both places.
 
+### Ontology: tick tags, then act on all of them
+
+On Ontology's own page a tick box stands before every tag, shown under the pointer and once ticked. One line over the map
+says what is ticked and offers what can be done with it:
+
+- **Merge…** (two tags): the first ticked goes into the second, shown first, a few nodes with the tag that goes struck in
+  red and the tag that stays in green, with how many nodes and tags it reaches. Merge makes it; Keep the other name turns it
+  round; Cancel lets go. Every node that held the tag that goes holds the one that stays, the tags under it move under the
+  one that stays, and the tag that goes is deleted. A link in words to the tag that goes is not rewritten.
+- **Move up a level**: each ticked tag one level out. **Move under…**: all of them under the tag picked from your tags as an
+  outline, which a line narrows as you type, or to the top.
+- **Rename** (one tag): its name in a line, Return or Rename takes it; a name another tag has is refused.
+- **Delete**: asked first, in red, with how many nodes hold the tags.
+- **×** unticks all.
+
+Each is written at once and leaves the Undo arrow, which takes the whole of it back in as many steps as it took. A merge of
+a tag many nodes hold is two steps a node, so its Undo takes about a third of a second a step.
+
+At the right of that line, **Find a tag** narrows the map to the tags whose names hold what is typed, each with the tags
+above it; Escape empties it.
+
 ### Move values (`tend/move.js`, decided in `core/move.js`)
 
 In Ontology, a tag's or a property's right-click menu has "Move values…". A box opens at the head of the section: the property
