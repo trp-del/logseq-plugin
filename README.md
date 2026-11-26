@@ -22,7 +22,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
-| Beside the stack | `beside/` | Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
+| Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -52,6 +52,7 @@ A row:
 | Click the line, or Enter on it | The node opens in place: Logseq's own editor for it, then what points at it |
 | Click the arrow, or Escape once nothing is being written | The opened node closes; Escape closes the innermost first |
 | Shift-click, or Shift-Enter | Opens the node in the right sidebar |
+| ⌘-click | In the main view, opens the node beside the page you are on (Two pages side by side) |
 | Click a link in the line | Goes to that node |
 | Click a task's circle | Lists Logseq's statuses; a press sets one |
 | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, Delete (in red): words alone, a status with its circle |
@@ -175,6 +176,33 @@ comes near; then a quiet ···, and a press opens a list to type into, as Logse
 first (Search, Todo, Ontology, New page…, Recycle, Update plugins and the rest), then every command of Logseq's own with its
 key. Letters narrow it, the closest line first; Enter does the lit line; words no command has offer a new page of that name.
 What is done to a node stays on its right-click.
+
+### Two pages side by side (`beside/split.js`, Logseq's markup in `ground/touch.js`)
+
+⌘-click (Ctrl-click away from the Mac) a link to a page in the main view: a link in the words or in a property's value, a
+tag, a tag in a page's place, or a line of the plugin's lists. That page opens beside the one you are on: the main area splits
+into two equal halves, your page on the left, the one you ⌘-clicked on the right, both whole Logseq pages you write in. A
+plain click and a Shift-click do what they did before; without the plugin Logseq treats ⌘-click as a plain click.
+
+| Do | Result |
+|---|---|
+| ⌘-click another link in the left page | That page takes the right half; the one before leaves the sidebar, unless it was there before the split |
+| Drag the hairline between the halves | One half grows; neither gets narrower than 320 px. It is held just right of the line, so the left page's scroll bar stays free |
+| Double-click the hairline | Equal halves again |
+| The two arrows, top right | The two pages change places (where the left shows no page, as on the journals, a notice says so) |
+| The ×, top right | The right page rolls up and the left one takes the whole width; the sidebar holds what it held, open or shut, as before. To close the left page, swap first |
+| Open anything in the sidebar (Shift-click, Cmd-K, Todo) | The split ends and the sidebar is shown as always, the page from the right among what it holds |
+| Shut the sidebar (its button, t r) | The split ends; the page stays in the sidebar for the next time |
+
+The two icons are drawn as Logseq's own at the top of the window. The right half is Logseq's own right sidebar drawn as a page
+(its other sections wait unseen), so the page there reads as it does on the left: its name as a title over it (a tag's with
+Logseq's #, a property's with its P), a tag's Parent line, its place under the title, its properties, Relations and bullets,
+with no rule or empty Add property that Logseq's sidebar would add, and no list of a tag's or a property's own settings. Two
+things differ: its place stands under the title rather than at its end, and Logseq draws no Unlinked references for a page in
+its sidebar. The right page rolls out as it opens (no motion where less motion is asked for). If it cannot be shown within a
+couple of seconds, the split closes, the sidebar goes back to how it was, and a notice says so: a half never stands blank.
+Loading the plugin again closes the split. Nothing is written to the graph. Switch it off with **Two pages side by side** in
+the plugin's settings.
 
 ### Todo (`arrive/todo.js`)
 

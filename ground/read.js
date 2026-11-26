@@ -1,6 +1,8 @@
 /* GROUND: the one way the plugin reads the graph. Nothing here draws.
      read.q(query)            a question in, rows out
      read.node(uuid)          { id, uuid, day } of a node by its uuid (day: the journal day, when it is one), or null
+     read.opened(to)          the node a link leads to, by its uuid or a page's name: { id, uuid, title, isPage, kind }
+                              (kind: 'tag' or 'property' for the page of one, else ''), or null
      read.describe(ids)       id -> the node as a line shows it: { id, uuid, words, tag, day, dayFrom, status, isPage, written, dates, made, changed }
                               written: the journal day it is written on; dates: { name: day } every day it holds; made, changed: times
                               tag: its first tag of the person's own (or Task) by name; day: its Date property (the one named
@@ -133,6 +135,13 @@ async function node(uuid) {
   if (!UUID.test(String(uuid || ''))) return null;
   const [[id, day] = []] = await q(`[:find ?b ?d :where [?b :block/uuid #uuid "${uuid}"] [(get-else $ ?b :block/journal-day 0) ?d] ${LIVE}]`);
   return isId(id) ? { id, uuid: String(uuid).toLowerCase(), day: Number(day) || 0 } : null;
+}
+
+async function opened(to) {
+  const found = await logseq.Editor.getPage(String(to)).catch(() => null) || (UUID.test(String(to)) ? await logseq.Editor.getBlock(String(to)).catch(() => null) : null);
+  if (!found?.id || !found.uuid) return null;
+  const isPage = !!found.name && !found.page, ident = String(found.ident || '');
+  return { id: found.id, uuid: String(found.uuid).toLowerCase(), isPage, title: String(found.title || found.originalName || found.name || ''), kind: !isPage ? '' : /\.class\//.test(ident) ? 'tag' : /\.property\//.test(ident) ? 'property' : '' };
 }
 
 async function describe(ids) {
@@ -436,5 +445,5 @@ async function recent(n = 8) {
 const pageNames = () => once('pageNames', async () => (await q(`[:find ?b ?u ?title :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/title ?title] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) ${LIVE}]`))
   .map(([id, uuid, title]) => ({ id, uuid: String(uuid).toLowerCase(), title: String(title) })).filter(page => page.title));
 
-G.read = { recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

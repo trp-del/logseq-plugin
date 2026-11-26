@@ -504,6 +504,86 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await goto(CHEN);
       return is([told.length > 0, rows ? asked : 'nothing to delete', after], [true, rows ? 'Leave it' : 'nothing to delete', rows]);
     });
+    // ---- Beside: two pages side by side (the owner chose the old feature, 26 November 2026)
+    await goto(CHEN);
+    const sideNow = () => page.evaluate(() => ({ list: window.logseq.api.get_state_from_store('sidebar/blocks').map(e => e[1]), open: !!window.logseq.api.get_state_from_store('ui/sidebar-open?') }));
+    const halves = () => page.evaluate(() => { const side = document.querySelector('#right-sidebar'), main = document.querySelector('#main-content-container'); return [Math.round(main.getBoundingClientRect().left), Math.round(side.getBoundingClientRect().width), window.innerWidth]; });
+    const split = () => page.evaluate(() => { const side = document.querySelector('#right-sidebar'), shown = [...side.querySelectorAll('.sidebar-item')].filter(el => el.offsetParent);
+      return { on: side.hasAttribute('data-lk-split'), title: side.querySelector('.lk-split-title')?.innerText.trim() || '', shown: shown.length, head: !!shown[0]?.querySelector('.sidebar-item-header')?.offsetParent, own: document.querySelectorAll('.lk-split-line, .lk-split-tools, .lk-split-title').length }; });
+    const hospital = () => page.locator('#main-content-container .ls-page-properties a.page-ref', { hasText: 'Northgate' }).first();
+    const beside = async locator => { await locator.click({ modifiers: ['Meta'] }); await wait(3000); };
+    const press = async what => { await page.locator(`.lk-split-tools [data-do="${what}"]`).click(); await wait(3000); };
+    if (!(await sideNow()).open) { await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(true)); await wait(800); }
+    await page.keyboard.press('Meta+k'); await wait(1200);   // the sidebar holds Search, and what the walk left there
+    await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(false)); await wait(800);
+    const before = await sideNow();
+    await step('Cmd-click on a link in the main view opens its page beside: equal halves, one page with its title, no head, the main view where it was', async () => {
+      const hash = await page.evaluate(() => location.hash);
+      await beside(hospital());
+      const [left, width, whole] = await halves(), got = await split();
+      return is([got, Math.abs(width - (whole - left) / 2) <= 1, (await page.evaluate(() => location.hash)) === hash], [{ on: true, title: 'Northgate Cancer Center', shown: 1, head: false, own: 3 }, true, true]);
+    });
+    await step('the page beside shows its place, its properties and its Relations, and its title stands level with the main title', async () => is(await page.evaluate(() => { const item = document.querySelector('[data-lk-split-item]');
+      return [!!item.querySelector('.lk-place')?.innerText.trim(), item.querySelectorAll('.property-pair').length > 0, item.querySelectorAll('.lk-relwrap .lk-list').length > 0,
+        Math.abs(item.querySelector('.lk-split-title').getBoundingClientRect().top - document.querySelector('#main-content-container .ls-page-title-container .block-title-wrap').getBoundingClientRect().top) <= 8]; }), [true, true, true, true]));
+    await step('a line opened in the page beside leaves that page its own title and place where they were', async () => {
+      const at = () => page.evaluate(() => { const item = document.querySelector('[data-lk-split-item]'), title = item.querySelector('.lk-split-title').getBoundingClientRect(), place = item.querySelector('.lk-place'); return [Math.round(title.left), Math.round(title.top), !!place.closest('.lk-open'), place.innerText.trim()]; });
+      const was = await at();
+      await page.locator('[data-lk-split-item] .lk-row .lk-line').first().click(); await wait(2500);
+      const open = await count('[data-lk-split-item] .lk-row[data-open]'), now = await at();
+      await page.keyboard.press('Escape'); await wait(700);
+      return is([open, now, await count('[data-lk-split-item] .lk-row[data-open]')], [1, was, 0]);
+    });
+    await step('the line between the halves drags, stops at 320, and a double-click gives equal halves', async () => {
+      const line = page.locator('.lk-split-line'), box = await line.boundingBox();
+      const drag = async to => { const at = await line.boundingBox(); await page.mouse.move(at.x + 4, 400); await page.mouse.down(); await page.mouse.move(to, 400, { steps: 8 }); await page.mouse.up(); await wait(500); return halves(); };
+      const wider = await drag(box.x - 60), narrow = await drag(2000), wide = await drag(0);
+      await line.dblclick({ position: { x: 4, y: 400 } }); await wait(500);
+      const [left, width, whole] = await halves();
+      return is([wider[1] > box.x / 2 && Math.abs(wider[1] - (whole - box.x + 60)) <= 6, narrow[1], whole - left - wide[1], Math.abs(width - (whole - left) / 2) <= 1], [true, 320, 320, true]);
+    });
+    await step('another Cmd-click puts that page on the right instead, and the one before leaves the sidebar', async () => {
+      await beside(page.locator('#main-content-container .lk-place a', { hasText: 'Doctor' }));
+      const got = await split(), now = await sideNow();
+      return is([got.title, got.shown, now.list.length - before.list.length, await page.evaluate(() => !!document.querySelector('[data-lk-split-item] .lk-split-sign') && !document.querySelector('[data-lk-split-item] .ls-sidebar-page-properties')?.offsetParent)], ['Doctor', 1, 1, true]);
+    });
+    await step('swap puts the right page on the left and the left page on the right', async () => {
+      await press('swap');
+      return is([(await split()).title, await page.evaluate(() => document.querySelector('#main-content-container .ls-page-title-container .block-title-wrap')?.innerText.trim())], ['Dr. Mei Chen', 'Doctor']);
+    });
+    await step('the close icon ends the split: the sidebar shut as before, holding what it held, nothing of the split left', async () => {
+      await press('close');
+      return is([await sideNow(), await split()], [before, { on: false, title: '', shown: 0, head: false, own: 0 }]);
+    });
+    await goto(CHEN);
+    await step('Cmd-click on a line of Relations opens its node beside and does not open the line', async () => {
+      const line = page.locator('#main-content-container .lk-relpage > .lk-list > .lk-rows > .lk-row > .lk-line').first(), uuid = await line.evaluate(el => el.parentElement.dataset.uuid);
+      await beside(line);
+      const got = await split(), opened = await count('#main-content-container .lk-row[data-open]');
+      await press('close');
+      return is([got.on, got.shown, opened, await sideNow()], [true, 1, 0, before]);
+    });
+    await step('with the sidebar open, Cmd-K during the split ends it and shows Search with the keys in its line', async () => {
+      await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(true)); await wait(800);
+      await beside(hospital()); const on = (await split()).on;
+      await page.keyboard.press('Meta+k'); await wait(2000);
+      return is([on, (await split()).own, await page.evaluate(() => document.activeElement?.closest('.lk-search') != null), (await sideNow()).list.length - before.list.length], [true, 0, true, 1]);
+    });
+    await step('Shift-click during the split ends it and the page from the right stays in the sidebar; shutting the sidebar ends it too', async () => {
+      await beside(hospital()); const title = (await split()).title;
+      await hospital().click({ modifiers: ['Shift'] }); await wait(2500);
+      const shifted = [await split().then(s => [s.on, s.own]), (await sideNow()).open];
+      await beside(hospital());
+      await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(false)); await wait(2000);
+      return is([title, ...shifted, (await split()).own, (await sideNow()).list.length >= before.list.length + 1], ['Northgate Cancer Center', [false, 0], true, 0, true]);
+    });
+    await step('a reload of the plugin during the split closes it and leaves the sidebar as it was', async () => {
+      const was = await sideNow();
+      await page.locator('#main-content-container .lk-row .lk-line').first().click({ modifiers: ['Meta'] }); await wait(3000);
+      const on = (await split()).on;
+      await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(6000);
+      return is([on, (await split()).own, (await split()).on, await sideNow()], [true, 0, false, was]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

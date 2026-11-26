@@ -92,6 +92,19 @@ function roll(holder, from) {
   holder.style.transition = 'height .16s ease-out'; holder.style.height = `${full}px`;
   holder.addEventListener('transitionend', done);
 }
+// The same motion back up, before a thing is taken away. Answers once it is up (at once where less motion is asked for).
+function rollUp(holder) {
+  const view = holder.ownerDocument.defaultView, full = holder.offsetHeight;
+  if (!full || view.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
+  return new Promise(done => {
+    const end = () => { holder.removeEventListener('transitionend', end); view.clearTimeout(cap); done(); };
+    const cap = view.setTimeout(end, 400);
+    holder.style.height = `${full}px`; holder.style.overflow = 'hidden';
+    void holder.offsetHeight;
+    holder.style.transition = 'height .16s ease-out'; holder.style.height = '0px';
+    holder.addEventListener('transitionend', end);
+  });
+}
 function open(row) {
   if (row.dataset.open || !G.touch.editor.can()) { if (!row.dataset.open) G.touch.open(row.dataset.uuid); return; }
   const holder = row.ownerDocument.createElement('div'); holder.className = 'lk-open';
@@ -395,7 +408,7 @@ function adder(holder, name, add, failed) {
   field.addEventListener('keydown', onKey);
   return () => { field.removeEventListener('keydown', onKey); line.remove(); };
 }
-G.node = { toggle, open, close, back, listing, lists, related, adder, folded, hit, ARROW, CHEV };
+G.node = { toggle, open, close, roll, rollUp, back, listing, lists, related, adder, folded, hit, ARROW, CHEV };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }

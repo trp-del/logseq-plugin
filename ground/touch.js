@@ -32,6 +32,13 @@
      touch.page(key, title, draw)  a page of the plugin's own in Logseq's main view; draw(el) fills it. Answers { open(), at() }
      touch.toolbar(key, title, path, run)   a button in Logseq's toolbar, drawn as Logseq draws its own (path: the icon's line)
      touch.icon(id), touch.statusIcon(icon)   one of Logseq's own icons as markup
+     touch.beside             Logseq's right sidebar shown as the right half of two pages (beside/split.js):
+                              presses(fn) fn(to, 'beside' | 'sidebar', click) on a Cmd- or Shift-press on a link in the main
+                              view ('beside' answering true takes the press); list(), isOpen(), setOpen(on), put(uuid) the
+                              sidebar's list and what changes it; mark(id, head) draws the node as the right half, unmark()
+                              takes that off; shown(id) whether it is really on screen; body(id) what it holds; takeOut(id),
+                              reorder(ids); openProps(); until(fn, ms), mainLeft(), mainSized(fn), headIcons(), mainPage()
+     touch.SPLIT              the stylesheet for the sidebar as the right half
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
 const G = window.PluginDoor;
@@ -132,6 +139,9 @@ function pages() {
   }
   return out;
 }
+// The first of a page's own: a node opened in one of its lists is a whole page of Logseq's inside it, with a title and
+// properties of its own, which are not this page's.
+const own = (el, selector) => [...el.querySelectorAll(selector)].find(one => !one.closest('.lk-open')) || null;
 // Logseq draws a page as two boxes: the page itself, then its references. The plugin's own stands between them, a child of the
 // page's box that Logseq does not draw and so does not take away while the page stays.
 function pageFoot(el, name) {
@@ -144,7 +154,7 @@ function pageFoot(el, name) {
 // the page has no title of its own (a bullet shown as a page).
 function pageUnder(el, name) {
   // A page in the sidebar has no title block: there it is the box that holds the page's properties, above its bullets.
-  const block = el.querySelector(':scope > .page-inner .ls-page-title .ls-block') || (el.closest(SIDE_PAGE) ? el.querySelector(':scope > .page-inner .ls-sidebar-page-properties')?.parentElement : null);
+  const block = own(el, ':scope > .page-inner .ls-page-title .ls-block') || (el.closest(SIDE_PAGE) ? own(el, ':scope > .page-inner .ls-sidebar-page-properties')?.parentElement : null);
   if (!block) return null;
   let under = [...block.children].find(child => child.classList.contains(name));
   if (!under) { under = host().createElement('div'); under.className = name; block.appendChild(under); }
@@ -152,10 +162,10 @@ function pageUnder(el, name) {
 }
 // Under the title's own row and above the page's properties, inside the title's block.
 function pageHead(el, name, above = false) {
-  const row = el.querySelector(':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
+  const row = own(el, ':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
   if (!row) {
     // A page in the sidebar: its name is in the section's head, so what stands by a title stands first in the page, above its properties.
-    const props = el.closest(SIDE_PAGE) ? el.querySelector(':scope > .page-inner .ls-sidebar-page-properties') : null;
+    const props = el.closest(SIDE_PAGE) ? own(el, ':scope > .page-inner .ls-sidebar-page-properties') : null;
     if (!props) return null;
     let line = [...props.parentElement.children].find(child => child.classList.contains(name));
     if (!line) { line = host().createElement('div'); line.className = name; if (above) props.parentElement.prepend(line); else props.before(line); }
@@ -832,6 +842,7 @@ function here() {
    picture of both). One sheet for each thing, so each can be switched off on its own. Nothing here is inside an opened node:
    those rows are laid out by OPENED. */
 const AREA = ':is(#main-content-container, #right-sidebar)', OUT = ':not(.lk-editor *)';
+const PLAIN_SIDE = '#right-sidebar:not([data-lk-split]) .sidebar-item.item-type-page';   // a page in the sidebar, not one shown as the right half
 const PILLS = `${AREA} .ls-block .positioned-properties.block-below`;
 const CALM = {
   /* The top bar: Ontology, Todo, Logseq's own menu and the sidebar button. Home, back, forward and the plugins button go
@@ -895,16 +906,16 @@ ${SIDE_PAGE} .ls-sidebar-page-properties > hr { display: none !important; }
 /* One edge in the sidebar: the words of every line of a page start where its properties' names start, and the marks (a fold
    arrow, a list's mark, the + of "Add property", a value's bullet) stand in the gutter before that edge (the owner, 25
    November 2026: "I see a lot of problems with alignment of elements"). */
-${SIDE_PAGE} .lk-relwrap { padding-left: 0; margin-left: -2px; }
-${SIDE_PAGE} .ls-sidebar-page-properties .ls-new-property { margin-left: -20px; }
+${PLAIN_SIDE} .lk-relwrap { padding-left: 0; margin-left: -2px; }
+${PLAIN_SIDE} .ls-sidebar-page-properties .ls-new-property { margin-left: -20px; }
 /* Where the sidebar is narrow a property has its name on one line and its values under it, as before 0.9: beside a name
    150 wide a value would be broken into pieces. Wider, a property reads as it does on the page. */
 ${SIDE_PAGE} .sidebar-panel-content { container: lk-side / inline-size; }
 @container lk-side (max-width: 420px) {
   ${SIDE_PAGE} .ls-sidebar-page-properties .property-pair.property-panel-row { display: block !important; padding-right: 0 !important; }
   ${SIDE_PAGE} .ls-sidebar-page-properties .property-key-panel { width: auto !important; min-width: 0 !important; }
-  ${SIDE_PAGE} .ls-sidebar-page-properties .property-value-container { margin-left: -22px; }
-  ${SIDE_PAGE} .ls-sidebar-page-properties .properties-panel { overflow: visible !important; }   /* Logseq clips the panel at its edge, which would hide a value's bullet in the gutter */
+  ${PLAIN_SIDE} .ls-sidebar-page-properties .property-value-container { margin-left: -22px; }
+  ${PLAIN_SIDE} .ls-sidebar-page-properties .properties-panel { overflow: visible !important; }   /* Logseq clips the panel at its edge, which would hide a value's bullet in the gutter */
 }`,
   /* Logseq's tables: the page's own ground under the column names, no lines between columns, a hairline under each row, the
      wash under the pointer; the words in the plugin's greys; a link as a link is everywhere; what each tool does said in a
@@ -984,13 +995,13 @@ function titleEnd(el, name) {
    draws the properties shut behind "Open properties", and shut again after the section is folded, opened or redrawn, so the
    press is made for the person whenever they are shut: never while one of Logseq's own lists or menus is open (a press would
    close the list under a bullet being written), and at most twice a minute for one section. Gives back what stops it. */
-function sidePages() {
+function sidePages(within = SIDE_PAGE) {
   const doc = host(), pressed = new WeakMap();
   const shut = box => box.children.length === 1 ? box.querySelector(':scope > div:first-child > button:only-child') : null;
   const off = watch(() => {
     if (busy()) return;
     const now = Date.now();
-    for (const box of doc.querySelectorAll(`${SIDE_PAGE} .ls-sidebar-page-properties`)) {
+    for (const box of doc.querySelectorAll(`${within} .ls-sidebar-page-properties`)) {
       const press = shut(box), times = (pressed.get(box) || []).filter(at => now - at < 60000);
       if (!press || times.length >= 2) continue;
       pressed.set(box, [...times, now]); press.click();
@@ -1006,5 +1017,193 @@ function sidePages() {
   doc.addEventListener('click', onName, true);
   return () => { off(); doc.removeEventListener('click', onName, true); };
 }
-G.touch = { sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+/* Two pages side by side: Logseq's right sidebar shown as the right half of the main area, so the page there is a whole page of
+   Logseq's own, written in as anywhere. While it is shown so (data-lk-split on the sidebar, data-lk-split-item on the one
+   section), the other sections wait unseen, the section has no head or card, a band as tall as Logseq's header stands over it,
+   and the page's name stands over it as a title. Logseq's list of what its sidebar holds is changed only by Logseq's own calls
+   and its own ×. Seen in Logseq 2.0.2: anything opened in the sidebar, there already or not, goes to the top of that list. */
+const RIGHT = '#right-sidebar', HALF = `${RIGHT}[data-lk-split]`, MINE = `${HALF} [data-lk-split-item]`, PROPS = '.ls-sidebar-page-properties';
+const SPLIT = `
+${HALF} { width: var(--lk-split-w, 50vw) !important; min-width: 0 !important; max-width: none !important; transition: none !important; background: var(--lk-split-ground, var(--lk-paper)) !important; border-left: 0 !important; }
+${HALF} .resizer { display: none !important; }
+/* The band over the right page, the header's height: the page scrolls under it, so nothing runs behind the two icons. */
+${HALF}${HALF} .cp__right-sidebar-topbar { display: block !important; position: sticky; top: 0; z-index: 8; height: 48px; min-height: 48px; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: var(--lk-split-ground, var(--lk-paper)) !important; }
+${HALF} .cp__right-sidebar-topbar > * { visibility: hidden !important; }
+${HALF} .cp__right-sidebar-inner, ${HALF} .cp__right-sidebar-scrollable { background: transparent !important; }
+${HALF}${HALF} .cp__right-sidebar-topbar::before, ${HALF}${HALF} .cp__right-sidebar-topbar::after { display: none !important; }
+/* Every other section and the places to drop one: unseen, by a rule weightier than any that shows a section. */
+${HALF}${HALF} .sidebar-item-list > :not([data-lk-split-item]):not([data-lk-split-item]) { display: none !important; }
+${HALF}${HALF} .sidebar-item-list { margin: 0 !important; padding: 0 0 96px !important; }
+${HALF}${HALF} .sidebar-item-list > [data-lk-split-item] { display: flex !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; overflow: visible !important; }
+${MINE} .sidebar-item-header { display: none !important; }
+${MINE} .sidebar-panel-content { display: block !important; padding: 0 clamp(16px, 4%, 40px) !important; }
+${MINE} .sidebar-panel-content > .cp__page-inner-wrap { margin: 0 !important; }
+/* The page's name over it, as a title stands on the main view (its size and weight are read from there). A tag's page has
+   Logseq's # before its name and a property's its P, as on the main view. */
+.lk-split-title { display: flex; align-items: flex-start; gap: 10px; margin: 32px 0 6px var(--lk-split-col, 20px); color: var(--lk-text); overflow-wrap: anywhere; }
+.lk-split-title > span:last-child { min-width: 0; }
+.lk-split-title > .lk-split-sign { flex: none; display: inline-flex; align-items: center; height: 1.3em; color: var(--lk-quiet); }
+.lk-parent:not([hidden]) + .lk-split-title { margin-top: 0; }
+${MINE} .sidebar-panel-content > .lk-split-title:first-child + * { margin-top: 0; }
+${HALF} .sidebar-item-list .lk-parent:not([hidden]) { margin-top: 12px; margin-left: var(--lk-split-col, 20px); }
+/* As on the main view: no rule under the properties; no empty "Add property" on a page with no property; and no list of a tag's
+   or a property's own settings, which the main view keeps in Logseq's windows and in Ontology's lines. */
+${MINE} ${PROPS} > hr, ${MINE} ${PROPS} > div:first-child:has(> button:only-child) { display: none !important; }   /* nor Logseq's press to hide them */
+${MINE} ${PROPS}:not(:has(.property-pair)), ${HALF} [data-lk-split-item][data-lk-split-kind] ${PROPS} { display: none !important; }
+${MINE} .sidebar-panel-content .page-inner > .-mb-8 { margin-bottom: 0 !important; }
+${MINE} .sidebar-panel-content .ls-page-blocks { margin-top: 8px; }
+/* The place under the title and the air round it, as where it stands under the main view's title in a window this narrow. */
+${HALF} [data-lk-split-item] .lk-place { margin: 13px 0 14px calc(var(--lk-split-col, 0px) + 8px); }
+/* In a narrow half a property's words stand under its name (as in a narrow sidebar), not drawn back past the edge and cut. */
+@container lk-side (max-width: 420px) { ${MINE} ${PROPS} .property-block-container { margin-left: 0 !important; } }`;
+const state = id => { try { return host().defaultView.logseq.api.get_state_from_store(id); } catch (error) { return null; } };
+const sideList = () => (state('sidebar/blocks') || []).map(entry => entry?.[1]);
+const sideOpen = () => !!state('ui/sidebar-open?');
+const sections = () => [...host().querySelectorAll(`${RIGHT} .sidebar-item-list > .sidebar-item`)];
+/* The section Logseq drew for an entry of its list, by its place there. Where the list and the screen disagree (Logseq has not
+   drawn it yet, or cannot draw an entry further down), only the top one is sure. */
+const sectionOf = id => {
+  const list = sideList(), all = sections(), i = list.indexOf(id);
+  if (i < 0) return null;
+  return all.length === list.length ? all[i] : i === 0 && all[0]?.querySelector('.sidebar-panel-content') ? all[0] : null;
+};
+const body = id => sectionOf(id)?.querySelector('.sidebar-panel-content') || null;
+/* fn() asked once a frame until it answers something, or until ms have passed. The first asking waits two frames: Logseq draws
+   its sidebar a frame after its list changes, and until then a section's place in the list is not its place on screen. */
+const until = (fn, ms) => new Promise(done => {
+  const view = host().defaultView, end = Date.now() + ms;
+  const next = then => view.requestAnimationFrame(() => view.setTimeout(then, 16));
+  const look = () => { const got = fn(); if (got || Date.now() > end) return done(got || null); next(look); };
+  next(() => next(look));
+});
+const unfolded = new WeakSet();
+/* Draws the section of a node as the right half. head: { page, title, kind: 'tag' | 'property' | '' }. Put there again at every
+   pass, since Logseq draws its sidebar anew when it likes. Answers whether the section stands on screen. */
+function mark(id, head) {
+  const doc = host(), side = doc.querySelector(RIGHT), item = sectionOf(id);
+  if (!side) return false;
+  if (!side.hasAttribute('data-lk-split')) side.setAttribute('data-lk-split', '');
+  if (!item) return false;
+  for (const other of side.querySelectorAll('[data-lk-split-item]')) if (other !== item) { other.removeAttribute('data-lk-split-item'); other.removeAttribute('data-lk-split-kind'); }
+  for (const stray of side.querySelectorAll('.lk-split-title')) if (!item.contains(stray)) stray.remove();   // Logseq may hand a section's box to another node
+  if (!item.hasAttribute('data-lk-split-item')) item.setAttribute('data-lk-split-item', '');
+  if ((item.getAttribute('data-lk-split-kind') || '') !== head.kind) { if (head.kind) item.setAttribute('data-lk-split-kind', head.kind); else item.removeAttribute('data-lk-split-kind'); }
+  // The right half on the very ground the main view stands on: the first ground painted under it, read as it is now.
+  let ground = '';
+  for (let at = doc.getElementById('main-content-container'); at && !ground; at = at.parentElement) { const painted = doc.defaultView.getComputedStyle(at).backgroundColor; if (!/^(rgba\(0, 0, 0, 0\)|transparent)$/.test(painted)) ground = painted; }
+  if (side.style.getPropertyValue('--lk-split-ground') !== ground) side.style.setProperty('--lk-split-ground', ground);
+  const panel = item.querySelector('.sidebar-panel-content');
+  // A section left folded in the sidebar is unfolded, once: its head, which does that, is unseen here.
+  if (panel && !panel.firstElementChild?.getBoundingClientRect().height && /(^| )hidden( |$)/.test(panel.className) && !unfolded.has(item)) { unfolded.add(item); item.querySelector('.sidebar-item-header button')?.click(); }
+  if (!panel) return false;
+  if (!head.page) { panel.querySelector('.lk-split-title')?.remove(); return true; }
+  let title = panel.querySelector('.lk-split-title');
+  // Where it stands: first in the page, after the tag's Parent line, which stands over the title on the main view too.
+  const box = own(panel, PROPS)?.parentElement || panel;
+  if (!title) { title = doc.createElement('div'); title.className = 'lk-split-title'; title.setAttribute('role', 'heading'); title.setAttribute('aria-level', '1'); }
+  const parent = [...box.children].find(child => child.classList.contains('lk-parent')), after = parent ? parent.nextElementSibling : box.firstElementChild;
+  if (title.parentElement !== box || (after !== title && !(parent && title.previousElementSibling === parent))) { if (parent) parent.after(title); else box.prepend(title); }
+  const said = `${head.kind}\n${head.title}`;
+  if (title.lkSaid !== said) {
+    title.lkSaid = said;
+    title.innerHTML = `${head.kind ? `<span class="lk-split-sign">${icon(head.kind === 'tag' ? 'hash' : 'letterP', 36)}</span>` : ''}<span>${G.esc(head.title)}</span>`;
+  }
+  const main = doc.querySelector('#main-content-container .ls-page-title-container .block-title-wrap'), like = main ? doc.defaultView.getComputedStyle(main) : null;
+  const font = { fontSize: like?.fontSize || '30px', fontWeight: like?.fontWeight || '600', lineHeight: like?.lineHeight || '39px', letterSpacing: like?.letterSpacing || '-.45px', color: like?.color || '' };
+  for (const [name, value] of Object.entries(font)) if (title.style[name] !== value) title.style[name] = value;
+  // The title's left edge on the column of the page's bullets, as the main title stands over the main page's (once they are drawn).
+  const dot = own(panel, '.ls-page-blocks .bullet-container'), at = dot?.getBoundingClientRect();
+  if (at?.width) {
+    const now = parseFloat(doc.defaultView.getComputedStyle(title).marginLeft) || 0, shift = at.left - title.getBoundingClientRect().left;
+    if (Math.abs(shift) > 1) side.style.setProperty('--lk-split-col', `${Math.max(0, Math.round(now + shift))}px`);
+  }
+  return true;
+}
+function unmark() {
+  const doc = host(), side = doc.querySelector(RIGHT);
+  for (const el of doc.querySelectorAll('.lk-split-title')) el.remove();
+  for (const el of doc.querySelectorAll('[data-lk-split-item]')) { el.removeAttribute('data-lk-split-item'); el.removeAttribute('data-lk-split-kind'); }
+  side?.removeAttribute('data-lk-split'); side?.style.removeProperty('--lk-split-col'); side?.style.removeProperty('--lk-split-ground');
+}
+// Whether the right half really shows the page: its section marked, nothing hiding it, and something of Logseq's drawn in it.
+function shown(id) {
+  const item = sectionOf(id), panel = item?.querySelector('.sidebar-panel-content'), view = host().defaultView;
+  if (!item?.hasAttribute('data-lk-split-item') || !panel || !panel.querySelector('.cp__page-inner-wrap, .ls-block')) return false;
+  for (let el = panel; el && el !== host().body; el = el.parentElement) if (view.getComputedStyle(el).display === 'none') return false;
+  return panel.getBoundingClientRect().height > 0;
+}
+// A node's section opened at the top of Logseq's sidebar, the sidebar shown.
+async function put(uuid) { await logseq.Editor.openInRightSidebar(String(uuid)); if (!sideOpen()) logseq.App.setRightSidebarVisible(true); }
+const setOpen = on => logseq.App.setRightSidebarVisible(!!on);
+// An entry taken out of the sidebar by its own ×, once Logseq has drawn the list as it holds it. Answers whether it went.
+async function takeOut(id) {
+  if (!sideList().includes(id)) return true;
+  const item = await until(() => sectionOf(id), 1500);
+  const press = item?.querySelector('.item-actions .ls-icon-x')?.closest('button');
+  if (!press) return false;
+  press.click();
+  return !!(await until(() => !sideList().includes(id), 1500));
+}
+/* The sidebar's list put back in an order it had. Opening what was already there moved it to the top, so what stood above it is
+   opened again too, lowest first; nothing is added or taken out. Logseq's list can be changed only this way, so where it holds
+   something that cannot be opened again (Contents, a graph, another plugin's piece) the order is left as it is. */
+async function reorder(before = []) {
+  const want = before.filter(id => sideList().includes(id)), now = sideList().filter(id => want.includes(id));
+  let k = want.length;   // what already stands in the old order at the bottom stays
+  for (let j = now.length - 1; k > 0 && j >= 0; j--) if (now[j] === want[k - 1]) k--;
+  const move = want.slice(0, k).reverse(), OWN_ID = `:${logseq.baseInfo?.id}/`;
+  if (!move.length) return;
+  const ways = await Promise.all(move.map(async id => typeof id === 'number' ? (await logseq.Editor.getBlock(id).catch(() => null) || await logseq.Editor.getPage(id).catch(() => null))?.uuid
+    : typeof id === 'string' && id.startsWith(OWN_ID) ? id.slice(OWN_ID.length) : null));
+  if (ways.some(way => !way)) return;
+  for (let i = 0; i < move.length; i++) { await logseq.Editor.openInRightSidebar(String(ways[i])); await until(() => sideList()[0] === move[i], 1500); }
+}
+const mainLeft = () => host().getElementById('main-content-container')?.getBoundingClientRect().left || 0;
+// fn runs when the main view changes its width (the left sidebar opened or shut, the window). Gives back what stops it.
+function mainSized(fn) {
+  const main = host().getElementById('main-content-container'), Sized = host().defaultView.ResizeObserver;
+  if (!main || !Sized) return () => {};
+  const watcher = new Sized(() => fn()); watcher.observe(main);
+  return () => watcher.disconnect();
+}
+// The properties of the page shown as the right half opened, where the quiet sidebar is not there to open them.
+const openProps = () => sidePages(MINE);
+// Logseq's own icons at the right of its header, as drawn: where they stand and how they look, for icons drawn the same.
+function headIcons() {
+  const doc = host(), head = doc.querySelector('#head > .r'), view = doc.defaultView;
+  const all = [...(head?.querySelectorAll('button, a.button') || [])].filter(el => el.getBoundingClientRect().width);
+  const last = all[all.length - 1];
+  if (!last) return null;
+  const r = last.getBoundingClientRect(), look = view.getComputedStyle(last), svg = last.querySelector('svg'), before = all[all.length - 2]?.getBoundingClientRect();
+  return { top: r.top, edge: Math.max(0, head.getBoundingClientRect().right - r.right), gap: before ? Math.max(0, r.left - before.right) : 0,
+    width: r.width, height: r.height, padding: look.padding, radius: look.borderRadius, color: look.color, opacity: look.opacity, stroke: svg ? view.getComputedStyle(svg).strokeWidth : '' };
+}
+// The uuid of the page (or bullet) the main view shows; '' where it shows none (the journals, a page of the plugin's own).
+async function mainPage() {
+  if (!/#\/page\//.test(host().defaultView.location.hash)) return '';
+  const page = await logseq.Editor.getCurrentPage().catch(() => null);
+  return String(page?.uuid || '').toLowerCase();
+}
+/* A link, or a line of the plugin's lists, pressed in the main view with Cmd (Ctrl away from the Mac) or with Shift. A Cmd-press
+   the plugin takes is held back from its first event, so that Logseq does not also go to the page. */
+const LINK = 'a.page-ref[data-uuid], a.tag[data-uuid], a[data-to], .lk-row > .lk-line';
+function presses(fn) {
+  const view = host().defaultView, types = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
+  const mac = /Mac|iPhone|iPad/.test(view.navigator.platform);
+  const on = event => {
+    const cmd = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+    if (event.button !== 0 || event.altKey || cmd === event.shiftKey) return;
+    const at = event.target.closest?.(`${LINK}, button, input, .lk-url`);
+    if (!at?.matches(LINK) || !at.closest('#main-content-container')) return;
+    const to = at.getAttribute('data-uuid') || at.getAttribute('data-to') || at.parentElement.dataset.uuid;
+    if (!to) return;
+    if (!cmd) { if (event.type === 'click') fn(to, 'sidebar'); return; }
+    if (fn(to, 'beside', event.type === 'click') !== true) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+  };
+  for (const type of types) view.addEventListener(type, on, true);
+  return () => { for (const type of types) view.removeEventListener(type, on, true); };
+}
+const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
+G.touch = { beside, SPLIT, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();
