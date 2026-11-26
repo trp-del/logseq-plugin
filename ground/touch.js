@@ -47,6 +47,17 @@
                               takes that off; shown(id) whether it is really on screen; body(id) what it holds; takeOut(id),
                               reorder(ids); openProps(); until(fn, ms), mainLeft(), mainSized(fn), headIcons(), mainPage()
      touch.SPLIT              the stylesheet for the sidebar as the right half
+     touch.menuItem(label, run)       an item in a bullet's right-click menu and in a page's: run({ uuid }) or run({ page })
+     touch.keep(settings)     settings of the plugin's own, kept by Logseq
+     touch.copy(text)         words put on the clipboard; answers whether they are there
+     touch.save(name, text, folder)   a file written where the person picks, in Logseq's folder window (opened at folder); a file
+                              of that name is left alone and the next number taken. Answers { path, folder }, or null
+     touch.print(html)        a page of the plugin's own handed to the Mac's print window; settles when that closes
+     touch.settled(doc)       settles once a page's pictures have loaded
+     touch.pictures(files)    files of the graph's assets folder as a page can load them: a function file -> address
+     touch.queryShown(uuid)   a query's table as it is drawn on screen: { columns, order } or null
+     touch.dragBand()         how tall the band at the window's top is that moves the window, where no press reaches the page
+     touch.graphChanged(fn)   fn runs when another graph is opened; gives back what stops it
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
 const G = window.PluginDoor;
@@ -857,6 +868,92 @@ async function open(to, side = false) {
   if (uuid) return logseq.Editor.openInRightSidebar(uuid);
 }
 
+/* Out of Logseq: the right-click items, the clipboard, a file, the print window, the graph's pictures. */
+function menuItem(label, run) {
+  logseq.Editor.registerBlockContextMenuItem(label, event => run({ uuid: event?.uuid }));
+  logseq.App.registerPageMenuItem?.(label, event => run({ page: event?.page }));
+}
+const keep = settings => logseq.updateSettings(settings);
+async function copy(text) {
+  try { await host().defaultView.navigator.clipboard.writeText(text); return true; } catch (error) { console.warn('Logseq Plugin: the clipboard could not be reached', error); return false; }
+}
+/* In Logseq's desktop window a download from a plugin goes nowhere (seen 29 October 2026), so a file is written through the
+   bridge Logseq's own exports use: its folder window, then writeFile, then the file shown in the Finder. */
+async function save(name, text, folder = '') {
+  const apis = host().defaultView.apis;
+  if (!apis?.doAction) throw new Error('this Logseq lends plugins no way to save a file');
+  const picked = await apis.doAction(['showOpenDialog', { title: `Save ${name}`, message: `Choose the folder for ${name}`, buttonLabel: 'Save here', properties: ['openDirectory', 'createDirectory'], ...(folder ? { defaultPath: folder } : {}) }]);
+  const dir = picked && !picked.canceled && picked.filePaths?.[0];
+  if (!dir) return null;
+  const at = one => `${String(dir).replace(/\/$/, '')}/${one}`;
+  const free = await G.export.freeName(name, async one => { try { return !!await apis.doAction(['stat', at(one)]); } catch (error) { return false; } });
+  await apis.doAction(['writeFile', null, at(free), text]);
+  try { apis.doAction(['openFileInFolder', at(free)]); } catch (error) { /* the file is saved all the same */ }
+  return { path: at(free), folder: String(dir) };
+}
+const settled = (doc, ms = 4000) => new Promise(resolve => {
+  const loading = [...doc.images].filter(image => !image.complete);
+  let left = loading.length;
+  if (!left) return resolve();
+  const one = () => { if (--left <= 0) resolve(); };
+  for (const image of loading) { image.addEventListener('load', one); image.addEventListener('error', one); }
+  setTimeout(resolve, ms);
+});
+// The page stands in a frame of Logseq's own page, off the screen: the plugin's own frame is hidden and prints nothing.
+function print(html) {
+  return new Promise((resolve, reject) => {
+    const doc = host(), frame = doc.createElement('iframe');
+    frame.className = 'lk-print'; frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:800px;height:1000px;border:0;';
+    doc.body.appendChild(frame);
+    const page = frame.contentDocument;
+    page.open(); page.write(html); page.close();
+    settled(page).then(() => setTimeout(() => {
+      let failed = null;
+      try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (error) { failed = error; }   // answers when the print window closes
+      setTimeout(() => { frame.remove(); if (failed) reject(failed); else resolve(); }, 500);
+    }, 150));
+  });
+}
+/* Logseq serves a graph's files on its assets:// address. Each picture is read once into the page itself, so the preview and
+   the printed page both carry it. A file that cannot be read keeps its address. */
+const read = new Map();
+async function pictures(files) {
+  let folder = '';
+  try { folder = String((await logseq.App.getCurrentGraph())?.path || ''); } catch (error) { folder = ''; }
+  const at = file => folder ? `assets://${encodeURI(folder.replace(/\/$/, ''))}/${file}` : file, out = new Map();
+  await Promise.all([...new Set(files)].map(async file => {
+    const address = at(file);
+    if (!read.has(address)) {
+      try {
+        const blob = await (await fetch(address)).blob();
+        read.set(address, await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); }));
+      } catch (error) { console.warn('Logseq Plugin: a picture could not be read', file, String(error?.message || error)); }
+    }
+    out.set(file, read.get(address) || address);
+  }));
+  return file => out.get(file) || at(file);
+}
+// Logseq draws a query as a table: its columns, and the rows' order, are read from the screen when it is drawn there.
+function queryShown(uuid) {
+  const block = host().querySelector(`.ls-block[blockid="${uuid}"]`), table = block?.querySelector('.ls-table');
+  if (!table) return null;
+  const columns = [...table.querySelectorAll('.ls-table-header .ls-table-header-cell [title]')].map(cell => cell.getAttribute('title')).filter(Boolean);
+  const ids = [...new Set([...table.querySelectorAll('[blockid]')].map(row => row.getAttribute('blockid').toLowerCase()))], count = Number(block.querySelector('.ls-view-head')?.textContent.match(/\((\d+)\)/)?.[1]);
+  return { columns: columns.length ? columns : null, order: ids.length && ids.length === count ? ids : null };   // only when every row is drawn
+}
+// Logseq's header moves the window when pressed: a real press there never reaches the page, whatever is drawn over it.
+function dragBand() {
+  const doc = host();
+  let bottom = 0;
+  for (const el of doc.querySelectorAll('.drag-region, #head')) if (doc.defaultView.getComputedStyle(el).webkitAppRegion === 'drag') { const box = el.getBoundingClientRect(); if (box.top < 100 && box.width > 300) bottom = Math.max(bottom, box.bottom); }
+  return Math.round(bottom) || 48;
+}
+function graphChanged(fn) {
+  const off = logseq.App.onCurrentGraphChanged(() => { read.clear(); fn(); });
+  return () => { if (typeof off === 'function') off(); };
+}
+
 // One of Logseq's own icons, drawn as Logseq draws it (its tablerIcons hand back a React element), else from the icon font it loads.
 const pascal = id => String(id).replace(/(^|[-_ ])(\w)/g, (m, s, c) => c.toUpperCase());
 function markup(el) {
@@ -1420,5 +1517,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
+G.touch = { menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE };
 })();

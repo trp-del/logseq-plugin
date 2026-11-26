@@ -383,3 +383,96 @@ test('typed words find a line that holds every one, and say where', () => {
   assert.equal(sheet.found('Undo, redo', 'undo indent'), null);
   assert.deepEqual(sheet.found('Fold', ''), [{ text: 'Fold', hit: false }]);
 });
+const X = require('../core/export.js'), paper = require('../core/paper.js'), MD = require('../core/markdown.js');
+const held = (ident, name, type, ...values) => ({ ident: `user.property/${ident}`, name, type, values });
+// A page as the ground hands it to an export.
+const nodeOf = (words, facts = {}, children = []) => ({ ...X.node({ words, ...facts }), children });
+const sheetOf = over => ({ kind: 'page', title: 'Fatigue', tags: ['Symptom'], properties: [held('provider', 'Provider', 'node', { text: 'Dr. Mei Chen' }), held('since', 'Since', 'date', { day: 20261004 })], tagged: [], names,
+  nodes: [
+    nodeOf('How it went', {}, [nodeOf(`Worse after [[${A}]], **very** _much_ #[[Symptom]]`), nodeOf('Sleeping ten hours', {}, [nodeOf('naps too')])]),
+    nodeOf('Book the test', { task: { status: 'todo', priority: 'High', deadline: { day: 20261010 }, scheduled: null }, tags: [] }),
+    nodeOf('Old plan', { task: { status: 'canceled', priority: '' } }),
+    nodeOf('## Tried', {}, [nodeOf('Iron', { numbered: true }), nodeOf('Rest', { numbered: true })]),
+    nodeOf('a < b', { display: 'code', lang: 'js' }),
+    nodeOf('a value', { value: true }),
+  ], ...over });
+const chosen = over => ({ ...X.choices(), titleDate: false, ...over });
+const asMd = (sheet, over) => MD.sheet(sheet, { ...X.options(sheet, chosen(over), 20261126, 'en-GB'), });
+test('an export as Markdown: the title, what the page holds, a short line with lines under it a heading, bullets one level in', () => {
+  assert.equal(asMd(sheetOf()), `# Fatigue
+
+Provider: Dr. Mei Chen  
+Since: 4 Oct 2026  
+#Symptom
+
+## How it went
+
+Worse after Dr. Mei Chen, **very** *much* #Symptom
+
+Sleeping ten hours
+
+- naps too
+
+- [ ] Book the test  
+  *Deadline: 10 Oct 2026 · Priority: High*
+- [x] ~~Old plan~~
+
+### Tried
+
+1. Iron
+2. Rest
+
+\`\`\`js
+a < b
+\`\`\`
+`);
+});
+test('what is left out is left out: a property, the tags, the task marks; links and front matter as chosen', () => {
+  const got = asMd(sheetOf(), { tags: false, tasks: false, hiddenHead: ['user.property/since'], links: 'wiki', frontMatter: true });
+  assert.ok(got.startsWith('---\ntitle: Fatigue\nprovider: Dr. Mei Chen\n---\n\n# Fatigue\n'), got);
+  assert.ok(!got.includes('Since') && !got.includes('#Symptom') && !got.includes('[ ]') && got.includes('[[Dr. Mei Chen]]'), got);
+  assert.ok(asMd(sheetOf(), { frontMatter: true }).startsWith('---\ntitle: Fatigue\ntags: [Symptom]\n'));
+  assert.ok(asMd(sheetOf(), { links: 'file' }).includes('[Dr. Mei Chen](Dr.%20Mei%20Chen.md)'));
+});
+test('the words of an export: Markdown\'s signs told apart, mathematics and pictures kept, a bullet reference as its words', () => {
+  const one = words => MD.sheet({ kind: 'blocks', title: '', tags: [], properties: [], tagged: [], names, nodes: [nodeOf(words)] }).trim();
+  assert.equal(one('2*3 [a] # not a heading'), '2\\*3 \\[a\\] # not a heading');
+  assert.equal(one('# '), '');
+  assert.equal(one('- dash first'), '\\- dash first');
+  assert.equal(one('Area $a_1 * b$ here'), 'Area $a_1 * b$ here');
+  assert.equal(one('![scan](https://example.org/a.png)'), '![scan](https://example.org/a.png)');
+  assert.equal(one(`As ((${B})) and [said so](((${B})))`), 'As Fatigue and said so');
+  assert.equal(one('[the site](https://example.org/a) and https://example.org/b'), '[the site](https://example.org/a) and <https://example.org/b>');
+});
+test('a bullet\'s kind is told from its facts; an embedded node stands for what it holds', () => {
+  assert.equal(X.node({ uuid: 'u', words: 'scan', asset: 'png' }).image.file, 'assets/u.png');
+  assert.equal(X.node({ uuid: 'u', words: 'report', asset: 'pdf' }).kind, 'file');
+  assert.equal(X.node({ words: 'x', value: true }).kind, 'value');
+  assert.equal(X.node({ words: '### Deep' }).heading, 3);
+  const sheet = { kind: 'blocks', title: '', tags: [], properties: [], tagged: [], names, nodes: [nodeOf('', { embed: true }, [nodeOf('inside')]), nodeOf('')] };
+  assert.equal(MD.sheet(sheet), 'inside\n');
+});
+test('the paper: names beside values, a tag, a heading, task circles, numbered lines, nothing unescaped', () => {
+  const sheet = sheetOf(), got = paper.html(sheet, X.options(sheet, chosen({ kicker: '' }), 20261126, 'en-GB'));
+  for (const piece of ['<h1 class="x-title">Fatigue</h1>', '<dt>Provider</dt><dd>Dr. Mei Chen</dd>', '<dt>Tag</dt><dd><span class="x-tag">Symptom</span></dd>', '<h2 class="x-h2">How it went</h2>', 'x-task x-todo', 'x-task x-off', '<ol class="x-ol">', 'a &lt; b']) assert.ok(got.includes(piece), `${piece} not in\n${got}`);
+  const look = { paper: 'Letter', margins: 'wide', footer: 'My "notes"', pageNumbers: false };
+  assert.ok(paper.css(look).includes('size: Letter; margin: 26mm 30mm 28mm; @bottom-left { content: "My \\"notes\\""'));
+  assert.ok(!paper.css(look).includes('counter(page)'));
+  assert.ok(!/-apple-system|system-ui|Literata/.test(paper.css({})));   // a variable face prints as outlines
+  assert.deepEqual([paper.sizes({ paper: 'A4' }).width, paper.sizes({ paper: 'Letter' }).width], [794, 816]);
+});
+test('the export\'s choices come back only as the window offers them, and lines are kept for each page', () => {
+  assert.equal(X.choices('not json').paper, 'A4');
+  const got = X.choices(JSON.stringify({ target: 'rich', paper: 'Letter', pageNumbers: 'no', hiddenHead: ['a', 3] }));
+  assert.deepEqual([got.target, got.paper, got.pageNumbers, got.hiddenHead], ['pdf', 'Letter', true, ['a']]);
+  const kept = X.withLines(got, { title: 'Fatigue' }, { kicker: 'Notes', subtitle: '' });
+  assert.deepEqual(X.lines(kept, { title: 'Fatigue' }), { kicker: 'Notes', subtitle: '' });
+  assert.deepEqual(X.lines(kept, { title: 'Other' }), { kicker: '', subtitle: '' });
+  assert.deepEqual(X.withLines(kept, { title: 'Fatigue' }, { kicker: '', subtitle: '' }).titles, {});
+});
+test('a file\'s name is the page\'s, and one that is there is left alone', async () => {
+  assert.equal(X.fileName({ title: 'A/B: notes?', nodes: [], names }), 'A B notes');
+  assert.equal(X.fileName({ title: '', names, nodes: [nodeOf(`Saw [[${A}]]`)] }), 'Saw Dr. Mei Chen');
+  const there = new Set(['Notes.md', 'Notes 2.md']);
+  assert.equal(await X.freeName('Notes.md', async name => there.has(name)), 'Notes 3.md');
+});

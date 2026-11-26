@@ -683,6 +683,76 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       return is([over, got?.stays, got?.keys, await sheet()], [null, true, true, null]);
     });
     }
+    {
+    // ---- Export: the window the owner chose again (26 November 2026), Markdown and the one paper template
+    const written = () => page.evaluate(async () => JSON.stringify(await window.logseq.api.datascript_query('[:find (count ?b) (max ?u) :where [?b :block/uuid _] [?b :block/updated-at ?u]]')));
+    const preview = () => page.evaluate(() => document.querySelector('.lk-xp iframe:not(.lk-xp-coming)')?.contentDocument.body.innerText || '');
+    // A real press on words in the preview. The preview is drawn smaller or larger (zoom), so the point is worked out here.
+    const pressWords = async words => { const at = await page.evaluate(w => { const frame = document.querySelector('.lk-xp iframe:not(.lk-xp-coming)'), zoom = Number(frame.style.zoom) || 1, piece = [...frame.contentDocument.querySelectorAll('p.x-p, pre')].find(el => el.textContent.includes(w)), a = frame.getBoundingClientRect(), r = piece.getBoundingClientRect(); return { x: a.left + (r.left + 30) * zoom, y: a.top + (r.top + 7) * zoom }; }, words); await page.mouse.click(at.x, at.y); await wait(200); };
+    let untouched = '';
+    await step('the corner opens the export window on this page, the preview the sheet as it will print', async () => {
+      await goto(CHEN); untouched = await written();
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2500);
+      const said = await preview();
+      return is([await page.locator('.lk-xp-what').innerText(), await page.locator('.lk-xp-tabs button').allInnerTexts(), ['Dr. Mei Chen', 'Specialty', 'Oncology', 'Consultant medical oncologist'].every(w => said.includes(w)), await page.evaluate(() => document.querySelector('.lk-xp iframe').contentDocument.querySelectorAll('.sheet').length)], ['Export this page', ['PDF', 'Markdown'], true, 1]);
+    });
+    await step('the column unfolds; a property left out leaves the preview, and comes back ticked', async () => {
+      if (!(await page.locator('.lk-xp-side').isVisible())) await page.locator('.lk-xp-column').click();
+      await wait(400);
+      const box = page.locator('.lk-xp-prop', { hasText: 'Specialty' }).locator('input');
+      await box.click(); await wait(1200); const without = (await preview()).includes('Oncology');
+      await box.click(); await wait(1200);
+      return is([without, (await preview()).includes('Oncology')], [false, true]);
+    });
+    await step('words changed in the preview stay through a change of paper, and go, said, when what is written changes', async () => {
+      await pressWords('Consultant'); await page.keyboard.press('End'); await page.keyboard.type(' Walked.', { delay: 20 }); await wait(1200);
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300); await page.locator('.lk-menu .lk-item', { hasText: 'Letter' }).click(); await wait(1300);
+      const kept = [(await preview()).includes('Walked.'), await page.evaluate(() => document.querySelector('.lk-xp iframe').style.width)];
+      await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1300);
+      const gone = [(await preview()).includes('Walked.'), await page.getByText('the words changed in it went').count() > 0];
+      await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1200);
+      return is([...kept, ...gone], [true, '856px', false, true]);
+    });
+    await step('Escape closes an open list first, then the export window', async () => {
+      await page.locator('.lk-xp [data-pick="margins"]').click(); await wait(300); await page.keyboard.press('Escape'); await wait(300);
+      const first = [await count('.lk-menu'), await count('.lk-xp')];
+      await page.keyboard.press('Escape'); await wait(400);
+      return is([...first, await count('.lk-xp')], [0, 1, 0]);
+    });
+    await step('Save PDF hands the sheet, with the words changed in it, to the print window; the export window stays', async () => {
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2500);
+      await pressWords('Consultant'); await page.keyboard.press('End'); await page.keyboard.type(' Printed.', { delay: 20 }); await wait(1200);
+      // The Mac's print window is not opened by the walk: the page's print is taken over as the frame appears.
+      await page.evaluate(() => { window.__printed = ''; new MutationObserver((list, watch) => { for (const r of list) for (const n of r.addedNodes) if (n.classList?.contains('lk-print')) { n.contentWindow.print = () => { window.__printed = n.contentDocument.documentElement.outerHTML; }; watch.disconnect(); } }).observe(document.body, { childList: true }); });
+      await page.locator('.lk-xp [data-do="pdf"]').click(); await wait(2500);
+      const got = await page.evaluate(() => [window.__printed.includes('Printed.'), window.__printed.includes('size: Letter'), window.__printed.includes('class="sheet'), document.querySelectorAll('.lk-print').length, !!document.querySelector('.lk-xp:not([hidden])')]);
+      return is(got, [true, true, false, 0, true]);
+    });
+    await step('Copy Markdown copies the text as changed in the preview, and closes the window', async () => {
+      await page.locator('.lk-xp-tabs [data-target="md"]').click(); await wait(1300);
+      const shown = await preview();
+      await pressWords('# Dr. Mei Chen'); await page.keyboard.press('Meta+ArrowDown'); await page.keyboard.type('Added by hand', { delay: 20 }); await wait(400);
+      // The Mac's own clipboard is left alone.
+      await page.evaluate(() => { window.__copied = ''; navigator.clipboard.writeText = async text => { window.__copied = text; }; });
+      await page.keyboard.press('Meta+Enter'); await wait(900);
+      const copied = await page.evaluate(() => { delete navigator.clipboard.writeText; return window.__copied; });
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2200);
+      const remembered = await page.locator('.lk-xp-tabs .on').innerText();
+      await page.locator('.lk-xp-tabs [data-target="pdf"]').click(); await wait(400); await page.locator('.lk-xp [data-do="close"]').click(); await wait(400);
+      return is([shown.startsWith('# Dr. Mei Chen'), copied.startsWith('# Dr. Mei Chen'), copied.includes('Added by hand'), remembered, await count('.lk-xp')], [true, true, true, 'Markdown', 0]);
+    });
+    await step('a bullet\'s right-click menu exports that bullet alone', async () => {
+      await page.locator('#main-content-container .ls-page-blocks .bullet-container').first().click({ button: 'right' }); await wait(700);
+      await page.getByText('PDF or Markdown…').first().click(); await wait(2500);
+      const got = [await page.locator('.lk-xp-what').innerText().catch(() => ''), (await preview()).includes('Consultant medical oncologist'), (await preview()).includes('Specialty')];
+      await page.keyboard.press('Escape'); await wait(400);
+      return is(got, ['Export this bullet', true, false]);
+    });
+    await step('exporting wrote nothing to the graph', async () => is(await written(), untouched));
+    }
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

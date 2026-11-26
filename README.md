@@ -22,7 +22,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
-| Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. The key sheet: Option held alone shows the keys. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
+| Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. The key sheet: Option held alone shows the keys. Export: a page or some bullets out as a printed page (PDF) or as Markdown, with a preview whose words can be changed first. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -430,6 +430,45 @@ plugin was up to date, or which could not be updated and why (GitHub did not ans
 The keys do nothing while you write in a bullet, and can be changed in Logseq's own keyboard settings. A folder is not fetched
 from anywhere: the key loads what the folder holds.
 
+### Export (`beside/export.js`, decided in `core/export.js`, written by `core/markdown.js` and `core/paper.js`)
+
+A page, or some bullets, out of Logseq as a printed page (PDF) or as Markdown. It reads your notes and never changes them.
+
+**The ways in:** in the command palette and in the corner's list, **Export: this page…**, **Export: the selected bullets…**,
+and, with the choices as they were left and no window, **Export: copy this page as Markdown** and **Export: save this page as
+PDF**; **PDF or Markdown…** on a bullet's right-click menu (that bullet with everything under it) and on a page's menu. With
+bullets picked, "this page" means the bullets picked.
+
+**The export window** lies over Logseq. Its bar has the column's icon, **PDF** and **Markdown** as two tabs, and at the right
+the button that does the export (**Save PDF…**, or **Copy Markdown** beside **Save as file…**), then ×. Under it is the
+preview: for PDF the sheets as they will print, with the margins, footer and page numbers chosen, broken where the print
+breaks; for Markdown the text. Over the preview, at the right, how large it is drawn. **Press into the words of the preview
+to change them for this export**; your notes do not change. The changed words stay through a change of paper, margins, text
+size or footer, and while you look at the other tab; when something changes what is written (a property, the tags, a title
+line, the links) the preview is drawn again from the page and a notice says the changed words went. Cmd-Enter presses the
+button; Escape closes an open list, then the window.
+
+**The column**, put away until asked for, holds the choices: **Page** (paper A4 or Letter, margins, text size, page numbers, a
+footer) or **Markdown** (page links as words, as `[[wikilinks]]` or as links to `.md` files; the page's properties as front
+matter), **Title** (today's date, a line above, a subtitle, "Prepared by"; the two lines are kept for each page), and **Show**
+(tags, task marks, and the page's properties and the nodes' own, each ticked or left out, with all and none). A row that holds
+one of several opens the plugin's menu; Up and Down walk the rows. Every choice is remembered; a property left out stays left
+out on later exports.
+
+**What is written** is the page as a report: its title, its properties (names beside values) and tags, then its words as
+paragraphs. A short line with lines under it reads as a heading, bullets begin one level further in, a numbered list stays
+numbered. Headings, bold, italics, code, highlights, links, tags, tasks (Logseq's four states as a circle, `- [ ]` in
+Markdown) with their deadline, scheduled day and priority, code blocks, quotations, mathematics, pictures, files, PDF
+highlights as quotations, embedded nodes in place, references as the words they point at, and a query with the rows it
+showed (a table where its table is on screen). On a tag's page the nodes carrying the tag follow. A property's words kept as
+a bullet of their own, and templates, are left out.
+
+There is one paper template: black on white with greys and hairlines, Helvetica Neue, a tag in a serif. **Save PDF…** opens
+the Mac's print window (choose *Save as PDF* there; the page's name is the file's name), and the export window comes back
+afterwards. **Save as file…** asks for a folder, names the file after the page, leaves a file of that name alone ("Notes
+2.md") and shows it in the Finder. In Markdown, pictures and files are named by their path in the graph's `assets` folder and
+are not copied.
+
 ### Alfred (`beside/outside.js`, `ground/outside.js`, `alfred/`)
 
 The Alfred workflow in `alfred/` (its own README says what its panels do) asks the plugin through Logseq's HTTP APIs server,
@@ -445,7 +484,8 @@ read is refused, never guessed. The part can be switched off in the plugin's set
 
 Only what you do: a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet, and what is changed from Alfred (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a tag, a status). Each is one of Logseq's own editor calls, so
 **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
-window's local storage and nothing else.
+window's local storage, and the export window's choices in the plugin's settings. Export writes nothing to the graph; the only
+file it writes is the one you save.
 
 ## Checking
 

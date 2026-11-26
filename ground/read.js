@@ -38,6 +38,11 @@
      read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
      read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words }], words as a person reads them
+     read.chosen(asked)       what an export is asked for: { blocks: [uuid] } (the bullet a menu named, else the bullets picked,
+                              else, where asked, the one being written), else { page } (the page named, or the one on screen)
+     read.sheet(what, shown)  that page or those bullets as core/export.js takes them, every bullet with its facts, its names
+                              read, embedded nodes and a query's rows in place; on a tag's page the nodes carrying the tag
+                              too; null where there is no page. shown(uuid) answers a query's columns and row order on screen
      read.holds(id)           what one node holds under each of the person's properties: ident -> [{ raw, text, uuid }]
      read.choices()           the set choices of the person's properties: ident -> [{ raw, text }], in Logseq's order
    Deleted nodes, and nodes on deleted pages, are never answered. */
@@ -445,5 +450,177 @@ async function recent(n = 8) {
 const pageNames = () => once('pageNames', async () => (await q(`[:find ?b ?u ?title :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/title ?title] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) ${LIVE}]`))
   .map(([id, uuid, title]) => ({ id, uuid: String(uuid).toLowerCase(), title: String(title) })).filter(page => page.title));
 
-G.read = { recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+async function chosen({ uuid, page, blockFirst } = {}) {
+  if (typeof uuid === 'string' && UUID.test(uuid)) return { blocks: [uuid] };
+  const picked = await Promise.resolve(logseq.Editor.getSelectedBlocks()).catch(() => null);
+  if (picked?.length) return { blocks: picked.map(block => block.uuid) };
+  if (blockFirst) { const at = await Promise.resolve(logseq.Editor.getCurrentBlock()).catch(() => null); if (at?.uuid) return { blocks: [at.uuid] }; }
+  return { page: page || '' };
+}
+/* An export's facts. The bullets come as Logseq's own trees; what each holds is read in one question for them all, what those
+   point at in another, the names in a third. */
+const SLICE = 300;
+const slices = list => Array.from({ length: Math.ceil(list.length / SLICE) }, (_, i) => list.slice(i * SLICE, (i + 1) * SLICE));
+async function attributes(uuids) {
+  const out = new Map();
+  for (const some of slices(uuids)) for (const [u, a, v] of await q(`[:find ?u ?a ?v :where ${amongUuids('?u', some)} [?b :block/uuid ?u] [?b ?a ?v]]`)) {
+    // Logseq's API hands its own :block/… names back bare ("title", "tags"): they are given their namespace again.
+    const key = String(u).toLowerCase(), said = bare(a), name = said.includes('/') ? said : `block/${said}`;
+    if (!out.has(key)) out.set(key, new Map());
+    const held = out.get(key);
+    if (!held.has(name)) held.set(name, []);
+    held.get(name).push(v);
+  }
+  return out;
+}
+const refId = v => isId(v) && v < STAMP ? v : v && typeof v === 'object' && isId(v.id ?? v['db/id']) ? (v.id ?? v['db/id']) : 0;
+async function things(ids, known) {
+  for (const some of slices([...new Set(ids)].filter(id => id && !known.has(id)))) {
+    const these = among('?e', some);
+    const [titled, ...rest] = await Promise.all([q(`[:find ?e ?u ?t :where ${these} [?e :block/uuid ?u] [(get-else $ ?e :block/title "") ?t]]`),
+      ...[':db/ident', ':block/journal-day', ':logseq.property/value', ':logseq.property.asset/type', ':block/name'].map(attr => q(`[:find ?e ?v :where ${these} [?e ${attr} ?v]]`))]);
+    const [ident, day, value, asset, name] = rest.map(rows => new Map(rows));
+    for (const [id, uuid, title] of titled) known.set(id, { uuid: String(uuid).toLowerCase(), title: String(title ?? ''), ident: bare(ident.get(id) || ''), day: Number(day.get(id)) || 0,
+      value: value.has(id) && typeof value.get(id) !== 'object' ? value.get(id) : null, asset: bare(asset.get(id) || ''), isPage: name.has(id) });
+    for (const id of some) if (!known.has(id)) known.set(id, null);
+  }
+}
+const REFS = ['block/tags', 'block/alias', 'block/link', 'logseq.property/status', 'logseq.property/priority', 'logseq.property/deadline', 'logseq.property/scheduled',
+  'logseq.property/query', 'logseq.property/asset', 'logseq.property.pdf/hl-image', 'logseq.property/order-list-type'];
+async function sheetFacts(uuids, read) {
+  const held = await attributes(uuids), ids = [];
+  const { props } = await schema();
+  for (const attrs of held.values()) for (const [name, values] of attrs) {
+    if (REFS.includes(name) || (props.has(name) && !['checkbox', 'datetime'].includes(props.get(name).type))) for (const v of values) if (refId(v)) ids.push(refId(v));
+  }
+  await things(ids, read.things);
+  return held;
+}
+// What a bullet holds under the person's own properties, and the other names of a page: dates first, then by name.
+function sheetProperties(attrs, props, known) {
+  const out = [];
+  for (const [name, values] of attrs) {
+    const prop = name === 'block/alias' ? { title: 'Alias', type: 'node' } : props.get(name);
+    if (!prop) continue;
+    const said = values.map(v => {
+      if (typeof v === 'boolean') return { text: v ? 'Yes' : 'No' };
+      if (prop.type === 'datetime' && typeof v === 'number') return { time: v };
+      const thing = known.get(refId(v));
+      if (thing?.day) return { day: thing.day, text: thing.title };
+      const text = thing ? String(thing.value ?? thing.title) : typeof v === 'object' ? '' : String(v);
+      return text ? { text, ...(prop.type === 'url' ? { url: text } : {}) } : null;
+    }).filter(Boolean);
+    if (said.length) out.push({ ident: name, name: prop.title, type: prop.type, values: said });
+  }
+  const dated = p => p.type === 'date' || p.type === 'datetime';
+  return out.sort((a, b) => (dated(b) - dated(a)) || a.name.localeCompare(b.name));
+}
+function factsOf(uuid, attrs = new Map(), props, known) {
+  const all = name => attrs.get(name) || [], first = name => all(name)[0], thing = name => known.get(refId(first(name)));
+  const tags = all('block/tags').map(v => known.get(refId(v))).filter(Boolean), is = ident => tags.some(tag => tag.ident === ident);
+  const text = name => { const one = thing(name); return String(one ? one.value ?? one.title : first(name) ?? ''); };
+  const when = name => { const v = first(name); if (typeof v === 'number' && v >= STAMP) return { time: v }; const day = known.get(refId(v))?.day; return day ? { day } : null; };
+  const status = thing('logseq.property/status'), area = thing('logseq.property.pdf/hl-image'), page = Number(first('logseq.property.pdf/hl-page'));
+  const task = is('logseq.class/Task') || status ? { status: (status?.ident || '').replace(/^logseq\.property\/status\./, ''), priority: String(thing('logseq.property/priority')?.title || ''),
+    deadline: when('logseq.property/deadline'), scheduled: when('logseq.property/scheduled') } : null;
+  return { uuid, words: String(first('block/title') ?? ''), heading: first('logseq.property/heading'), display: bare(first('logseq.property.node/display-type')), lang: String(first('logseq.property.code/lang') ?? ''),
+    numbered: first('logseq.property/order-list-type') != null && text('logseq.property/order-list-type') === 'number',
+    tags: tags.filter(tag => !tag.ident.startsWith('logseq.class/')).map(tag => tag.title), task, properties: sheetProperties(attrs, props, known),
+    template: is('logseq.class/Template'), value: first('logseq.property/created-from-property') != null,
+    asset: bare(first('logseq.property.asset/type')), width: first('logseq.property.asset/width'),
+    highlight: page ? { page, pdf: String(thing('logseq.property/asset')?.title || 'PDF'), area: area?.asset ? `assets/${area.uuid}.${area.asset}` : '' } : null,
+    query: first('logseq.property/query') == null ? null : text('logseq.property/query'), embed: first('block/link') != null, link: refId(first('block/link')) };
+}
+const pageTree = uuid => Promise.resolve(logseq.Editor.getPageBlocksTree(uuid)).then(tree => tree || []).catch(() => []);
+const blockTree = uuid => Promise.resolve(logseq.Editor.getBlock(uuid, { includeChildren: true })).catch(() => null);
+const childrenOf = block => (Array.isArray(block?.children) ? block.children : []).filter(one => one && one.uuid).sort((a, b) => (String(a.order || '') < String(b.order || '') ? -1 : String(a.order || '') > String(b.order || '') ? 1 : 0));
+const uuidsIn = (trees, out = []) => { for (const block of trees) if (block?.uuid) { out.push(String(block.uuid).toLowerCase()); uuidsIn(childrenOf(block), out); } return out; };
+async function sheetNodes(trees, read, seen, depth) {
+  const uuids = uuidsIn(trees);
+  if (!uuids.length) return [];
+  const [held, { props }] = await Promise.all([sheetFacts(uuids, read), schema()]);
+  const make = async block => {
+    const uuid = String(block.uuid).toLowerCase(), facts = factsOf(uuid, held.get(uuid), props, read.things), n = G.export.node(facts);
+    read.words.push(n.words, ...n.properties.flatMap(p => p.values.map(v => v.text || '')));
+    if (n.kind === 'embed') {
+      const to = read.things.get(facts.link);
+      if (to && !seen.has(to.uuid) && depth < 6) {
+        const inside = to.isPage ? await pageTree(to.uuid) : [await blockTree(to.uuid)].filter(Boolean);
+        n.children = await sheetNodes(inside, read, new Set([...seen, to.uuid]), depth + 1);
+      }
+      return n;
+    }
+    if (n.kind === 'query' && depth <= 2) {
+      const on = await read.shown(uuid);
+      n.query.columns = on?.columns || null;
+      n.query.rows = await sheetNodes(await queryRows(n.query.text, uuid, on?.order), read, seen, depth + 1);
+    }
+    for (const child of childrenOf(block)) n.children.push(await make(child));
+    // An area highlight's picture is kept as a bullet under the highlight: it is the quotation, not a picture of its own.
+    if (n.kind === 'highlight' && n.highlight.area) n.children = n.children.filter(child => child.image?.file !== n.highlight.area);
+    return n;
+  };
+  const out = [];
+  for (const block of trees) if (block?.uuid) out.push(await make(block));
+  return out;
+}
+// A query's rows, as Logseq's own query answers them (the query's bullet left out), in the order shown on screen where it is.
+async function queryRows(text, own, order) {
+  const asked = String(text || '').trim();
+  if (!asked) return [];
+  let rows = [];   // a plain query may begin with [[ too: only { and [:find are advanced ones
+  try { rows = /^(\{|\[\s*:find\b)/.test(asked) ? await logseq.DB.customQuery(asked) : await logseq.DB.q(asked); } catch (error) { console.warn('Logseq Plugin: a query could not be read', asked, error); }
+  const found = new Map();
+  for (const row of Array.isArray(rows) ? rows.flat(Infinity) : []) { const uuid = String(row?.uuid || row?.['block/uuid'] || '').toLowerCase(); if (UUID.test(uuid) && uuid !== own) found.set(uuid, { uuid, children: [] }); }
+  const first = (order || []).filter(uuid => found.has(uuid));
+  return [...first.map(uuid => found.get(uuid)), ...[...found.values()].filter(row => !first.includes(row.uuid))];
+}
+// The names every bullet's words need; a reference to a PDF highlight reads as the quotation it is.
+async function sheetNames(words) {
+  const uuids = [...new Set(words.flatMap(W.named))];
+  const out = await names(uuids);
+  for (const some of slices(uuids)) for (const [u, t, page, pdf] of await q(`[:find ?u ?t ?page ?pdf :where ${amongUuids('?u', some)} [?b :block/uuid ?u] [?b :block/title ?t] [?b :logseq.property.pdf/hl-page ?page] [?b :logseq.property/asset ?a] [?a :block/title ?pdf]]`))
+    out.set(String(u).toLowerCase(), `“${String(t ?? '').trim()}” (${pdf}, p. ${page})`);
+  return out;
+}
+async function sheet(what = {}, shown = () => null) {
+  const read = { things: new Map(), words: [], shown };
+  const done = async made => ({ ...made, names: await sheetNames(read.words) });
+  if (what.blocks) {
+    const trees = [];
+    for (const uuid of [...new Set(what.blocks.map(u => String(u).toLowerCase()))].filter(u => UUID.test(u))) { const tree = await blockTree(uuid); if (tree) trees.push(tree); }
+    // A bullet whose parent is also asked for is written once, under it.
+    const inside = new Set(trees.flatMap(tree => uuidsIn(childrenOf(tree))));
+    const nodes = await sheetNodes(trees.filter(tree => !inside.has(String(tree.uuid).toLowerCase())), read, new Set(), 0);
+    return nodes.length ? done({ kind: 'blocks', title: '', tags: [], properties: [], nodes, tagged: [] }) : null;
+  }
+  const page = what.page ? await logseq.Editor.getPage(what.page) : await logseq.Editor.getCurrentPage();
+  if (!page?.uuid) return null;
+  const uuid = String(page.uuid).toLowerCase();
+  if (!page.name && !page.originalName && page.page) return sheet({ blocks: [uuid] }, shown);   // zoomed into a bullet
+  const [held, { props }] = await Promise.all([sheetFacts([uuid], read), schema()]);
+  const facts = factsOf(uuid, held.get(uuid), props, read.things);
+  const trees = await pageTree(uuid), nodes = await sheetNodes(trees, read, new Set([uuid]), 0);
+  let tagged = [];
+  if ((held.get(uuid)?.get('block/tags') || []).some(v => read.things.get(refId(v))?.ident === 'logseq.class/Tag')) {
+    // The nodes carrying the tag, as Logseq lists them under the tag's page: a bullet with everything under it, a page as one line.
+    const own = new Set(uuidsIn(trees));
+    const rows = await q(`[:find ?u ?t :where [?tag :block/uuid #uuid "${uuid}"] [?b :block/tags ?tag] [?b :block/uuid ?u] [(get-else $ ?b :block/title "") ?t] ${LIVE}]`);
+    const isPage = new Set((await q(`[:find ?u :where [?tag :block/uuid #uuid "${uuid}"] [?b :block/tags ?tag] [?b :block/uuid ?u] [?b :block/name]]`)).map(([u]) => String(u).toLowerCase()));
+    const carrying = [];
+    for (const [u] of rows.sort((a, b) => String(a[1]).localeCompare(String(b[1])))) {
+      const key = String(u).toLowerCase();
+      if (own.has(key) || key === uuid) continue;
+      const tree = isPage.has(key) ? { uuid: key, children: [] } : await blockTree(key);
+      if (tree) carrying.push(tree);
+    }
+    tagged = await sheetNodes(carrying, read, new Set([uuid]), 0);
+    const self = facts.words;
+    for (const n of tagged) { n.tags = n.tags.filter(tag => tag !== self); n.words = n.words.split(` #[[${uuid}]]`).join('').split(`#[[${uuid}]]`).join(''); }
+  }
+  read.words.push(facts.words, ...facts.properties.flatMap(p => p.values.map(v => v.text || '')));
+  return done({ kind: 'page', title: facts.words || String(page.title || page.originalName || ''), tags: facts.tags, properties: facts.properties, nodes, tagged });
+}
+
+G.read = { chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();
