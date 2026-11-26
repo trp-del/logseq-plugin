@@ -238,11 +238,11 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const joined = await page.evaluate(() => { const paths = [...document.querySelectorAll('.lk-map .lk-joins path')]; return [paths.length > 0, paths.every(p => getComputedStyle(p).strokeOpacity === '0.5' && getComputedStyle(p).fill === 'none' && !/L/.test(p.getAttribute('d')))]; });   // the old Ontology's hairlines: one a pair, quiet grey, no heads (the owner, 25 November 2026)
       return is([await page.evaluate(() => location.hash.split('?')[0]), await page.locator('.lk-page-title').innerText(), areas.length > 1, areas[0][0], areas.length > 1 && areas[0][1] === areas[1][1], joined], ['#/lk-ontology', 'Ontology', true, 'Entity', true, [true, true]]);
     });
-    await step('In the sidebar, on that page, opens the outline beside whatever you read: the tags in their own face, then the properties', async () => {
+    await step('In the sidebar, on that page, opens the outline beside whatever you read: the tabs, then the tags in their own face', async () => {
       await page.locator('.lk-map > .lk-side').click(); await wait(2500); await goto(CHEN);   // the outline beside a page, the page of its own left behind
       
-      return is(await page.evaluate(() => { const lists = [...document.querySelectorAll('.lk-ontology > .lk-rel > .lk-list')]; const first = lists[0]?.querySelectorAll('.lk-row'); return [lists.map(l => l.querySelector('.lk-list-name').innerText), [...(first || [])].slice(0, 3).map(r => [r.querySelector('.lk-line').innerText, r.style.getPropertyValue('--lk-depth')]), /New York|serif/.test(getComputedStyle(first[0].querySelector('.lk-words')).fontFamily)]; }),
-        [['Tags', 'Properties'], [['Entity\n24', '0'], ['Organization\n5', '1'], ['Hospital\n3', '2']], true]);
+      return is(await page.evaluate(() => { const lists = [...document.querySelectorAll('.lk-ontology > .lk-rel > .lk-list')]; const first = lists[0]?.querySelectorAll('.lk-row'); return [[...document.querySelectorAll('.lk-ontology > .lk-onto-tabs > .lk-tab')].map(t => t.innerText.trim()), lists.length, [...(first || [])].slice(0, 3).map(r => [r.querySelector('.lk-line').innerText, r.style.getPropertyValue('--lk-depth')]), /New York|serif/.test(getComputedStyle(first[0].querySelector('.lk-words')).fontFamily)]; }),
+        [['Tags', 'Properties', 'History'], 1, [['Entity\n24', '0'], ['Organization\n5', '1'], ['Hospital\n3', '2']], true]);
     });
     await step('nothing opens under a tag in Ontology: a press beside its name selects it, a press on the name goes to its page', async () => {   // the owner, 25 November 2026
       const row = page.locator('.lk-ontology .lk-row', { hasText: /^Hospital/ }).first();
@@ -403,7 +403,22 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-menu .lk-item', { hasText: 'Show its nodes' }).click(); await wait(1500);
       const piece = await page.locator('.lk-search .lk-search-piece').innerText().catch(() => '');
       for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await wait(250); }
-      return is([items.includes('Show its nodes'), items.includes('Put under…'), piece], [true, true, 'Consultation']);
+      return is([items.includes('Show its nodes'), items.includes('Move under…'), piece], [true, true, 'Consultation']);
+    });
+    /* Found by hand, 26 November 2026: a merge is many writes, and its one Undo is that many steps of Logseq's own; a step
+       miscounted leaves part of the merge, or takes back an earlier change. Tick two tags, merge, Undo: all of it is back. */
+    await step('two tags ticked and merged with the row of actions: the nodes go to the kept tag, and one Undo puts every one back', async () => {
+      const state = () => box.frame().evaluate(async () => { const q = s => logseq.DB.datascriptQuery(s); return [(await q('[:find ?a ?w :where [?t :block/tags :logseq.class/Tag] [?t :block/title ?a] [(contains? #{"research" "Report"} ?a)] [?b :block/tags ?t] [?b :block/title ?w]]')).map(r => r.join('>')).sort(), (await q('[:find ?a ?b :where [?t :block/tags :logseq.class/Tag] [?t :block/title ?a] [?t :logseq.property.class/properties ?p] [?p :block/title ?b]]')).map(r => r.join('>')).sort(), (await q('[:find ?a ?b :where [?p :logseq.property/classes ?c] [?p :block/title ?a] [?c :block/title ?b]]')).map(r => r.join('>')).sort()]; });
+      const row = name => page.locator('.lk-ontology .lk-row').filter({ has: page.locator('.lk-words', { hasText: new RegExp(`^${name}$`) }) }).first();
+      const before = await state();
+      await row('research').locator('.lk-tick').click(); await row('Report').locator('.lk-tick').click(); await wait(300);
+      const said = await page.locator('.lk-ontology .lk-onto-acts .lk-said').innerText();
+      await page.locator('.lk-ontology .lk-onto-acts [data-act="merge"]').click(); await wait(1500);
+      const head = await page.locator('.lk-ontology .lk-merge .lk-ask-head').innerText();
+      await page.locator('.lk-ontology .lk-merge [data-do="yes"]').click(); await wait(5000);
+      const merged = [await row('research').count(), (await state())[0].filter(one => one.startsWith('research>')).length];
+      await page.locator('.lk-undo').first().click(); await wait(6000);
+      return is([said, head, merged, await state(), await row('research').count()], ['2 tags picked', 'Merge research into Report', [0, 0], before, 1]);
     });
     await step('a tag\'s values are moved into a new property: shown first, written on the yes, and one Undo puts all of it back', async () => {
       const held = title => box.frame().evaluate(async t => { const G = window.PluginDoor; G.read.forget(); const prop = [...(await G.read.properties()).values()].find(p => p.title === t); return prop ? (await G.read.holders(prop.ident)).length : -1; }, title);

@@ -300,7 +300,7 @@ journal without a question.
 
 Each tag says at its right how many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
 puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline; its right-click menu has
-Show its nodes (Search, with the tag taken), Put under… and Move to the top. A move is written at once and is two steps of
+Show its nodes (Search, with the tag taken), Move under… (the same list as the row of actions) and Move to the top. A move is written at once and is two steps of
 Logseq's Undo. The selected tag shows its lines to the tags it is joined with (and those of the tags under it): a tag is
 joined to another when its nodes hold, under one of your properties, nodes of the other. The lines are drawn as the released
 Ontology drew them: one hairline a pair, in the quiet grey, from the edge of an area at one row to the edge at the other,
@@ -309,12 +309,42 @@ and over the band above the areas when they are further apart.
 
 ### Ontology as a page of its own (`tend/ontology.js`)
 
-The corner opens Ontology as a page: every top tag is an area with the tags under it as an outline, as many areas side
-by side as fit, then the properties. The lines of the selected tag run between the edges of the areas, in
-the gaps and over the band above the areas, never over a name. At the top stand
-the New tag line, **Move values…** (the box, with the property still to choose) and **In the sidebar**, which opens the same
-outline as a section of the right sidebar, for use beside a page you are reading. Everything the outline does, it does in both
-places. Nothing opens under a tag or a property: a press on its name goes to its page (Shift: in the sidebar; Enter too), and a
+The corner opens Ontology as a page. Under its title stand three tabs, as before the rebuild, each an icon and a word, the one
+in force in the ink with a line under it: **Tags**, **Properties** and **History**. Tags shows every top tag as an area with the
+tags under it as an outline, as many areas side by side as fit. The lines of the selected tag run between the edges of the
+areas, in the gaps and over the band above the areas, never over a name. Properties shows your properties by name, each with how
+many nodes hold it. History lists what was changed from Ontology (a move, a merge, a rename, a deletion, a move of values),
+newest first, each with its day and time, kept on this computer for 30 days; "Nothing has been changed yet." when there is
+nothing. Under the tabs stand the New tag line (on Tags), **Move values…** (the box, with the property still to choose) and
+**In the sidebar**, which opens the same outline as a section of the right sidebar, for use beside a page you are reading.
+Everything the outline does, it does in both places, the tabs, the tick boxes and the row of actions included; each place keeps
+its own tab and its own ticks.
+
+**Tick boxes and the row of actions.** Every tag and every property has a tick box before it, in one column at the area's left
+edge whatever its depth, faint until it is ticked or pointed at; Space ticks the row the keys are on, Escape lets every tick
+go, and a ticked row is lit. Above the rows stands the row of actions, its presses waiting faintly until they can be pressed:
+"Tick tags, then" (with ticks, "2 tags picked"), **Merge…** (two or more), **Move up a level** (not at the top), **Move
+under…**, **Rename** (one), **Delete** (in red; only tags with no nodes and no child tags) and a × that lets the ticks go. On
+Properties: "Tick properties, then", **Merge…** and **Rename**. Each is written at once and Logseq's own Undo takes it back,
+the faded arrow standing after the row it changed (at the bottom right where the row is gone):
+- Move up a level puts each ticked tag under the tag above its own, or at the top; Move under… opens your tags as an outline
+  with a find line, the ticked tags and those under them left out, and "The top" at its end.
+- Rename turns the row's name into a field, underlined, the name selected: Enter writes it (Logseq refuses a name another tag
+  or property has, and says so), Escape or a press elsewhere leaves it.
+- Delete asks under the row, with a red Delete and Cancel.
+- Merge… opens a box under the row of actions that says the change once: "Merge test into Hospital", the tags as tags, then up
+  to four of the nodes as they will read, the tag that goes struck through in red and the kept one in green, then "1 node ·
+  links to the tag follow". The tag with the most nodes is kept; "Keep the other name" (with more than two, "Keep another
+  name…") keeps another. Merge (or Enter) writes it, Cancel (or Escape) leaves it. Every node of the merged tag gets the kept
+  tag, its child tags go under the kept tag, its properties are given by the kept tag, the properties whose values had to be it
+  take the kept tag instead, values and links in the words that pointed at it point at the kept tag, the bullets on its page
+  move to the kept tag's page, and then it is deleted. Merging properties moves the values of the others into the kept one (the
+  one most nodes hold) and has the tags that gave them give it, shown first as Move values shows a move; where the kept property
+  takes one value and a node would get a second, that node keeps its own and the box says how many. The merged property stays,
+  empty, as before the rebuild. One Undo takes the whole merge back. A tag that Logseq deletes and its Undo brings back comes back
+  also under Logseq's own Root Tag.
+
+Nothing opens under a tag or a property: a press on its name goes to its page (Shift: in the sidebar; Enter too), and a
 press beside the name, or the arrow keys, selects the row, which shows a tag's lines until another row is selected. Tab and
 Shift-Tab move the selected tag (one move at a time: a second key waits for the first to show); the right-click menu is the
 same in both places.
@@ -350,10 +380,10 @@ that kind's own line.
 
 ### Ontology (`tend/ontology.js`)
 
-**Ontology in the sidebar** in the command palette, or **In the sidebar** on Ontology's page, opens a section of the right sidebar: your tags as an outline,
-each under the tag it sits under, then your properties by name. A tag and a property are nodes like any other, so a row opens
+**Ontology in the sidebar** in the command palette, or **In the sidebar** on Ontology's page, opens a section of the right sidebar
+with the same three tabs: your tags as an outline, each under the tag it sits under; your properties by name; History. A tag and a property are nodes like any other, so a row opens
 in place as Logseq's own page for it. There its name is renamed, and Logseq's own arrow beside the name unfolds what it keeps:
-the tag it extends, its properties, a property's kind and what it takes. Ontology itself writes nothing.
+the tag it extends, its properties, a property's kind and what it takes. What Ontology itself writes is its row of actions, its moves and Move values.
 
 ### Update plugins (`beside/update.js`, its words in `core/update.js`)
 
@@ -383,7 +413,7 @@ read is refused, never guessed. The part can be switched off in the plugin's set
 
 ## What it writes
 
-Only what you do: a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet, and what is changed from Alfred (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a tag, a status). Each is one of Logseq's own editor calls, so
+Only what you do: in Ontology a tag moved, merged, renamed or deleted, properties merged or renamed, and values moved; a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet, and what is changed from Alfred (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a tag, a status). Each is one of Logseq's own editor calls, so
 **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
 window's local storage and nothing else.
 

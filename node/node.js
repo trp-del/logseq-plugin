@@ -8,7 +8,9 @@
                                                  event) -> true when the place takes a press on a line itself, few (rows before Show
                                                  all), none (words to say when there is nothing), add: true where a property's
                                                  list has a + that opens the line to type a new node in (node/add.js), key(row, event) -> true when the place takes a key
-                                                 on a line, more(row) -> the place's own lines for a row's menu. Gives back { off(), again() }
+                                                 on a line, more(row) -> the place's own lines for a row's menu, ticks: { on(row), has(uuid), flip(uuid, row, ticked) } where a
+                                                 place lets its rows be ticked: on(row) whether the row has a tick box, has(uuid)
+                                                 whether it is ticked, flip(...) told of a press on one. Gives back { off(), again() }
      G.node.adder(holder, name, add, failed)     a line at the head of holder that adds (a task, a tag); gives back what removes it
      G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away */
 (function () {
@@ -144,7 +146,7 @@ const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null, offDigs = null;
 function listing(el, read, opts = {}) {
-  const state = { el, read, all: new Set(), turn: 0, hits: 0, draft: null, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
+  const state = { el, read, all: new Set(), turn: 0, hits: 0, draft: null, ticks: opts.ticks || null, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
   state.redraw = () => { if (state.last && el.isConnected) draw(state, ...state.last); };
   state.again = () => load(state);
   mounted.set(el, state);
@@ -282,14 +284,16 @@ function draw(state, made, names, statuses) {
       if (item.type !== 'row') { G.listview.paint(el, item, today); return; }
       const row = item.row;
       el.dataset.uuid = row.uuid; el.dataset.status = row.status || ''; el.dataset.page = row.isPage ? '1' : '';
-      el.classList.toggle('lk-faint', !!item.faint); el.classList.toggle('lk-fresh', !!(state.view?.since && (row.made || 0) > state.view.since)); el.classList.toggle('lk-picked', !!item.picked);
+      el.classList.toggle('lk-faint', !!item.faint); el.classList.toggle('lk-fresh', !!(state.view?.since && (row.made || 0) > state.view.since));
       el.style.setProperty('--lk-depth', String(row.depth || 0));   // an outline's row stands in by its depth
       const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
       if (dayEl.textContent !== day) dayEl.textContent = day;
       dayEl.classList.toggle('lk-late', !!(day && row.late));
       dayEl.title = day ? (row.dayFrom || 'The day it was written') : '';
       let tick = el.querySelector(':scope > .lk-tick');
-      if (item.picking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = !!item.picked; } else tick?.remove();
+      const ticking = item.picking || !!state.ticks?.on(row), ticked = item.picking ? !!item.picked : !!state.ticks?.has(row.uuid);
+      el.classList.toggle('lk-picked', ticked);
+      if (ticking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = ticked; } else tick?.remove();
       const want = made?.finding ? G.search.tokens(state.view.find.words) : [];
       const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
       if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
@@ -349,6 +353,7 @@ function handle(state, event) {
   if (plus) { if (event.type === 'click') { event.preventDefault(); event.stopPropagation(); G.adding.start(state, plus.closest('.lk-list'), plus.closest('.lk-group-head')?.lkGroup || null); } return; }
   if (event.type === 'mousedown') { if (event.shiftKey && target.closest('.lk-line')) event.preventDefault(); return; }   // Shift-click opens beside: it selects no words on its way
   if (state.view && G.pick.act(state, event)) { event.stopPropagation(); return; }
+  if (state.ticks && row && event.type === 'click' && target.matches('.lk-row > .lk-tick')) { event.stopPropagation(); row.classList.toggle('lk-picked', target.checked); state.ticks.flip(row.dataset.uuid, row, target.checked); return; }
   if (state.view && G.timeline.act(state, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'click' && state.press && target.closest('.lk-line') && !target.closest('.lk-status, a[data-to], .lk-url') && state.press(row, event)) { event.stopPropagation(); return; }
   if (row && event.type === 'keydown' && state.key && target.matches('.lk-line') && state.key(row, event)) { event.preventDefault(); event.stopPropagation(); return; }

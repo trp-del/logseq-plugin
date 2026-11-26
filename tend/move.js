@@ -115,6 +115,8 @@ ${!made.refused && made.kept ? `<div class="lk-ask-note">${made.kept} ${made.kep
         if (row.goes.length) await G.write.setValues(row.uuid, fromProp.ident, [], {});
       }
       G.read.forget();
+      const n = record.rows.reduce((sum, row) => sum + row.comes.length, 0);
+      if (n) G.tending?.did([['', `${state.remove ? 'Moved' : 'Copied'} ${n} ${n === 1 ? 'value' : 'values'} from `], ['prop', fromProp.title], ['', ' into '], ['prop', into.title]]);   // a line in Ontology's History
     } catch (error) { G.say(`The values could not all be moved: ${error?.message || 'Logseq refused'}. What was written can be put back with Undo.`, 'warning'); }
     close();
   };

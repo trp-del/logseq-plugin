@@ -40,6 +40,11 @@
      read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words }], words as a person reads them
      read.holds(id)           what one node holds under each of the person's properties: ident -> [{ raw, text, uuid }]
      read.choices()           the set choices of the person's properties: ident -> [{ raw, text }], in Logseq's order
+     read.reach(id)           what a tag or a property reaches, for a merge: { tagged: [uuid] the nodes holding it as a tag,
+                              named: [{ uuid, words }] bullets whose words link it, words raw as Logseq keeps them,
+                              held: [{ uuid, ident, raws }] nodes holding it under one of the person's properties,
+                              bullets: [uuid] the bullets on its own page, outermost only, props: [id] the properties it gives
+                              its nodes, ranges: [{ uuid, ids }] the node properties whose values must hold it }
    Deleted nodes, and nodes on deleted pages, are never answered. */
 (function () {
 const G = window.PluginDoor, W = G.words, D = G.days;
@@ -438,6 +443,21 @@ async function recent(n = 8) {
 const pageNames = () => once('pageNames', async () => (await q(`[:find ?b ?u ?title :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/title ?title] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) ${LIVE}]`))
   .map(([id, uuid, title]) => ({ id, uuid: String(uuid).toLowerCase(), title: String(title) })).filter(page => page.title));
 
+async function reach(id) {
+  if (!isId(id)) return { tagged: [], named: [], held: [], bullets: [], props: [], ranges: [] };
+  const [tagged, named, held, bullets, props, ranges] = await Promise.all([
+    q(`[:find ?u :where [?b :block/tags ${id}] [?b :block/uuid ?u] ${LIVE}]`),
+    q(`[:find ?u ?t :where [?b :block/refs ${id}] [?b :block/page _] [?b :block/title ?t] [?b :block/uuid ?u] ${LIVE}]`),
+    q(`[:find ?u ?attr :where [?b ?attr ${id}] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")] [?b :block/uuid ?u] ${LIVE}]`),
+    q(`[:find ?u ?o :where [?b :block/page ${id}] [?b :block/parent ${id}] [?b :block/uuid ?u] [(get-else $ ?b :block/order "") ?o]]`),
+    q(`[:find ?p :where [${id} :logseq.property.class/properties ?p]]`),
+    q(`[:find ?pu :where [?p :logseq.property/classes ${id}] [?p :block/uuid ?pu]]`),
+  ]);
+  const rangeOf = await Promise.all(ranges.map(async ([u]) => ({ uuid: String(u), ids: (await q(`[:find ?c :where [?p :block/uuid #uuid "${String(u)}"] [?p :logseq.property/classes ?c]]`)).map(([c]) => c) })));
+  const heldRaws = await Promise.all(held.map(async ([u, attr]) => ({ uuid: String(u), ident: bare(attr), raws: (await q(`[:find ?v :where [?b :block/uuid #uuid "${String(u)}"] [?b ${String(attr).startsWith(':') ? attr : ':' + attr} ?v]]`)).map(([v]) => v) })));
+  return { tagged: tagged.map(([u]) => String(u)), named: named.map(([u, t]) => ({ uuid: String(u), words: String(t) })), held: heldRaws,
+    bullets: bullets.sort((a, b) => (String(a[1]) < String(b[1]) ? -1 : 1)).map(([u]) => String(u)), props: props.map(([p]) => p), ranges: rangeOf };
+}
 async function folded(uuids) {
   const out = new Map(), roots = await q(`[:find ?u ?r ?pg :where ${amongUuids('?u', uuids)} [?r :block/uuid ?u] [?r :block/page ?pg]]`);
   if (!roots.length) return out;
@@ -467,5 +487,5 @@ async function folded(uuids) {
   return out;
 }
 
-G.read = { folded, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { reach, folded, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

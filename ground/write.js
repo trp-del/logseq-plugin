@@ -12,12 +12,17 @@
      write.untag(uuid, tag)         one of the person's tags taken off a node
      write.tag(uuid, tag)           one of the person's tags put on a node
      write.newProperty(title, type, many, range)  a property of the person's own; answers { ident, uuid }
-     write.setValues(uuid, ident, raws, { ref, many })  what a node holds under a property, set to exactly these
+     write.setValues(uuid, ident, raws, { ref, many, fresh })  what a node holds under a property, set to exactly these (fresh:
+                                    it holds nothing there yet, so nothing is taken off first and the write is one step of Undo)
      write.dropProperty(uuid)       a property removed, by its page
      write.moveTag(uuid, to, from)  a tag put under another (to) or at the top (''), and taken from under the tags in from
      write.addNode(tag, ident, id, { words, page })  a new bullet (on today's journal, or at a page's end), tagged, pointing at
                                     node id through a property; answers { uuid, steps }
      write.placeTag(uuid, under)    a tag put under another tag (in place of where it sat)
+     write.rename(uuid, name)       a tag's or a property's name (its page's title), as Logseq's own title renames it
+     write.tagProperties(uuid, ids) the properties a tag gives its nodes, set to exactly these (property ids)
+     write.range(uuid, ids)         the tags a node property's values hold, set to exactly these (tag ids)
+     write.toPage(uuid, page)       a bullet, with what is under it, moved onto another page
      write.setText(uuid, ident, value), setDay(uuid, ident, day), clear(uuid, ident), newPage(name, tag)
                                     words or a number, a day, nothing at all under a property; a new page, tagged
      write.setWords(uuid, words)    a bullet's words, written as typed: Logseq makes [[a name]] a link and #Name a tag
@@ -74,11 +79,11 @@ G.write = {
     return made;
   },
   // What a node holds under a property, set to exactly these values (raw, as read.holders answers them); none clears it.
-  async setValues(uuid, ident, raws, { ref = false, many = false } = {}) {
+  async setValues(uuid, ident, raws, { ref = false, many = false, fresh = false } = {}) {
     if (!/^user\.property\/[\w.-]+$/.test(String(ident))) throw new Error('a value is written under one of your properties');
-    await logseq.Editor.removeBlockProperty(sure(uuid), ident);
+    if (!fresh) await logseq.Editor.removeBlockProperty(sure(uuid), ident);
     if (!raws.length) return;
-    await logseq.Editor.upsertBlockProperty(uuid, ident, many ? raws : raws[0], ref ? { entityId: true } : {});
+    await logseq.Editor.upsertBlockProperty(sure(uuid), ident, many ? raws : raws[0], ref ? { entityId: true } : {});
   },
   dropProperty: uuid => logseq.Editor.deletePage(sure(uuid)),   // Logseq lets a plugin remove only its own properties by name; a property's page it deletes like any page
   // A tag moved: put under another tag (to), or to the top (to: ''), and taken from under the ones it sat under (from).
@@ -148,6 +153,13 @@ G.write = {
     return String(made.uuid);
   },
   placeTag: (uuid, under) => logseq.Editor.addTagExtends(sure(uuid), sure(under)),
+  // Logseq refuses a name another tag or property already has, and says so: the refusal is the answer.
+  rename(uuid, name) { const title = String(name || '').trim(); if (!title) throw new Error('a name is needed'); return logseq.Editor.renamePage(sure(uuid), title); },
+  /* Logseq's own call for a tag's properties takes only a plugin's tags ("Not a valid tag"), so the list is written whole, as
+     Logseq's own tag page writes it when a property is added there. */
+  tagProperties(uuid, ids) { if (!ids.every(id => Number.isSafeInteger(id) && id > 0)) throw new Error('a tag is given properties by their ids'); if (!ids.length) return logseq.Editor.removeBlockProperty(sure(uuid), 'logseq.property.class/properties'); return logseq.Editor.upsertBlockProperty(sure(uuid), 'logseq.property.class/properties', ids, { entityId: true }); },
+  range(uuid, ids) { if (!ids.every(id => Number.isSafeInteger(id) && id > 0)) throw new Error('a property takes tags by their ids'); return logseq.Editor.setPropertyNodeTags(sure(uuid), ids); },
+  toPage: (uuid, page) => logseq.Editor.moveBlock(sure(uuid), sure(page), { children: true }),
   // A new, empty line at the end of what a node keeps under it; answers its uuid.
   async addLine(uuid, isPage) { const made = isPage ? await logseq.Editor.appendBlockInPage(sure(uuid), '') : await logseq.Editor.insertBlock(sure(uuid), '', { sibling: false }); return String(made?.uuid || ''); },
   // Logseq's Recycle: a page or a bullet brought back, or deleted for good (which nothing takes back). Logseq's own two calls.
