@@ -475,7 +475,7 @@ G.node.CSS = `
 .lk-row > .lk-open { background: color-mix(in srgb, var(--lk-text) 3.5%, transparent); border-radius: var(--lk-corner); padding: 0 8px 6px 0; }
 /* A line down the left side of the node opened from a row, from under its own line to its foot, as before 0.9. */
 .lk-row > .lk-open::before { content: ""; position: absolute; left: 9px; top: 28px; bottom: 8px; width: 1px; background: var(--lk-line); pointer-events: none; }
-.lk-dugopen { position: absolute; right: 0; margin: 0; padding: 0 0 6px; opacity: 0; pointer-events: none; }
+.lk-dugopen { position: absolute; right: 0; margin: 0; padding: 0 0 6px; opacity: 0; pointer-events: none; container: lk-list / inline-size; }   /* a dug node is measured by its own width, so where it is narrow its rows take the narrow layout (name over value) */
 .lk-dugopen[data-whole] { opacity: 1; pointer-events: auto; transition: opacity .16s ease .04s; }
 .lk-dugopen.lk-flow { position: relative; margin: 2px 0 6px 28px; }
 .lk-dugopen::before { content: ""; position: absolute; left: -11px; top: 1px; bottom: 8px; width: 1px; background: var(--lk-line); }
