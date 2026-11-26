@@ -164,6 +164,8 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       return is(got, [['kind', 'Provider', 'when'], ['Near'], true]);
     });
     await step('a press on a found line goes to it in the main view; Escape empties the line', async () => {
+      // The step before closed Search, so it is opened and asked again here.
+      await page.keyboard.press('Meta+k'); await wait(1200); await page.keyboard.press('Meta+a'); await page.keyboard.type('chen', { delay: 30 }); await wait(1800);
       await page.locator('.lk-search .lk-row', { hasText: 'Dr. Mei Chen' }).first().locator('.lk-words').click(); await wait(1500);
       const went = await page.evaluate(() => location.hash.includes('1a000000-0000-4000-8000-00000000000e'));
       await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Escape'); await wait(500);
