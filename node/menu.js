@@ -60,6 +60,7 @@ function make(at, items, opts, parent) {
     else if (event.key === 'ArrowDown') all[(now + 1) % all.length]?.focus();
     else if (event.key === 'ArrowUp') all[(now - 1 + all.length) % all.length]?.focus();
     else if (event.key === 'ArrowRight' && all[now]?.classList.contains('lk-has-sub')) openSub(all[now], true);
+    else if (event.key === 'Enter' && now >= 0) take(all[now]);   // taken here: Logseq's own keys would keep Enter from a press on the line
     else if (event.key === 'Tab') done();
     else return;
     event.preventDefault(); event.stopPropagation();

@@ -716,6 +716,14 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1200);
       return is([...kept, ...gone], [true, '856px', false, true]);
     });
+    await step('Enter takes the line the arrows are on, in a list of the export window', async () => {   // seen by hand, 26 November 2026: Enter did nothing
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300);
+      await page.locator('.lk-menu .lk-item', { hasText: 'A4' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
+      const took = [await count('.lk-menu'), await page.locator('.lk-xp [data-pick="paper"]').innerText().then(t => /A4/.test(t))];
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300);   // back to Letter, which the steps after this expect
+      await page.locator('.lk-menu .lk-item', { hasText: 'Letter' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
+      return is(took, [0, true]);
+    });
     await step('Escape closes an open list first, then the export window', async () => {
       await page.locator('.lk-xp [data-pick="margins"]').click(); await wait(300); await page.keyboard.press('Escape'); await wait(300);
       const first = [await count('.lk-menu'), await count('.lk-xp')];
