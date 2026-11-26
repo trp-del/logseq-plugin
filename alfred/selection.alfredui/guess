@@ -1,0 +1,3 @@
+#!/bin/zsh
+# The Add panel's guess: answered by logseq.js (panel-guess), in Alfred UI's JSON.
+exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-guess "$@"

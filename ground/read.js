@@ -32,6 +32,9 @@
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
      read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
+     read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words }], words as a person reads them
+     read.holds(id)           what one node holds under each of the person's properties: ident -> [{ raw, text, uuid }]
+     read.choices()           the set choices of the person's properties: ident -> [{ raw, text }], in Logseq's order
    Deleted nodes, and nodes on deleted pages, are never answered. */
 (function () {
 const G = window.PluginDoor, W = G.words, D = G.days;
@@ -360,5 +363,63 @@ async function pageNamed(name) {
   const lost = new Set(gone.map(([u]) => String(u))), live = found.map(([u]) => String(u)).find(u => !lost.has(u));
   return live ? { uuid: live.toLowerCase(), gone: false } : { uuid: String(found[0][0]).toLowerCase(), gone: true };
 }
-G.read = { pageNamed, recycled, held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+/* A node's bullets as an outline, in the order they stand: [{ id, uuid, depth, words }]. words are as a person reads them: a link
+   as [[the node's name]], which is also what Logseq takes back when the words are written again. */
+async function outline(uuid, isPage) {
+  if (!UUID.test(String(uuid || ''))) return [];
+  let top = [];
+  try { top = isPage ? await logseq.Editor.getPageBlocksTree(uuid) : (await logseq.Editor.getBlock(uuid, { includeChildren: true }))?.children; } catch (error) { top = []; }
+  const out = [], inOrder = (a, b) => (String(a.order || '') < String(b.order || '') ? -1 : String(a.order || '') > String(b.order || '') ? 1 : 0);
+  const walk = (blocks, depth) => { for (const block of (Array.isArray(blocks) ? blocks : []).filter(one => one && one.uuid && isId(one.id)).sort(inOrder)) { out.push({ id: block.id, uuid: String(block.uuid).toLowerCase(), depth, words: String(block.fullTitle ?? block.title ?? '') }); walk(block.children, depth + 1); } };
+  walk(top, 0);
+  if (!out.length) return out;
+  // The words a property holds are a block of their own to Logseq, kept under the node: they are a value, not a bullet.
+  const values = new Set((await q(`[:find ?b :where ${among('?b', out.map(line => line.id))} [?b :logseq.property/created-from-property _]]`)).map(([b]) => b));
+  if (!values.size) return out;
+  const kept = [];
+  for (let i = 0; i < out.length; i++) {
+    if (!values.has(out[i].id)) { kept.push(out[i]); continue; }
+    const depth = out[i].depth;
+    while (i + 1 < out.length && out[i + 1].depth > depth) i++;
+  }
+  return kept;
+}
+/* What a node holds under each of the person's properties: ident -> [{ raw, text, uuid }]. raw is what is written to give a node
+   the same value (the id of a node, a day or a set choice; a number; words; true or false). uuid is set where the value is a node
+   or a day, so that it can be gone to. (held(ids), above, answers the words alone, by the property's name, for many nodes.) */
+async function holds(id) {
+  const out = new Map();
+  if (!isId(id)) return out;
+  const [rows, known] = await Promise.all([q(`[:find ?a ?v :where [${id} ?a ?v] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")]]`), schema()]);
+  const ids = [...new Set(rows.map(([, v]) => v).filter(v => isId(v) && v < STAMP))];
+  const [titles, numbers, picked] = ids.length ? await Promise.all([
+    q(`[:find ?v ?u ?t ?d :where ${among('?v', ids)} [?v :block/uuid ?u] [(get-else $ ?v :block/title "") ?t] [(get-else $ ?v :block/journal-day 0) ?d]]`),
+    q(`[:find ?v ?n :where ${among('?v', ids)} [?v :logseq.property/value ?n]]`), q(`[:find ?v :where ${among('?v', ids)} [?v :block/closed-value-property _]]`)]) : [[], [], []];
+  const about = new Map(titles.map(([v, u, t, d]) => [v, { uuid: String(u).toLowerCase(), title: String(t ?? ''), day: Number(d) || 0 }])), number = new Map(numbers), choice = new Set(picked.map(([v]) => v));
+  for (const [attr, v] of rows) {
+    const ident = bare(attr), type = known.props.get(ident)?.type || 'default', it = about.get(v);
+    const value = type === 'checkbox' ? { raw: v === true, text: v === true ? 'Yes' : 'No' }
+      : type === 'datetime' && typeof v === 'number' ? { raw: v, text: D.short(dayOfTime(v)) }
+      : type === 'node' || type === 'date' ? { raw: v, text: (type === 'date' && it?.day ? D.short(it.day) : '') || it?.title || '', uuid: it?.uuid || '' }
+      : number.has(v) ? { raw: number.get(v), text: String(number.get(v)) }
+      : it ? { raw: choice.has(v) ? v : it.title, text: it.title } : { raw: v, text: String(v) };
+    if (!out.has(ident)) out.set(ident, []);
+    out.get(ident).push(value);
+  }
+  for (const values of out.values()) values.sort((a, b) => String(a.text).localeCompare(String(b.text)));
+  return out;
+}
+// The set choices of the person's properties, in the order Logseq lists them: ident -> [{ raw, text }], raw the choice's id.
+async function choices() {
+  const rows = await q('[:find ?i ?v ?t ?o :where [?v :block/closed-value-property ?p] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [(get-else $ ?v :block/title "") ?t] [(get-else $ ?v :block/order "") ?o]]');
+  const numbers = new Map(rows.length ? await q(`[:find ?v ?n :where ${among('?v', rows.map(([, v]) => v))} [?v :logseq.property/value ?n]]`) : []), out = new Map();
+  for (const [ident, v, title, order] of [...rows].sort((a, b) => (String(a[3]) < String(b[3]) ? -1 : String(a[3]) > String(b[3]) ? 1 : a[1] - b[1]))) {
+    const key = bare(ident);
+    if (!out.has(key)) out.set(key, []);
+    out.get(key).push({ raw: v, text: String(title) || String(numbers.get(v) ?? '') });
+  }
+  return out;
+}
+
+G.read = { pageNamed, outline, holds, choices, recycled, held, where, firstLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

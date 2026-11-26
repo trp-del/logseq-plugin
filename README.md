@@ -18,7 +18,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
-| Beside the stack | `beside/` | Update plugins: two keys have Logseq load the plugins it loads from a folder again, so they run what their folders hold now. |
+| Beside the stack | `beside/` | Update plugins: two keys have Logseq load the plugins it loads from a folder again, so they run what their folders hold now. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -344,9 +344,20 @@ palette, has Logseq load every plugin it loads from a folder again, this one las
 in a bullet, and can be changed in Logseq's own keyboard settings. Plugins that Logseq installed itself are left alone: Logseq
 updates those from its plugins page. Nothing is fetched from anywhere: the key loads what the folder holds.
 
+### Alfred (`beside/outside.js`, `ground/outside.js`, `alfred/`)
+
+The Alfred workflow in `alfred/` (its own README says what its panels do) asks the plugin through Logseq's HTTP APIs server,
+which must be switched on in Logseq's settings. The plugin answers by name: `find` (Logseq's own search), `node` (a node
+whole: its name and tags, each property its tags give it with what it holds and its set choices, its bullets as an outline,
+and what points at it, as Relations lists it), `candidates` (what a node property can hold), `tags`, `markdown` (a bullet
+with those under it, or a node whole, written by `core/markdown.js`), and one name for each change: `setWords`, `newBullet`,
+`move`, `remove`, `setValue`, `tag`, `status`, `undo`. Every change answers the node read afresh and how many steps of
+Logseq's Undo it took. A day typed as words ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot
+read is refused, never guessed. The part can be switched off in the plugin's settings like any other.
+
 ## What it writes
 
-Only what you do: a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet. Each is one of Logseq's own editor calls, so
+Only what you do: a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet, and what is changed from Alfred (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a tag, a status). Each is one of Logseq's own editor calls, so
 **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
 window's local storage and nothing else.
 

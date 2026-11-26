@@ -301,3 +301,25 @@ test('a node found by what it holds under a property says which property, from t
   assert.deepEqual(found.map(row => [row.uuid, row.hits.map(hit => hit.name)]).sort(), [['a', ['Charged by']], ['b', []]]);
   assert.equal(view.shape(list, {}, { words: 'sh', upTo: 0 }, 20261125).rows.some(row => row.hits), false);
 });
+
+test('a day as it is typed is read into Logseq\'s number, and nothing is guessed', () => {
+  const today = 20261125;
+  assert.equal(days.typed('today', today), 20261125);
+  assert.equal(days.typed('Tomorrow', today), 20261126);
+  assert.equal(days.typed('2026-11-18', today), 20261118);
+  assert.equal(days.typed('nov 18', today), 20261118);
+  assert.equal(days.typed('18 November', today), 20261118);
+  assert.equal(days.typed('November 18th, 2025', today), 20251118);
+  assert.equal(days.typed('feb 30', today), 0);
+  assert.equal(days.typed('next week', today), 0);
+  assert.equal(days.typed('ma 3', today), 0);
+});
+test('a node is written as Markdown: its name, its tags, what it holds, then its bullets', () => {
+  const markdown = require('../core/markdown.js');
+  const lines = [{ depth: 0, words: 'Fatigue worse, ask [[Dr. Mei Chen]]' }, { depth: 1, words: 'Sleeping ten hours\nstill tired' }, { depth: 0, words: 'Book the test', task: 'open' }, { depth: 0, words: 'Paid #[[Side effect]]', task: 'done' }];
+  assert.equal(markdown.page({ title: 'Saw [[Dr. Mei Chen]]', tags: ['Consultation'], properties: [{ name: 'Provider', values: ['Dr. Mei Chen'] }, { name: 'Follow-up', values: [] }], lines }),
+    '# Saw Dr. Mei Chen\n#Consultation\n\nProvider: Dr. Mei Chen\n\n- Fatigue worse, ask Dr. Mei Chen\n  - Sleeping ten hours\n    still tired\n- [ ] Book the test\n- [x] Paid #Side-effect');
+  // A bullet copied from deep in an outline starts at the margin.
+  assert.equal(markdown.outline([{ depth: 2, words: 'deep one' }, { depth: 3, words: 'under it' }]), '- deep one\n  - under it');
+  assert.equal(markdown.page({ title: 'Empty' }), '# Empty');
+});

@@ -21,6 +21,14 @@
      write.placeTag(uuid, under)    a tag put under another tag (in place of where it sat)
      write.setText(uuid, ident, value), setDay(uuid, ident, day), clear(uuid, ident), newPage(name, tag)
                                     words or a number, a day, nothing at all under a property; a new page, tagged
+     write.setWords(uuid, words)    a bullet's words, written as typed: Logseq makes [[a name]] a link and #Name a tag
+     write.addBullet(at, words, where)  a new bullet with these words: after the bullet at (the default), as its last bullet
+                                    ({ under: true }), or at the end of the page at ({ page: true }); answers its uuid
+     write.moveIn(uuid)             a bullet set in under the bullet before it; write.moveOut(uuid) sets it out, after the one it
+                                    sat under. Each answers how many writes it took (0: there was nowhere to move it)
+     write.setValue(uuid, ident, raw, { ref })  one value under a property, in place of what stood there
+     write.clearValue(uuid, ident)  nothing left under a property
+     write.day(day)                 a day's journal page, made if there is none; answers its uuid
      write.undo()                   Logseq's Undo */
 (function () {
 const G = window.PluginDoor;
@@ -103,6 +111,44 @@ G.write = {
     if (tag) await logseq.Editor.addBlockTag(sure(made), sure(tag));
     await logseq.Editor.upsertBlockProperty(sure(made), ident, id, { entityId: true });
     return { uuid: made, steps: tag ? 3 : 2 };
+  },
+  setWords: (uuid, words) => logseq.Editor.updateBlock(sure(uuid), String(words ?? '')),
+  async addBullet(at, words, { under = false, page = false } = {}) {
+    const text = String(words ?? '');
+    const made = page ? await logseq.Editor.appendBlockInPage(sure(at), text) : await logseq.Editor.insertBlock(sure(at), text, { sibling: !under });
+    return String(made?.uuid || '');
+  },
+  // Set in as Logseq's Tab does: the last bullet under the one before it.
+  async moveIn(uuid) {
+    const before = await logseq.Editor.getPreviousSiblingBlock(sure(uuid));
+    if (!before?.uuid) return 0;
+    const last = ((await logseq.Editor.getBlock(before.uuid, { includeChildren: true }))?.children || []).filter(one => one && one.uuid).sort((a, b) => (String(a.order || '') < String(b.order || '') ? -1 : 1)).pop();
+    if (last) await logseq.Editor.moveBlock(uuid, last.uuid, { before: false });
+    else await logseq.Editor.moveBlock(uuid, before.uuid, { children: true });
+    return 1;
+  },
+  // Set out as Logseq's Shift-Tab does: the bullet after the one it sat under.
+  async moveOut(uuid) {
+    const block = await logseq.Editor.getBlock(sure(uuid)), above = block?.parent?.id && block.parent.id !== block.page?.id ? await logseq.Editor.getBlock(block.parent.id) : null;
+    if (!above?.uuid) return 0;
+    await logseq.Editor.moveBlock(uuid, above.uuid, { before: false });
+    return 1;
+  },
+  setValue(uuid, ident, raw, { ref = false } = {}) {
+    if (!/^user\.property\/[\w.-]+$/.test(String(ident))) throw new Error('a value is written under one of your properties');
+    return logseq.Editor.upsertBlockProperty(sure(uuid), ident, raw, ref ? { entityId: true } : {});
+  },
+  clearValue(uuid, ident) {
+    if (!/^user\.property\/[\w.-]+$/.test(String(ident))) throw new Error('a value is cleared under one of your properties');
+    return logseq.Editor.removeBlockProperty(sure(uuid), ident);
+  },
+  async day(day) {
+    if (!G.days.valid(day)) throw new Error('that is no day');
+    const found = await G.read.journal(day);
+    if (found) return found;
+    const made = await logseq.Editor.createJournalPage(new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100));
+    if (!UUID.test(String(made?.uuid || ''))) throw new Error('that day’s journal could not be made');
+    return String(made.uuid);
   },
   placeTag: (uuid, under) => logseq.Editor.addTagExtends(sure(uuid), sure(under)),
   // A new, empty line at the end of what a node keeps under it; answers its uuid.
