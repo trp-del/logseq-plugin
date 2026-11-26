@@ -150,17 +150,17 @@ a.lk-tag:hover { color: var(--lk-text); }
 .lk-row:is(:hover, :focus-within) > .lk-line > input.lk-tick, .lk-line > input.lk-tick:checked { opacity: 1; }
 .lk-why { color: var(--lk-quiet); font-size: var(--lk-small); margin-left: .35em; }
 .lk-tell { margin-left: 6px; color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }
-.lk-dayin { flex: none; width: var(--lk-dayin, 54px); margin: 0 2px 0 6px; overflow: hidden; white-space: nowrap; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
+.lk-dayin { flex: none; line-height: 1; width: var(--lk-dayin, 54px); margin: 0 2px 0 6px; overflow: hidden; white-space: nowrap; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-words > .lk-tag { margin-left: 4px; }
-/* A run in another face or size inside the words (a tag, a value said after them, "no Topic?") keeps to the words' own line:
-   it takes no more height than they do, so every row is one height, tagged or not. */
+/* A run in another face or size inside the words (a tag, a value said after them, "no Topic?"), and the day and the count
+   beside them, keep to the words' own line: they take no more height than the words do, so every row is one height. */
 .lk-words :is(.lk-tag, .lk-why, .lk-tell, .lk-lacks) { line-height: 1; }
 .lk-lacks { appearance: none; border: 0; background: none; padding: 0; margin-left: .35em; font: inherit; font-size: var(--lk-small); color: var(--lk-off); cursor: pointer; }
 .lk-lacks:hover, .lk-lacks:focus-visible { color: var(--lk-text); outline: none; }
 .lk-sits { display: block; font-size: var(--lk-small); line-height: 18px; color: var(--lk-off); margin: -2px 0 2px; }
 .lk-sits a.lk-step { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-hair); text-underline-offset: 3px; }
 .lk-sits a.lk-step:hover { color: var(--lk-text); }
-.lk-num { flex: none; margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; }
+.lk-num { flex: none; line-height: 1; margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; }
 /* In a narrow place (the sidebar) the words get the whole width: the day stands under them, an outline steps in less, and an
    opened node takes the width of the list. */
 @container lk-list (max-width: 300px) {

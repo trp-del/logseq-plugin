@@ -205,8 +205,8 @@ G.listview.CSS = `
 .lk-tabs { display: contents; }
 .lk-list-name > .lk-tabs > * { margin-right: 24px; }
 .lk-list-name > .lk-tabs > :last-child { margin-right: 0; }
-.lk-head-do { flex: none; display: inline-flex; align-items: center; gap: 12px; height: 24px; margin-left: 8px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
-.lk-tab { appearance: none; position: relative; border: 0; background: none; padding: 0; margin: 0; font: inherit; color: var(--lk-quiet); cursor: pointer; white-space: nowrap; }
+.lk-head-do { flex: none; align-self: baseline; display: inline-flex; align-items: center; gap: 12px; height: 24px; margin-left: 8px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
+.lk-tab { appearance: none; position: relative; border: 0; background: none; padding: 0; margin: 0; font: inherit; line-height: 1; color: var(--lk-quiet); cursor: pointer; white-space: nowrap; }
 .lk-tab:hover, .lk-tab:focus-visible { color: var(--lk-text); outline: none; }
 .lk-tab:not([data-kind=""]):not(.lk-tabmore):not(.lk-newtab):not([data-kind="@none"]) { font-family: var(--lk-tag-face); }   /* a kind is a tag: in the tag's face */
 .lk-tab.on { color: var(--lk-text); }
@@ -222,6 +222,13 @@ G.listview.CSS = `
 .lk-dots:hover, .lk-dots:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 .lk-head-end { flex: none; margin-left: auto; display: inline-flex; align-items: baseline; gap: 12px; padding-left: 12px; white-space: nowrap; line-height: 24px; }
 .lk-head-end .lk-span { margin-left: 0; padding-left: 0; }
+.lk-head-end > * { line-height: 1; }
+/* A strut at the start of the + and ⋯, and of the days: each is a line 24 high standing on the words' baseline, on whichever
+   line of the head it falls (the gap after the strut is taken back). */
+.lk-head-do::before, .lk-head-end::before { content: "\\200b"; width: 0; margin-right: -12px; }
+/* A kind (in the tag's face) stands on a line of the words' face, so every line of the head is 24 high on one baseline. */
+.lk-tab::before, .lk-head-do::before, .lk-head-end::before { font-family: var(--ls-font-family, inherit); font-size: var(--lk-line-size); font-weight: 400; line-height: 24px; }
+.lk-tab::before { content: "\\200b"; }
 .lk-set { font-size: var(--lk-small); }
 .lk-set:hover, .lk-set:focus-visible { color: var(--lk-text); outline: none; }
 .lk-group-head, .lk-since { display: flex; align-items: center; gap: 2px; min-height: var(--lk-line-h); margin: 6px 0 0 calc(var(--lk-daycol, 0px)); color: var(--lk-quiet); font-size: var(--lk-line-size); cursor: default; border-radius: 6px; }

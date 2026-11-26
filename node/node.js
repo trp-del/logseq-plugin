@@ -399,7 +399,7 @@ G.node.CSS = `
 .lk-list-head:hover .lk-fold, .lk-list-head:focus-visible .lk-fold, .lk-list-head[aria-expanded="false"] .lk-fold { opacity: 1; }
 .lk-prop { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: var(--lk-prop-size); letter-spacing: -.01em; color: var(--lk-quiet); }
 .lk-plain { color: var(--lk-quiet); }
-.lk-list-name { flex: 1; min-width: 0; display: flex; align-items: center; }
+.lk-list-name { flex: 1; min-width: 0; display: flex; align-items: baseline; }   /* the kinds (in the tag's face), All and the counts share one baseline */
 .lk-list-head:has(> .lk-list-via:not(:empty)) { flex-wrap: wrap; }
 .lk-list-via { order: -1; flex: 0 0 100%; display: flex; align-items: center; min-height: 24px; }
 .lk-list-via:empty { display: none; }
@@ -413,7 +413,7 @@ G.node.CSS = `
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { margin-left: calc(var(--lk-dayin, 54px) + 10px); }
 .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
 .lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
-.lk-list-head[data-thin] > .lk-list-name { align-items: flex-start; }
+.lk-list-head[data-thin] > .lk-list-name { align-items: baseline; }
 .lk-list-head[data-thin] > .lk-fold { opacity: .45 !important; }
 .lk-list-head[data-thin]:hover > .lk-fold { opacity: .8 !important; }
 .lk-list-head[data-plain] > .lk-list-via > .lk-plain { font-size: var(--lk-line-size); }
