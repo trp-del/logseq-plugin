@@ -37,7 +37,11 @@ G.part({
       holder.innerHTML = '<div class="lk-time" hidden></div><div class="lk-todo-view"><div><button type="button" data-of="show"></button><button type="button" data-of="by"></button></div></div><div class="lk-rel"></div>';
       const timeEl = holder.children[0], viewEl = holder.children[1], store = doc.defaultView.localStorage;
       // A day said in the words ("by friday") becomes the task's Deadline and leaves the words; it is said at the line's right before Return.
-      const offAdd = G.node.adder(holder, 'Add or find a todo', words => { const read = G.todo.dayIn(words, G.days.number(new Date())); return G.write.addTask(read ? read.words : words, read ? read.day : 0); }, 'The task could not be added');
+      const offAdd = G.node.adder(holder, 'Add or find a todo', async words => {
+        const read = G.todo.dayIn(words, G.days.number(new Date())), made = await G.write.addTask(read ? read.words : words, read ? read.day : 0);
+        doc.defaultView.setTimeout(() => narrow(), 0);   // the line empties without a key: the list is whole again, and the day said at its right goes
+        return made;
+      }, 'The task could not be added');
       const field = holder.firstElementChild.firstElementChild, hint = doc.createElement('span'); hint.className = 'lk-todo-hint'; field.after(hint);
       // What is typed in that line narrows the list to the tasks holding every word of it; Return still adds it as a new task.
       let typed = '';

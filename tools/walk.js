@@ -160,7 +160,17 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     await step('a task typed in its line lands on today\'s journal as a Todo and shows under Any time', async () => {
       await page.locator('.lk-todo .lk-field').click(); await page.keyboard.type('Ring the pharmacy', { delay: 20 }); await page.keyboard.press('Enter'); await wait(2200);
-      return is(await page.evaluate(() => [...document.querySelectorAll('.lk-todo .lk-list')].filter(l => l.querySelector('.lk-list-name').innerText === 'Any time').map(l => [...l.querySelectorAll('.lk-line')].map(el => el.innerText).filter(t => t === 'Ring the pharmacy').length)), [1]);
+      return is(await page.evaluate(() => [...document.querySelectorAll('.lk-todo .lk-list')].filter(l => l.querySelector('.lk-list-name').innerText === 'Any time').map(l => [...l.querySelectorAll('.lk-line')].map(el => el.innerText.split('\n')[0]).filter(t => t === 'Ring the pharmacy').length)), [1]);   // the line's first row: under it the task says where it sits
+    });
+    await step('once a task is added the list is whole again, and the task says under its words where it sits', async () => {   // typing narrows the list; adding must not leave it narrowed
+      return is(await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-todo .lk-row')], mine = rows.find(r => r.querySelector('.lk-words')?.firstChild?.textContent.trim() === 'Ring the pharmacy'); return [rows.length > 1, !!mine?.querySelector('.lk-sits')?.textContent.trim(), document.querySelector('.lk-todo .lk-field').value]; }), [true, true, '']);
+    });
+    await step('a day said in a new task\'s words becomes its deadline and leaves the words', async () => {   // the owner chose this old part, 26 November 2026
+      await page.locator('.lk-todo .lk-field').click(); await page.keyboard.type('Water the ferns tomorrow', { delay: 20 }); await wait(300);
+      const hint = await page.locator('.lk-todo .lk-todo-hint').innerText();
+      await page.keyboard.press('Enter'); await wait(2400);
+      const got = await page.evaluate(() => [...document.querySelectorAll('.lk-todo .lk-list')].filter(l => l.querySelector('.lk-list-name').innerText === 'Coming up').map(l => [...l.querySelectorAll('.lk-row')].filter(r => r.querySelector('.lk-line').innerText.split('\n')[0] === 'Water the ferns').map(r => !!r.querySelector(':scope > .lk-day').textContent.trim())).flat());
+      return is([hint.length > 5, got], [true, [true]]);
     });
     await step('a task set Done from its circle leaves the list', async () => {
       const row = page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' });
