@@ -406,7 +406,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Meta+z'); await page.keyboard.press('Escape'); await wait(700);
       await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('u'); await wait(150); await page.keyboard.press('p');
       const said = await toast(); await wait(4500);
-      return is([typed, /^Plugins reloaded, nothing newer in its folder: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, 1]);
+      return is([typed, /^Plugins up to date: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, 1]);
     });
     // ---- Relations as it was: kinds, View, picking, the find line, the timeline
     await step('a list of several kinds names them with their counts; a kind pressed narrows the list, All gives it back', async () => {   // the owner, 25 November 2026: "relations from original was quite developed. take all the features from it"
