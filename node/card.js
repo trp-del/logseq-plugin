@@ -18,6 +18,7 @@ async function raise(line) {
   const words = line.querySelector('.lk-words'), whole = G.words.plain(mine[0]?.words || '', names), cut = whole.trim().length > (words?.innerText || '').trim().length + 2 || /…\s*$/.test(words?.innerText || '');
   const props = Object.entries(held.get(node.id) || {});
   if (!cut && !props.length && !lines.length) return;
+  card?.remove();   // one card at a time: a second rest on the same line never leaves the first card standing
   card = doc.createElement('div'); card.className = 'lk-card';
   card.innerHTML = `${cut ? `<div class="lk-card-name">${G.esc(whole)}</div>` : ''}${props.map(([name, values]) => `<div class="lk-card-row"><span class="lk-prop">${G.esc(name)}</span><span>${G.esc(values.join(', '))}</span></div>`).join('')}${lines.map(text => `<div class="lk-card-line"><span class="lk-bul" aria-hidden="true"></span><span>${G.esc(G.words.plain(text, names))}</span></div>`).join('')}`;
   doc.body.appendChild(card);
@@ -30,6 +31,7 @@ async function raise(line) {
 function start() {
   if (offs) return;
   const doc = G.host();
+  for (const old of doc.querySelectorAll('.lk-card')) old.remove();   // a card left by the plugin as it ran before a reload
   const over = event => {
     const words = event.target.closest?.('.lk-row > .lk-line .lk-words');
     if (!words || event.target.closest('.lk-status, .lk-lacks, .lk-sits')) return;
