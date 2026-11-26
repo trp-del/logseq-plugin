@@ -221,12 +221,21 @@ test('different kinds of value, the same property, or nothing to move are refuse
 
 // ---- what a reload of the plugins brought
 const update = require('../core/update.js');
-test('a reload says which plugin now runs another version, or that nothing newer was there', () => {
+test('Update plugins says which plugin now runs another version, which are up to date, which could not be updated', () => {
   const was = [{ id: 'a', title: 'Logseq Plugin', version: '0.9.0' }, { id: 'b', title: 'Other', version: '1.0.0' }];
-  assert.equal(update.said(was, [{ id: 'a', title: 'Logseq Plugin', version: '0.9.1' }, { id: 'b', title: 'Other', version: '1.0.0' }]), 'Plugins updated: Logseq Plugin 0.9.0 to 0.9.1');
-  assert.equal(update.said(was, was), 'Plugins reloaded, nothing newer in their folders: Logseq Plugin 0.9.0, Other 1.0.0');
-  assert.equal(update.said([was[0]], [was[0]]), 'Plugins reloaded, nothing newer in its folder: Logseq Plugin 0.9.0');
+  assert.equal(update.said(was, [{ id: 'a', title: 'Logseq Plugin', version: '0.9.1' }, { id: 'b', title: 'Other', version: '1.0.0' }]), 'Plugins updated: Logseq Plugin 0.9.0 to 0.9.1. Up to date: Other 1.0.0');
+  assert.equal(update.said(was, was), 'Plugins up to date: Logseq Plugin 0.9.0, Other 1.0.0');
   assert.equal(update.said([], [was[0]]), '');
+  const market = { updated: [{ title: 'Calendar', version: '1.0.0', to: '1.2.0' }], same: [{ title: 'Tabs', version: '2.0.0' }], failed: [{ title: 'Heatmap', why: 'GitHub did not answer' }] };
+  assert.equal(update.said([was[0]], [was[0]], market), 'Plugins updated: Calendar 1.0.0 to 1.2.0. Up to date: Logseq Plugin 0.9.0, Tabs 2.0.0. Could not be updated: Heatmap (GitHub did not answer)');
+  assert.equal(update.said([], [], { same: [{ title: 'Tabs', version: '2.0.0' }] }), 'Plugins up to date: Tabs 2.0.0');
+});
+test('a release is newer only when its version is higher', () => {
+  assert.equal(update.newer('v1.2.0', '1.1.9'), true);
+  assert.equal(update.newer('1.2.0', '1.2.0'), false);
+  assert.equal(update.newer('1.10.0', '1.9.3'), true);
+  assert.equal(update.newer('0.9.0', '1.0.0'), false);
+  assert.equal(update.newer('', '1.0.0'), false);
 });
 
 // ---- how one list of Relations is shown

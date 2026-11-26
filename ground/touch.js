@@ -23,6 +23,8 @@
      touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k'), matched by its place on the keyboard; gives back what
                               lets it go. fn answers false to leave the press to Logseq after all
      touch.command(key, label, run)   a line in Logseq's command palette
+     touch.plugins           the plugins Logseq runs: those from a folder (reloaded) and those from its marketplace (updated
+                              by Logseq's own updater)
      touch.section(key, title, draw, path)  a section of Logseq's right sidebar that is the plugin's own: Logseq hosts it and
                               hands draw(el) the element (draw gives back what clears it); path: its icon's line.
                               Answers { open(), off() }
@@ -318,23 +320,62 @@ function tableBar(word, run) {
 }
 // A command in Logseq's palette; with keys ('u p'), also a shortcut of Logseq's own kind, listed and changed in its settings.
 const command = (name, label, run, keys) => logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run);
-/* The plugins Logseq loads from a folder of the person's own, each { id, title, version }; the ones Logseq installed itself are
-   Logseq's to update. reload(ids) has Logseq load them again from their folders, this plugin last: its own code ends there. What
-   keep() is given outlives that reload for a minute, for took() to hand to the plugin's next run, once. */
-const LOADED = 'lk.plugins-before';
+/* The plugins Logseq runs, each { id, title, version }. mine(): the ones it loads from a folder of the person's own. market():
+   the ones it installed from its marketplace. updates(list) asks Logseq's own updater (the one behind "Check for updates" on its
+   plugins page) for each plugin of market() with a newer release on GitHub, one after another; Logseq downloads it and loads it
+   again, as from its plugins page. It answers { updated: [{ title, version, to }], same, failed: [{ title, why }] }.
+   reload(ids) has Logseq load the folder ones again, this plugin last: its own code ends there. What keep() is given outlives
+   that reload for a minute, for took() to hand to the plugin's next run, once. */
+const LOADED = 'lk.plugins-before', MARKET = 'https://raw.githubusercontent.com/logseq/marketplace/master/plugins.json';
+const listed = filter => {
+  const core = host().defaultView.LSPluginCore;
+  return core ? [...core.registeredPlugins.values()].filter(filter).map(one => ({ id: one.id, title: one.options?.title || one.options?.name || one.id, version: one.options?.version || '' })) : [];
+};
+// Logseq's updater answers on its own channel; the answer for one plugin, or null after two minutes.
+function asked(apis, pkg) {
+  return new Promise(resolve => {
+    let timer = null;
+    const heard = (event, data) => {
+      const said = data || event, payload = said?.payload || {};
+      if (payload.id !== pkg.id) return;
+      apis.removeListener('lsp-updates', heard); clearTimeout(timer); resolve(said);
+    };
+    apis.addListener('lsp-updates', heard);
+    timer = setTimeout(() => { apis.removeListener('lsp-updates', heard); resolve(null); }, 120000);
+    Promise.resolve(apis.doAction(['updateMarketPlugin', pkg, 'js-obj'])).catch(error => { apis.removeListener('lsp-updates', heard); clearTimeout(timer); resolve({ status: 'error', payload: { 'error-code': String(error?.message || error) } }); });
+  });
+}
 const plugins = {
-  mine() {
-    const core = host().defaultView.LSPluginCore;
-    return core ? [...core.registeredPlugins.values()].filter(one => !one.isInstalledInLocalDotRoot && !one.isWebPlugin).map(one => ({ id: one.id, title: one.options?.title || one.options?.name || one.id, version: one.options?.version || '' })) : [];
+  mine: () => listed(one => !one.isInstalledInLocalDotRoot && !one.isWebPlugin),
+  market: () => listed(one => one.isInstalledInLocalDotRoot && !one.isWebPlugin && !one.disabled),
+  async updates(list) {
+    const out = { updated: [], same: [], failed: [] }, apis = host().defaultView.apis;
+    if (!list.length) return out;
+    if (!apis?.doAction) { out.failed = list.map(one => ({ ...one, why: 'this Logseq lends plugins no updater' })); return out; }
+    let packages;
+    try { packages = (await (await fetch(MARKET)).json()).packages || []; } catch (error) { out.failed = list.map(one => ({ ...one, why: "Logseq's list of plugins could not be read" })); return out; }
+    for (const one of list) {
+      const listing = packages.find(pkg => pkg.id === one.id);
+      if (!listing?.repo) { out.failed.push({ ...one, why: "not in Logseq's list of plugins" }); continue; }
+      let latest = '';
+      try { const answer = await fetch(`https://api.github.com/repos/${listing.repo}/releases/latest`); if (answer.ok) latest = (await answer.json()).tag_name || ''; } catch (error) { /* said below */ }
+      if (!latest) { out.failed.push({ ...one, why: 'GitHub did not answer' }); continue; }
+      if (!G.update.newer(latest, one.version)) { out.same.push(one); continue; }
+      const said = await asked(apis, { ...listing, id: one.id, title: one.title, version: one.version, theme: Boolean(listing.theme), effect: Boolean(listing.effect) });
+      const payload = said?.payload || {};
+      if (said?.status === 'completed') out.updated.push({ ...one, to: payload['installed-version'] || payload.installedVersion || latest.replace(/^v/i, '') });
+      else out.failed.push({ ...one, why: said ? String(payload['error-code'] || payload.errorCode || 'Logseq refused').replace(/^[\s:[]+|\]$/g, '') : 'no answer from Logseq' });
+    }
+    return out;
   },
   async reload(ids) {
     const core = host().defaultView.LSPluginCore, own = logseq.baseInfo.id;
     for (const id of ids.filter(one => one !== own)) { try { await core.reload(id); } catch (error) { console.error(`Logseq Plugin: ${id} could not be reloaded`, error); } }
     if (ids.includes(own)) await core.reload(own);
   },
-  keep(list) { try { host().defaultView.localStorage.setItem(LOADED, JSON.stringify({ at: Date.now(), list })); } catch (error) { /* then nothing is said afterwards */ } },
+  keep(kept) { try { host().defaultView.localStorage.setItem(LOADED, JSON.stringify({ at: Date.now(), ...kept })); } catch (error) { /* then nothing is said afterwards */ } },
   took() {
-    try { const at = host().defaultView.localStorage, kept = JSON.parse(at.getItem(LOADED) || 'null'); at.removeItem(LOADED); return kept && Date.now() - kept.at < 60000 ? kept.list : null; } catch (error) { return null; }
+    try { const at = host().defaultView.localStorage, kept = JSON.parse(at.getItem(LOADED) || 'null'); at.removeItem(LOADED); return kept && Date.now() - kept.at < 60000 ? kept : null; } catch (error) { return null; }
   },
 };
 function section(name, title, draw, path) {

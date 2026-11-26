@@ -18,7 +18,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 3 Arriving | `arrive/` | Find: a window to reach any node by its kind, a value, a day or its words. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
-| Beside the stack | `beside/` | Update plugins: two keys have Logseq load the plugins it loads from a folder again, so they run what their folders hold now. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
+| Beside the stack | `beside/` | Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those from its marketplace, a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -316,12 +316,18 @@ the tag it extends, its properties, a property's kind and what it takes. Ontolog
 
 ### Update plugins (`beside/update.js`, its words in `core/update.js`)
 
-Logseq loads a plugin from a folder once, when it starts: what is put into the folder afterwards waits for the next start.
 **u p** (two keys one after the other, as Logseq's own **t p** for its plugins page), or **Update plugins** in the command
-palette, has Logseq load every plugin it loads from a folder again, this one last. One line then says what that brought:
-"Plugins updated: Logseq Plugin 0.9.0 to 0.9.1", or that nothing newer was in the folder. The keys do nothing while you write
-in a bullet, and can be changed in Logseq's own keyboard settings. Plugins that Logseq installed itself are left alone: Logseq
-updates those from its plugins page. Nothing is fetched from anywhere: the key loads what the folder holds.
+palette, brings every plugin Logseq runs to its newest:
+
+- A plugin Logseq installed from its marketplace, with a newer release on GitHub, is updated by Logseq's own updater (the one
+  behind **Check for updates** on its plugins page), one after another. Logseq says each one it updated, as it does there.
+- A plugin Logseq loads from a folder is loaded again: Logseq loads such a plugin once, when it starts, so what was put into
+  the folder afterwards waits for the next start. This plugin is loaded last.
+
+One line then says what that brought: "Plugins updated: Logseq Plugin 0.9.0 to 0.9.1. Up to date: Calendar 1.2.0", that every
+plugin was up to date, or which could not be updated and why (GitHub did not answer, or the plugin is not in Logseq's list).
+The keys do nothing while you write in a bullet, and can be changed in Logseq's own keyboard settings. A folder is not fetched
+from anywhere: the key loads what the folder holds.
 
 ### Alfred (`beside/outside.js`, `ground/outside.js`, `alfred/`)
 
