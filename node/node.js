@@ -393,7 +393,7 @@ G.node.CSS = `
 .lk-list[data-face="tag"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-tag-face); }
 .lk-list[data-face="prop"] > .lk-rows > .lk-row > .lk-line .lk-words { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: var(--lk-prop-size); letter-spacing: -.01em; }
 .lk-list[data-kind="none"] .lk-fold { visibility: hidden; }
-.lk-list-head { display: flex; align-items: center; gap: var(--lk-mark-gap); min-height: 28px; margin-left: -18px; cursor: default; border-radius: var(--lk-corner); }
+.lk-list-head { display: flex; align-items: center; gap: 2px var(--lk-mark-gap); min-height: 28px; margin-left: -18px; cursor: default; border-radius: var(--lk-corner); }
 .lk-list-head:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-list-head .lk-fold { opacity: 0; margin-top: 0; }
 .lk-list-head:hover .lk-fold, .lk-list-head:focus-visible .lk-fold, .lk-list-head[aria-expanded="false"] .lk-fold { opacity: 1; }
