@@ -5,6 +5,7 @@
                                                         after them node.why: values of the node that a search matched
      G.line.act(event, row)                             what a press or a key on a line does; true when it took the event
      G.line.menu(at, row, more)                         the line's right-click menu (a table's row too, node/table.js)
+     G.line.pickTags(at, uuid, typing)                  the tags as an outline, the node's own ticked
    A row is the list's element for one node (data-uuid, data-page when the node is a page); the line stands in it. */
 (function () {
 const G = window.PluginDoor, W = G.words;
@@ -37,12 +38,14 @@ async function pickStatus(at, row) {
     take: () => G.undo.after(row.dataset.uuid, G.write.setStatus(row.dataset.uuid, s.title)).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) })));
 }
 // The person's tags as an outline, the node's own ticked: a press puts a tag on the node or takes it off.
-async function pickTags(at, row) {
-  const uuid = row.dataset.uuid, node = await G.read.node(uuid);
+// typing: the list has a line to type in, and words no tag has make a new one, as Logseq's own list of tags does.
+async function pickTags(at, uuid, typing = false) {
+  const node = await G.read.node(uuid), failed = error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning');
   if (!node) return;
   const [tags, own] = await Promise.all([G.read.tags(), G.read.tagsOf(node.id)]), has = new Set(own);
   G.menu(at, [{ group: 'Tags' }, ...G.tags.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id),
-    take: () => G.undo.after(uuid, has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning')) }))]);
+    take: () => G.undo.after(uuid, has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(failed) }))],
+  typing ? { find: 'Set Tags', make: words => ({ word: `New tag: ${words}`, take: () => G.undo.after(uuid, G.write.newTag(words).then(made => G.write.tag(uuid, made))).catch(failed) }) } : {});
 }
 // A property given to a node, as Logseq's own Add property gives one to a bullet: the properties its tags give and it has not
 // filled first, then every other; then the value, asked for by the property's kind.
@@ -70,7 +73,7 @@ async function menu(at, row, more) {
   G.menu(at, [
     { word: 'Open', take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', take: () => G.touch.open(uuid, true) },
-    ...(face ? [] : [{ gap: true }, { word: 'Tags…', take: () => pickTags(at, row) }]),   // not on a tag or a property itself
+    ...(face ? [] : [{ gap: true }, { word: 'Tags…', take: () => pickTags(at, row.dataset.uuid) }]),   // not on a tag or a property itself
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.undo.after(uuid, G.write.setStatus(uuid, s.title)).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
@@ -111,7 +114,7 @@ function act(event, row, more) {
   }
   return false;
 }
-G.line = { html, act, menu, addProperty };
+G.line = { html, act, menu, addProperty, pickTags };
 G.line.CSS = `
 /* A row: its day, the fold arrow, the line. A list of Relations says the day inside the line, after the bullet (lk-dayin), and
    keeps no column for it. A place whose view puts the day at the right end says so on a box round its rows (lk-day-end: Find,

@@ -5,6 +5,9 @@
    item.sub: the choices under a line (an array, or a function answering one), shown as a menu of its own beside it, as the
    Mac's menus do: the line carries a chevron, and pointing at it, Right, Enter or a press opens it; Left or Escape goes back.
    One menu at a time; a second closes the first.
+   Tags as an outline fold, as Logseq's outline does: an arrow before a tag that has tags under it (under the pointer, and
+   always once folded), Right and Left on its line, Cmd-Up and Cmd-Down. What is folded is kept on this Mac, in every such list
+   (G.folds). Words typed to narrow the list look through the folded tags too. In a quiet list the keys are the bullet's.
    opts.find: a line to type in at the list's head, which narrows it (true, or the words it shows while empty); with it,
    opts.make(words) -> { word, take } offers a line for words no line has, and opts.enter(words) takes the words themselves.
    opts.rank: with opts.find, the lines closest to the words typed come first (a list of commands).
@@ -18,6 +21,14 @@
 (function () {
 const G = window.PluginDoor;
 let close = null;
+// The tags folded in the lists of tags, by name, kept on this Mac.
+const FOLDED = 'lk.tags-folded';
+let folded = null;
+const kept = () => { if (!folded) { try { folded = new Set(JSON.parse(G.host().defaultView.localStorage.getItem(FOLDED) || '[]')); } catch (error) { folded = new Set(); } } return folded; };
+G.folds = {
+  shut: name => kept().has(name),
+  set(name, on) { if (on) kept().add(name); else kept().delete(name); try { G.host().defaultView.localStorage.setItem(FOLDED, JSON.stringify([...kept()])); } catch (error) { /* kept for this run only */ } },
+};
 G.menu = (at, items, opts = {}) => { close?.(); return make(at, items, opts, null); };
 function make(at, items, opts, parent) {
   const from = at.from || at, doc = from.ownerDocument, win = doc.defaultView;
@@ -25,8 +36,23 @@ function make(at, items, opts, parent) {
   const tree = items.some(item => item.depth != null);   // tags as an outline: each a bullet, a line down from it along the tags under it
   if (tree) menu.classList.add('lk-menu-tree');
   menu.innerHTML = (opts.find ? `<input class="lk-menu-find" type="text" placeholder="${G.esc(opts.find === true ? 'Find' : opts.find)}" aria-label="${G.esc(opts.find === true ? 'Find' : opts.find)}" spellcheck="false" autocomplete="off">` : '') + items.map((item, i) => item.gap ? '<div class="lk-gap"></div>' : item.group ? `<div class="lk-group">${G.esc(item.group)}</div>`
-    : `<button type="button" class="lk-item${item.sub ? ' lk-has-sub' : ''}${item.on ? ' on' : ''}${item.goes ? ' lk-goes' : ''}" role="menuitem" data-i="${i}" data-also="${G.esc(item.also || '')}" data-face="${item.face || ''}" style="padding-left: ${8 + (item.depth || 0) * 18}px; --lk-d: ${item.depth || 0}"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span>${tree ? '<span class="lk-item-bul" aria-hidden="true"></span>' : ''}<span>${G.esc(item.word)}</span>${item.value && !item.sub ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}${item.sub ? `<span class="lk-item-sub">${G.touch.icon('chevron-right', 14)}</span>` : ''}</button>`).join('');
+    : `<button type="button" class="lk-item${item.sub ? ' lk-has-sub' : ''}${item.on ? ' on' : ''}${item.goes ? ' lk-goes' : ''}" role="menuitem" data-i="${i}" data-also="${G.esc(item.also || '')}" data-face="${item.face || ''}" style="${tree ? `padding-left: ${4 + (item.depth || 0) * 29}px; ` : ''}--lk-d: ${item.depth || 0}"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span>${tree ? `<span class="lk-item-fold" aria-hidden="true">${G.touch.icon('chevron-right', 14)}</span><span class="lk-item-bul" aria-hidden="true"></span>` : ''}<span>${G.esc(item.word)}</span>${item.value && !item.sub ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}${item.sub ? `<span class="lk-item-sub">${G.touch.icon('chevron-right', 14)}</span>` : ''}</button>`).join('');
   doc.body.appendChild(menu);
+  const outline = tree ? [...menu.querySelectorAll('.lk-item')] : [], nameOf = row => items[Number(row.dataset.i)].word;
+  const foldUp = () => {
+    const state = G.tags.folds(outline.map(row => ({ depth: items[Number(row.dataset.i)].depth, name: nameOf(row) })), G.folds.shut);
+    outline.forEach((row, i) => { row.hidden = state[i].hidden; row.classList.toggle('lk-kids', state[i].kids); row.classList.toggle('lk-shut', state[i].shut); if (state[i].kids) row.setAttribute('aria-expanded', String(!state[i].shut)); });
+  };
+  const fold = (row, on = !row.classList.contains('lk-shut')) => { if (!row?.classList.contains('lk-kids')) return false; G.folds.set(nameOf(row), on); foldUp(); return true; };
+  // A key that folds: Cmd-Up and Cmd-Down as in Logseq's outline; Left and Right where the keys are not typing.
+  const foldKey = (event, row, plain) => {
+    if (!row) return false;
+    const cmd = event.metaKey || event.ctrlKey, shut = row.classList.contains('lk-shut');
+    if (cmd && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) return fold(row, event.key === 'ArrowUp');
+    if (plain && !cmd && ((event.key === 'ArrowLeft' && !shut) || (event.key === 'ArrowRight' && shut))) return fold(row, !shut);
+    return false;
+  };
+  foldUp();
   if (opts.height) menu.style.maxHeight = Math.min(opts.height, win.innerHeight - 16) + 'px';   // a long list scrolls under its line to type in
   const box = at.from ? { left: at.x, right: at.x, top: at.y, bottom: at.y } : from.getBoundingClientRect();
   const w = menu.offsetWidth, h = menu.offsetHeight;
@@ -43,7 +69,7 @@ function make(at, items, opts, parent) {
     menu.style.maxHeight = room + 'px';
     menu.style.top = (under ? box.bottom + 4 : Math.max(8, box.top - 4 - Math.min(h, room))) + 'px';
   } else if (!parent && !opts.dock) menu.style.top = (box.bottom + 4 + h > win.innerHeight - 8 ? Math.max(8, box.top - 4 - h) : box.bottom + 4) + 'px';
-  const rows = () => [...menu.querySelectorAll('.lk-item')];
+  const rows = () => [...menu.querySelectorAll('.lk-item')].filter(row => !row.hidden);
   let child = null, gone = false;
   const shut = () => { if (gone) return; gone = true; child?.shut(); child = null; for (const off of offs) off(); menu.remove(); };
   const done = (refocus = true) => {
@@ -62,7 +88,8 @@ function make(at, items, opts, parent) {
   const take = row => { const item = items[Number(row.dataset.i)]; if (item?.sub) return openSub(row, true); all(); item?.take?.(); };
   const onKey = event => {
     const all = rows(), now = all.indexOf(doc.activeElement);
-    if (event.key === 'Escape' || (parent && event.key === 'ArrowLeft')) done();
+    if (foldKey(event, all[now], true)) { /* folded */ }
+    else if (event.key === 'Escape' || (parent && event.key === 'ArrowLeft')) done();
     else if (event.key === 'ArrowDown') all[(now + 1) % all.length]?.focus();
     else if (event.key === 'ArrowUp') all[(now - 1 + all.length) % all.length]?.focus();
     else if (event.key === 'ArrowRight' && all[now]?.classList.contains('lk-has-sub')) openSub(all[now], true);
@@ -85,7 +112,7 @@ function make(at, items, opts, parent) {
     else { if (!/^(Shift|Control|Alt|Meta|CapsLock)$/.test(event.key)) done(false); return; }   // writing on: let go, and the key goes on into the bullet
     event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.();
   };
-  const offs = [opts.quiet ? on(doc, 'keydown', onQuietKey, true) : on(menu, 'keydown', onKey), on(menu, 'click', event => { const row = event.target.closest('.lk-item'); if (row) take(row); }), on(menu, 'pointerover', hover),
+  const offs = [opts.quiet ? on(doc, 'keydown', onQuietKey, true) : on(menu, 'keydown', onKey), on(menu, 'click', event => { const row = event.target.closest('.lk-item'); if (!row) return; if (event.target.closest('.lk-item-fold') && fold(row)) return; take(row); }), on(menu, 'pointerover', hover),
     ...(opts.quiet ? [on(menu, 'mousedown', event => event.preventDefault())] : []),
     ...(parent ? [] : [on(doc, 'pointerdown', outside, true), on(doc, 'wheel', event => { if (!inside(event.target)) done(false); }, { capture: true, passive: true }), on(win, 'blur', () => done(false)), on(win, 'resize', () => done(false))])];
   if (!parent) close = done;
@@ -105,7 +132,8 @@ function make(at, items, opts, parent) {
       const want = field.value.trim().toLowerCase().split(/\s+/).filter(Boolean); let exact = false;
       for (const el of menu.querySelectorAll('.lk-group, .lk-gap')) el.hidden = want.length > 0;
       menu.classList.toggle('lk-narrowed', want.length > 0);   // a narrowed outline has gaps in it: no lines down
-      for (const row of menu.querySelectorAll('.lk-item:not(.lk-item-make)')) { const text = `${row.textContent} ${row.dataset.also || ''}`.toLowerCase(); row.hidden = !want.every(word => text.includes(word)); if (row.textContent.toLowerCase().trim() === field.value.trim().toLowerCase()) exact = true; }
+      if (!want.length) foldUp();
+      if (want.length) for (const row of menu.querySelectorAll('.lk-item:not(.lk-item-make)')) { const text = `${row.textContent} ${row.dataset.also || ''}`.toLowerCase(); row.hidden = !want.every(word => text.includes(word)); if (row.textContent.toLowerCase().trim() === field.value.trim().toLowerCase()) exact = true; }
       if (opts.rank) {   // the closest first: the words as typed at a word's start, then anywhere, then apart; the shorter before the longer
         const phrase = want.join(' '), score = row => { const text = row.querySelector('span:not(.lk-item-icon)').textContent.toLowerCase(); return (text.startsWith(phrase) || text.includes(' ' + phrase) ? 0 : text.includes(phrase) ? 1 : 2) * 1000 + text.length; };
         const order = want.length ? [...first].sort((a, b) => (a.hidden - b.hidden) || score(a) - score(b)) : first;
@@ -139,14 +167,15 @@ function make(at, items, opts, parent) {
     };
     offs.push(() => win.clearTimeout(wait));
     offs.push(on(field, 'input', narrow), on(field, 'keydown', event => {
-      if (event.key === 'ArrowDown') lightIn(lit + 1);
+      if (foldKey(event, seen()[lit], !field.value)) { /* folded */ }
+      else if (event.key === 'ArrowDown') lightIn(lit + 1);
       else if (event.key === 'ArrowUp') lightIn(lit - 1);
       else if (event.key === 'Enter') { const row = seen()[lit]; const words = field.value.trim(); if (row === extra && made) { done(); made.take(); } else if (row) take(row); else if (opts.enter && words) { done(); opts.enter(words); } }
       else if (event.key === 'Escape') done();
       else return;
       event.preventDefault(); event.stopPropagation();
     }), on(extra, 'click', event => { event.stopPropagation(); if (made) { done(); made.take(); } }));
-    field.focus({ preventScroll: true }); lightIn(items.findIndex(item => item.on) >= 0 ? seen().findIndex(row => row.classList.contains('on')) : 0);
+    field.focus({ preventScroll: true }); lightIn(Math.max(0, seen().findIndex(row => row.classList.contains('on'))));
     return parent ? self : done;
   }
   if (parent) { if (opts.focusFirst) self.first(); return self; }
@@ -173,12 +202,20 @@ G.menu.CSS = `
 .lk-menu [hidden] { display: none !important; }
 .lk-menu-find { display: block; width: 100%; box-sizing: border-box; margin: 0 0 4px; padding: 4px 8px; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); box-shadow: none; border-radius: 0; }
 .lk-menu-find { position: sticky; top: -4px; z-index: 1; background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); }
-.lk-menu-tree .lk-item { position: relative; gap: 4px; }
-.lk-menu .lk-item-bul { flex: none; width: 16px; display: inline-flex; align-items: center; justify-content: center; align-self: stretch; }
+.lk-menu-tree .lk-item { position: relative; gap: 0; }
+.lk-menu .lk-item-fold { flex: none; width: 16px; display: inline-flex; align-items: center; justify-content: center; align-self: stretch; color: var(--lk-off); opacity: 0; visibility: hidden; position: relative; z-index: 1; }
+.lk-menu .lk-item-fold svg { transform: rotate(90deg); transition: transform .12s ease; }
+.lk-menu .lk-item.lk-kids > .lk-item-fold { visibility: visible; cursor: pointer; }
+.lk-menu .lk-item.lk-kids:is(:hover, :focus-visible, .lit, .lk-shut) > .lk-item-fold { opacity: 1; }
+.lk-menu .lk-item.lk-shut > .lk-item-fold svg { transform: none; }
+.lk-menu .lk-item.lk-shut > .lk-item-bul::before { box-shadow: 0 0 0 4.8px var(--lk-bullet-ring); }   /* folded: the ring Logseq puts round a folded bullet */
+.lk-menu-tree.lk-narrowed .lk-item-fold { visibility: hidden !important; }
+.lk-menu-tree.lk-narrowed .lk-item.lk-shut > .lk-item-bul::before { box-shadow: none; }
+.lk-menu .lk-item-bul { flex: none; width: 16px; margin-right: 4px; display: inline-flex; align-items: center; justify-content: center; align-self: stretch; }
 .lk-menu .lk-item-bul::before { content: ""; width: 6.4px; height: 6.4px; border-radius: 50%; background: var(--lk-bullet); opacity: .8; }
 /* One hairline down from each tag through the tags under it, through the middle of its bullet, as Logseq's outline draws it
    (the owner, 26 November 2026: "menus that have you select tags should probably have bullet outline too"). */
-.lk-menu-tree .lk-item::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--lk-d, 0) * 18px); pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0 15.5px, var(--lk-line) 15.5px 16.5px, transparent 16.5px 18px); }
+.lk-menu-tree .lk-item::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--lk-d, 0) * 29px); pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0 27.5px, var(--lk-line) 27.5px 28.5px, transparent 28.5px 29px); }   /* Logseq's step between levels, so a fold arrow stands clear of the line */
 .lk-menu-tree.lk-narrowed .lk-item::after { display: none; }
 .lk-menu-find::placeholder { color: var(--lk-off); }`;
 })();

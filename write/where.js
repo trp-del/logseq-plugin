@@ -21,6 +21,8 @@ G.part({
     base.onStop(G.touch.changed(() => read().catch(() => {})));
     base.style('where', '.lk-where { margin-left: .7em; font-family: var(--lk-tag-face); font-size: var(--lk-small); color: var(--lk-quiet); white-space: nowrap; }');
     base.onStop(G.touch.tagList(name => paths.get(name.toLowerCase()) || ''));
+    // Under "Tags" in a table, the tags as an outline in place of Logseq's flat list (26 November 2026).
+    base.onStop(G.touch.tagCells((cell, uuid) => G.line.pickTags(cell, uuid, true).catch(error => console.error('Logseq Plugin: the tags could not be listed', error))));
   },
 });
 })();

@@ -354,7 +354,15 @@ page untagged. Linking a node that exists stays Logseq's own list on `[[`, which
 
 Ontology has a line at its top, "New tag": Enter makes a tag of your own at the top of the outline and the list moves to it; a
 name that exists is shown instead of made twice. A closed line's right-click menu has "Tags…": your tags as an outline, the
-node's own ticked; a press puts a tag on the node or takes it off. The same line that adds a task in Todo adds the tag here.
+node's own ticked; a press puts a tag on the node or takes it off.
+
+A press on a node's cell under **Tags** in one of Logseq's tables (or Enter on the cell) opens the same outline in place of
+Logseq's flat list, with a line to type in; words no tag has make a new tag. A press on a tag in the cell still goes to it.
+
+Every list of tags as an outline folds, as Logseq's outline does: an arrow before a tag with tags under it (under the pointer,
+and always once folded, its bullet ringed), Right and Left on its line, Cmd-Up and Cmd-Down. What you fold stays folded in
+these lists and in Search's list of all kinds, on this Mac. Typing looks through folded tags too. While a bullet is being
+written (the question for a new tag or page) only the arrow folds: the keys stay the bullet's. Ontology keeps its own folds. The same line that adds a task in Todo adds the tag here.
 
 ### An empty property (`node/empty.js`)
 

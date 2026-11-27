@@ -4,6 +4,8 @@
    above(id, tags) answers the ids of the tag and of every tag above it, by every parent.
    tree(tags)          the tags as an outline: [{ tag, depth }], tops by name, each tag's children under it by name
    under(id, tags)     the ids of a tag and of every tag below it
+   folds(list, shut)   an outline [{ depth, name }] with some of its tags folded (shut(name)): for each line { kids, shut,
+                       hidden }: whether lines stand under it, whether it is folded, whether a fold above hides it
    counts(tags, pairs) tag id -> how many nodes hold it or a tag below it; pairs: [[tag id, node id]]
    filled(tags, pairs, byTag, held)  ident -> { on: [tag id], filled, of }: the tags that give each property (byTag: tag id ->
                        [ident]), the one with the most nodes first; of: the nodes of those tags (and of the tags below them), summed
@@ -65,7 +67,17 @@ function filled(tags, pairs, byTag, held) {
   }
   return out;
 }
-const api = { path, above, tree, under, counts, filled };
+function folds(list, shut) {
+  let cut = Infinity;   // the depth of the fold the lines below stand under
+  return list.map((line, i) => {
+    const depth = line.depth || 0, kids = (list[i + 1]?.depth || 0) > depth;
+    if (depth <= cut) cut = Infinity;
+    const hidden = depth > cut, folded = kids && !!shut(line.name);
+    if (!hidden && folded) cut = depth;
+    return { kids, shut: folded, hidden };
+  });
+}
+const api = { path, above, tree, under, folds, counts, filled };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).tags = api;
 })(typeof window !== 'undefined' ? window : globalThis);

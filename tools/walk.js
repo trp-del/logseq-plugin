@@ -338,6 +338,26 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Meta+z'); await wait(1200);
       return is([made, links, await words()], ['Rates at [vanguard.com](https://vanguard.com), see notes.md', [['vanguard.com', 'https://vanguard.com']], 'Rates at vanguard.com, see notes.md']);
     });
+    await step('a list of tags folds: its arrow hides the tags under a tag, and the next list keeps it folded', async () => {   // the owner, 26 November 2026
+      const row = () => page.locator('.lk-menu .lk-item', { hasText: /^Organization$/ }), seen = () => page.locator('.lk-menu .lk-item:visible', { hasText: /^Hospital$/ }).count();
+      const open = async () => { await box.frame().evaluate(async u => window.PluginDoor.line.pickTags({ x: 200, y: 120, from: window.PluginDoor.host().body }, u, true), typed); await wait(700); };
+      await open(); const before = await seen(); await row().hover(); await row().locator('.lk-item-fold').click(); await wait(300);
+      const folded = [await seen(), await row().getAttribute('aria-expanded')]; await page.keyboard.press('Escape'); await wait(300);
+      await open(); const again = await seen(); await row().locator('.lk-item-fold').click(); await wait(300); const back = await seen(); await page.keyboard.press('Escape'); await wait(300);
+      return is([before, folded, again, back], [1, [0, 'false'], 0, 1]);
+    });
+    await step('a press under Tags in a table opens the tags as an outline, and a tag taken is on the node', async () => {   // the owner, 26 November 2026: "any table where the tag column is"
+      const uuid = await box.frame().evaluate(async () => String((await logseq.DB.datascriptQuery('[:find ?u :where [?g :block/title "Provider"] [?g :block/tags :logseq.class/Property] [?g :block/uuid ?u]]'))[0][0]));
+      await goto(uuid); await wait(2500);
+      const at = await page.evaluate(() => { const t = [...document.querySelectorAll('.ls-table')].find(t => t.offsetParent); const i = [...t.querySelector('.ls-table-header > .flex-row:not(.sticky-columns)').children].findIndex(h => h.textContent.trim() === 'Tags'); const row = t.querySelector('.ls-table-row'), cell = row.querySelector(':scope > .flex-row:not(.sticky-columns)').children[i]; cell.scrollIntoView({ inline: 'center', block: 'center' }); const r = cell.getBoundingClientRect(); return { x: r.x + r.width - 12, y: r.y + r.height / 2, uuid: row.getAttribute('blockid') }; });
+      const has = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?t :where [?b :block/uuid #uuid "${u}"] [?b :block/tags ?g] [?g :block/title ?t]]`)).flat().includes('Hospital'), at.uuid);
+      await page.mouse.click(at.x, at.y); await wait(900);
+      const shown = [await page.locator('.lk-menu.lk-menu-tree').count(), await page.locator('.cp__select').count()];
+      await page.locator('.lk-menu .lk-item', { hasText: /^Hospital$/ }).click(); await wait(1500);
+      const on = await has(); await page.keyboard.press('Meta+z'); await wait(1200);
+      const got = [shown, on, await has()]; await goto(OCT7);   // back where the next steps write
+      return is(got, [[1, 0], true, false]);
+    });
     // ---- Writing: where a tag sits, and where a new tag goes
     const tagged = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, '')).uuid, OCT7);
     await step('Logseq\'s own list of tags says where each tag sits', async () => {

@@ -146,7 +146,14 @@ test('tasks stand under Overdue, Today, Coming up and Any time; an overdue one s
   assert.deepEqual([got[0].rows.map(r => r.late), got[1].rows.map(r => r.late)], [[true], [false]], 'a task past its day is late, one due today is not');
   assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
 });
-const { sure, addresses } = require('../core/sure.js'), { above } = require('../core/tags.js');
+const { sure, addresses } = require('../core/sure.js'), { above, folds } = require('../core/tags.js');
+test('a folded tag hides the tags under it, and only those', () => {
+  const list = [{ depth: 0, name: 'a' }, { depth: 1, name: 'b' }, { depth: 2, name: 'c' }, { depth: 1, name: 'd' }, { depth: 0, name: 'e' }];
+  const at = shut => folds(list, name => shut.includes(name)).map(one => (one.hidden ? 'h' : '') + (one.kids ? 'k' : '') + (one.shut ? 's' : ''));
+  assert.deepEqual(at([]), ['k', 'k', '', '', '']);
+  assert.deepEqual(at(['b', 'e']), ['k', 'ks', 'h', '', '']);
+  assert.deepEqual(at(['a', 'b']), ['ks', 'hks', 'h', 'h', '']);
+});
 test('an address typed without http:// is made a link', () => {
   const link = (typed) => `[${typed}](https://${typed})`;
   assert.equal(addresses('see vanguard.com for the IRA'), `see ${link('vanguard.com')} for the IRA`);

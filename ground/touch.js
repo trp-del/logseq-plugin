@@ -517,6 +517,31 @@ function tagList(say) {
   });
   return () => { off(); for (const note of host().querySelectorAll(`${LIST} .lk-where`)) note.remove(); };
 }
+/* A press on a node's cell under "Tags" in one of Logseq's tables (a click, or Enter on the cell) calls open(cell, uuid) in
+   place of Logseq's flat list of tags. A tag in the cell is Logseq's own: a press on it goes where it went. Gives back what
+   hands the cell back to Logseq. */
+function tagCells(open) {
+  const doc = host();
+  const at = target => {
+    const cell = target.closest?.('.ls-table-row .ls-table-cell');
+    if (!cell || target.closest('a, button')) return null;
+    const row = cell.closest('.ls-table-row'), table = row.closest('.ls-table'), column = cell.parentElement, strip = column?.parentElement, uuid = row.getAttribute('blockid');
+    const heads = table?.querySelector('.ls-table-header > .flex-row:not(.sticky-columns)')?.children;
+    if (!uuid || !heads || !strip || strip.classList.contains('sticky-columns') || heads[[...strip.children].indexOf(column)]?.textContent.trim() !== 'Tags') return null;
+    return { cell, uuid: uuid.toLowerCase() };
+  };
+  const hear = event => {
+    const key = event.type === 'keydown';
+    if (key ? event.key !== 'Enter' || event.metaKey || event.ctrlKey || event.shiftKey : event.button !== 0) return;
+    const found = at(event.target);
+    if (!found) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (key || event.type === 'click') open(found.cell, found.uuid);
+  };
+  const types = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'keydown'];
+  for (const type of types) doc.addEventListener(type, hear, true);
+  return () => { for (const type of types) doc.removeEventListener(type, hear, true); };
+}
 /* Logseq's own bar for the rows ticked in one of its tables (a tag's page, a property's page: "Selected: 3", Copy, Set property…)
    gets one more word. A press hands run({ ids, bar }) the ids of the ticked nodes. Logseq draws only the rows on screen, so each
    row's tick is kept as it passes; when the count kept differs from the bar's own "Selected: N" (every row ticked at once in a
@@ -1771,5 +1796,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

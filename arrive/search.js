@@ -45,6 +45,12 @@ G.part({
 .lk-choice-vals { display: flex; flex-wrap: wrap; gap: 0 10px; margin-left: -4px; }
 .lk-choice-vals.lk-choice-tree { flex-direction: column; }
 .lk-choice-tree > * { align-self: flex-start; }
+.lk-choice-tree > .lk-choice[hidden] { display: none; }
+.lk-choice-fold { display: inline-flex; width: 16px; vertical-align: -2px; color: var(--lk-off); visibility: hidden; }
+.lk-choice-fold svg { transform: rotate(90deg); }
+.lk-choice.lk-kids > .lk-choice-fold { visibility: visible; opacity: 0; }
+.lk-choice.lk-kids:is(:hover, :focus-visible, .lk-shut) > .lk-choice-fold { opacity: 1; }
+.lk-choice.lk-shut > .lk-choice-fold svg { transform: none; }
 .lk-choice { padding: 1px 4px; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-text); font: inherit; text-align: left; cursor: pointer; }
 .lk-choice[data-face="tag"] { font-family: var(--lk-tag-face); font-size: var(--lk-tag-size); }
 .lk-choice small { margin-left: 4px; color: var(--lk-quiet); font-family: var(--lk-words-face, inherit); font-size: var(--lk-small); font-variant-numeric: tabular-nums; }
@@ -100,13 +106,24 @@ G.part({
           const vals = doc.createElement('div'); vals.className = 'lk-choice-vals' + (all && line.tree ? ' lk-choice-tree' : '');
           for (const item of items) {
             const b = doc.createElement('button'); b.type = 'button'; b.className = 'lk-choice' + (item === box.lit ? ' lit' : ''); b.dataset.face = line.face === 'tag' ? 'tag' : '';
-            if (all && line.tree) b.style.paddingLeft = `${4 + (item.depth || 0) * 14}px`;
+            if (all && line.tree) { b.style.paddingLeft = `${(item.depth || 0) * 14}px`; const arrow = doc.createElement('span'); arrow.className = 'lk-choice-fold'; arrow.setAttribute('aria-hidden', 'true'); arrow.innerHTML = G.touch.icon('chevron-right', 14); b.append(arrow); }
             b.append(item.label); if (item.count != null) { const n = doc.createElement('small'); n.textContent = item.count; b.append(n); }
             b.lkTake = item.take; vals.append(b);
           }
           if (line.items.length > few) { const more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-choice-more'; more.textContent = all ? 'fewer' : 'more'; more.lkMore = line.key; vals.append(more); }
+          if (all && line.tree) { vals.lkNames = items; foldUp(vals); }
           el.append(name, vals); return el;
         }));
+      };
+      // All the kinds are an outline, folded as every list of tags is (G.folds); what is folded stays folded.
+      const foldUp = vals => {
+        const state = G.tags.folds(vals.lkNames.map(item => ({ depth: item.depth, name: item.label })), G.folds.shut);
+        [...vals.querySelectorAll('.lk-choice')].forEach((button, i) => { button.hidden = state[i].hidden; button.classList.toggle('lk-kids', state[i].kids); button.classList.toggle('lk-shut', state[i].shut); if (state[i].kids) button.setAttribute('aria-expanded', String(!state[i].shut)); });
+      };
+      const fold = (button, on = !button.classList.contains('lk-shut')) => {
+        const vals = button.closest('.lk-choice-tree');
+        if (!vals || !button.classList.contains('lk-kids')) return false;
+        G.folds.set(vals.lkNames[[...vals.querySelectorAll('.lk-choice')].indexOf(button)].label, on); foldUp(vals); return true;
       };
       const drawPieces = () => {
         piecesEl.replaceChildren(...box.picks.map((pick, i) => {
@@ -297,12 +314,13 @@ G.part({
       const onChoice = event => {
         const choice = event.target.closest('.lk-choice'), more = event.target.closest('.lk-choice-more');
         if (event.type === 'click') {
-          if (choice) { choice.lkTake(); return; }
+          if (choice) { if (event.target.closest('.lk-choice-fold') && fold(choice)) return; choice.lkTake(); return; }
           if (more) { if (box.more.has(more.lkMore)) box.more.delete(more.lkMore); else box.more.add(more.lkMore); again(); }
           return;
         }
         if (!choice) return;
-        const all = [...choicesEl.querySelectorAll('.lk-choice')], at = all.indexOf(choice), lines = [...choicesEl.querySelectorAll('.lk-choice-line')], line = choice.closest('.lk-choice-line'), li = lines.indexOf(line);
+        if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowUp' || event.key === 'ArrowDown') && fold(choice, event.key === 'ArrowUp')) { event.preventDefault(); event.stopPropagation(); return; }   // Logseq's own keys for folding
+        const all = [...choicesEl.querySelectorAll('.lk-choice')].filter(one => !one.hidden), at = all.indexOf(choice), lines = [...choicesEl.querySelectorAll('.lk-choice-line')], line = choice.closest('.lk-choice-line'), li = lines.indexOf(line);
         let to = null;
         if (event.key === 'ArrowRight') to = all[at + 1];
         else if (event.key === 'ArrowLeft') to = all[at - 1];
