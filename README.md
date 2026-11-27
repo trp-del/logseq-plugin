@@ -207,7 +207,8 @@ written to the graph. The part has its own switch in the plugin's settings (**Fo
 On the main page, at the right end of the title's line: each of the page's tags with the tags it sits under, up to the top, on
 one line that gives way with an ellipsis, its middle level with the title's. Where the title and the line do not both fit,
 the line drops under the title and starts on its edge. In the sidebar and in a page opened in a row, the same line stands under the title.
-Each name opens its tag. On a tag's own page a line above the title says **Parent** and the tag it stands under; a press lists
+Each name opens its tag. A right-click on a path lists your tags with a line to type in, the page's tag
+ticked; the one taken takes that tag's place on the page, with the Undo arrow at the bottom right. On a tag's own page a line above the title says **Parent** and the tag it stands under; a press lists
 your tags as an outline (not the tag itself, nor a tag under it) and **None (at the top)**, and the one taken is where the tag
 goes, with the Undo arrow at the bottom right.
 

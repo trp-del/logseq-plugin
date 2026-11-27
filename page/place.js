@@ -27,8 +27,8 @@ G.part({
       const node = await G.read.node(uuid);
       const [all, own] = node ? await Promise.all([G.read.tags(), G.read.tagsOf(node.id)]) : [new Map(), []];
       if (!head.isConnected || head.dataset.uuid !== uuid) return;
-      const html = own.filter(id => all.has(id)).map(id => G.tags.path(id, all)).sort((a, b) => a[0].title.localeCompare(b[0].title))
-        .map(path => `<span class="lk-path">${path.map(tag => `<a data-to="${G.esc(tag.uuid)}">${G.esc(tag.title)}</a>`).join('<span class="lk-up">/</span>')}</span>`).join('');
+      const html = own.filter(id => all.has(id)).map(id => ({ id, path: G.tags.path(id, all) })).sort((a, b) => a.path[0].title.localeCompare(b.path[0].title))
+        .map(({ id, path }) => `<span class="lk-path" data-tag="${id}">${path.map(tag => `<a data-to="${G.esc(tag.uuid)}">${G.esc(tag.title)}</a>`).join('<span class="lk-up">/</span>')}</span>`).join('');
       if (head.lkHtml !== html) { head.innerHTML = html; head.lkHtml = html; }
       void mine;
     };
@@ -51,6 +51,22 @@ G.part({
       G.menu(line.lastElementChild, [{ word: 'None (at the top)', on: !from.length, take: () => move('') }, { gap: true },
         ...may.map(({ tag: one, depth }) => ({ word: one.title, face: 'tag', depth, on: tag.parents.includes(one.id), take: () => move(one.uuid) }))]);
     };
+    // A right-click on a path changes that tag of the page: the one chosen takes its place, with one Undo.
+    const change = async (event, uuid, id) => {
+      const node = await G.read.node(uuid);
+      if (!node) return;
+      const [all, own] = await Promise.all([G.read.tags(), G.read.tagsOf(node.id)]), was = all.get(id);
+      if (!was) return;
+      const swap = async to => {
+        let steps = 0;
+        try {
+          if (!own.includes(to.id)) { await G.write.tag(uuid, to.uuid); steps++; }
+          await G.write.untag(uuid, was.uuid); steps++;
+        } catch (error) { G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning'); }
+        if (steps) G.undo.mark(uuid, steps);
+      };
+      G.menu(event, G.tags.tree(all).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: tag.id === id, take: () => { if (tag.id !== id) swap(tag); } })), { find: 'Change tag' });
+    };
     const heads = new Set();
     const pass = () => {
       for (const head of heads) if (!head.isConnected) heads.delete(head);
@@ -66,7 +82,18 @@ G.part({
         if (end) { end.classList.add('lk-place-end'); const under = G.touch.pageHead(page.el, 'lk-place'); if (under && under !== end) { heads.delete(under); under.remove(); } }
         if (!head || head.dataset.uuid === page.uuid) continue;
         head.dataset.uuid = page.uuid; heads.add(head);
-        if (!head.lkWired) { head.lkWired = true; head.addEventListener('click', event => { const a = event.target.closest('a[data-to]'); if (a) G.touch.open(a.dataset.to, event.shiftKey); }); }
+        if (!head.lkWired) {
+          head.lkWired = true;
+          head.addEventListener('click', event => { const a = event.target.closest('a[data-to]'); if (a) G.touch.open(a.dataset.to, event.shiftKey); });
+          // The press is the path's own: Logseq's menu for the title does not open under it.
+          for (const type of ['mousedown', 'pointerdown']) head.addEventListener(type, event => { if (event.button === 2) event.stopPropagation(); });
+          head.addEventListener('contextmenu', event => {
+            const path = event.target.closest('.lk-path');
+            if (!path) return;
+            event.preventDefault(); event.stopPropagation();
+            change({ x: event.clientX, y: event.clientY, from: path }, head.dataset.uuid, Number(path.dataset.tag)).catch(() => G.say('The tags could not be read', 'warning'));
+          });
+        }
         draw(head, page.uuid);
       }
     };
