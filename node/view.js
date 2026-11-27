@@ -150,7 +150,7 @@ function act(state, event) {
   const dots = target.closest('.lk-dots, .lk-set');
   if (dots) { event.preventDefault(); menu(state, box, dots); return true; }
   const group = target.closest('.lk-group-head');
-  if (group) { event.preventDefault(); G.node.folded.flip(`${key}/${group.dataset.group}`); state.redraw(); return true; }
+  if (group) { event.preventDefault(); G.node.moved(state.el, () => { G.node.folded.flip(`${key}/${group.dataset.group}`); state.redraw(); }); return true; }
   return false;
 }
 /* Dragging. A node's line dragged onto the head of another property's list gets that list's property, pointing here. A list's

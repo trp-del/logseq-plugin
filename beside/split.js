@@ -19,6 +19,7 @@ G.part({
 /* The line between the halves: a strip the hand can hold, all of it on the right page, so the left page's scroll bar stays free. */
 body > .lk-split-line { position: fixed; top: 0; bottom: 0; left: calc(100vw - var(--lk-split-w, 50vw)); width: 10px; z-index: 11; cursor: col-resize; touch-action: none; background: none; -webkit-app-region: no-drag; }
 body > .lk-split-line::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: var(--lk-hair); }
+body.lk-split-coming > :is(.lk-split-line, .lk-split-tools) { visibility: hidden; }
 body > .lk-split-line:hover::before, body > .lk-split-line.lk-held::before { background: var(--lk-line); }
 /* Swap and close: their size, grey and place are read from Logseq's own icons on the left page's header. */
 body > .lk-split-tools { position: fixed; z-index: 11; display: flex; align-items: center; -webkit-app-region: no-drag; }
@@ -30,7 +31,7 @@ body > .lk-split-tools > button:is(:hover, :focus-visible) { opacity: 1 !importa
     let timer = 0, offSized = null, offProps = null, tools = null, line = null, stopped = false;
 
     const layout = () => {
-      if (!split.node) return;
+      if (!split.node || split.leaving) return;
       const whole = Math.max(0, view.innerWidth - side.mainLeft());
       const share = whole < MIN * 2 ? .5 : Math.min(1 - MIN / whole, Math.max(MIN / whole, split.ratio));
       const width = `${Math.round(whole * share)}px`, root = doc.documentElement.style;
@@ -80,10 +81,11 @@ body > .lk-split-tools > button:is(:hover, :focus-visible) { opacity: 1 !importa
     };
     // Takes everything of the split's off the screen; the sidebar is then drawn as it always is.
     const clear = () => {
+      doc.body.classList.remove('lk-split-coming');
       view.clearInterval(timer); timer = 0; offSized?.(); offSized = null; offProps?.(); offProps = null;
       tools?.remove(); line?.remove(); tools = line = null;
       side.unmark(); doc.documentElement.style.removeProperty('--lk-split-w');
-      split.node = null; split.before = null; split.lost = 0;
+      split.node = null; split.before = null; split.lost = 0; split.leaving = false;
     };
     /* The split's end. By the split's own doing (restore) the sidebar goes back as it was: the page beside taken out of its list
        unless it stood there before, the same order, open or shut. After a change by hand, nothing of the list is touched. */
@@ -116,28 +118,34 @@ body > .lk-split-tools > button:is(:hover, :focus-visible) { opacity: 1 !importa
         const previous = split.node;
         if (!previous) split.before = { open: side.isOpen(), list: side.list() };
         split.node = node; split.lost = 0;
+        let waits = null;
         if (!previous) {
-          layout(); side.mark(node.id, { page: false, title: '', kind: '' });   // the half stands, empty, before the page comes, so nothing shows at the sidebar's own width
+          // The half waits off the window's right edge while its page is drawn, then comes in.
+          layout(); waits = side.slide(1, 1, 1, 'linear'); doc.body.classList.add('lk-split-coming'); side.mark(node.id, { page: false, title: '', kind: '' });   // the half stands, empty, before the page comes, so nothing shows at the sidebar's own width
           if (!G.on('calm') || G.setting('calm-side') === false) offProps = side.openProps();
           offSized = side.mainSized(layout);
           timer = view.setInterval(watch, 1000);   // besides the passes over the screen: a change they do not report must not leave a white half either
         }
         await side.put(node.uuid);
-        if (!await side.until(() => { draw(); return side.shown(node.id); }, SHOW_MS)) { split.busy = false; await fail(previous); return; }
-        const body = side.body(node.id);
-        if (body) G.node.roll(body, 0);
+        const came = await side.until(() => { draw(); return side.shown(node.id); }, SHOW_MS);
+        doc.body.classList.remove('lk-split-coming');
+        if (!came) { waits?.drop(); split.busy = false; await fail(previous); return; }
+        if (waits) { const { in: ms, ease } = G.look.MOTION.beside, comes = side.slide(1, 0, ms, ease); waits.drop(); comes.done.then(comes.drop); }
+        else { const body = side.body(node.id); if (body) G.node.roll(body, 0); }   // another page in the half already there
         if (previous && !split.before.list.includes(previous.id)) await side.takeOut(previous.id);   // one that was in the sidebar before the split stays in it
       } catch (error) { console.error('Logseq Plugin: a page could not be opened beside', error); if (split.node) { split.busy = false; await fail(null); } }
       finally { split.busy = false; }
     };
-    // Closes the right half: its page rolls up and leaves; the left page takes the whole width.
+    // Closes the right half: it leaves by the right edge; then the left page takes the whole width.
     const close = async () => {
       if (!split.node || split.busy) return;
       split.busy = true;
-      const body = side.body(split.node.id);
-      if (body) await G.node.rollUp(body);
+      const { out: ms, ease } = G.look.MOTION.beside, goes = side.slide(0, 1, ms, ease);
+      await goes.done;
+      // The left page takes the width as the half is gone, not once the sidebar has been put back behind it.
+      split.leaving = true; doc.documentElement.style.setProperty('--lk-split-w', '0px');
       await end(true);
-      if (body) for (const name of ['height', 'overflow', 'transition']) body.style.removeProperty(name);   // a page that stays in the sidebar stands whole again
+      goes.drop();
     };
     // The page on the left goes to the right half, the right one to the main view.
     const swap = async () => {

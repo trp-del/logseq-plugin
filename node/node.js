@@ -86,9 +86,10 @@ function mount(holder, uuid, from = '', bare = false) {   // bare: without what 
 }
 /* An opened node rolls out of its line: from the line's height to its own, in one short move, and nothing is held once it is
    there (the owner's pages of 25 November 2026: "Rolls out of its line"). Not where the person asks for less motion. */
+const still = el => el.ownerDocument.defaultView.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function roll(holder, from) {
   const view = holder.ownerDocument.defaultView, full = holder.offsetHeight;
-  if (!full || full <= from + 4 || view.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!full || full <= from + 4 || still(holder)) return;
   const done = () => { holder.style.height = ''; holder.style.overflow = ''; holder.style.transition = ''; holder.removeEventListener('transitionend', done); view.clearTimeout(cap); };
   const cap = view.setTimeout(done, 400);
   holder.style.height = `${from}px`; holder.style.overflow = 'hidden';
@@ -108,6 +109,56 @@ function rollUp(holder) {
     holder.style.transition = 'height .16s ease-out'; holder.style.height = '0px';
     holder.addEventListener('transitionend', end);
   });
+}
+/* A list changed by the person's own press: what comes rolls out and what goes rolls up, each run of lines from its top, and the
+   rest moves with them (the owner chose it, 27 November 2026: "Rolls"). change() draws the list anew. Whatever is still rolling
+   is brought to its end before the list is drawn again. */
+const SIZES = ['height', 'min-height', 'overflow', 'margin-top', 'margin-bottom', 'padding-top', 'padding-bottom'];
+function moved(root, change) {
+  root.lkSettle?.();
+  const view = root.ownerDocument.defaultView;
+  const had = [root, ...root.querySelectorAll(':scope > .lk-list > .lk-rows')].map(holder => [holder, [...holder.children]]);
+  change();
+  if (still(root)) return;
+  const runs = [];
+  for (const [holder, before] of had) {
+    if (!holder.isConnected) continue;
+    const old = new Set(before), gone = new Set(before.filter(el => el.parentElement !== holder && !el.isConnected && !el.matches('.lk-more')));
+    let after = null;   // a line that went is put back after the one it stood after, to roll up from there
+    for (const el of before) {
+      if (gone.has(el)) { el.inert = true; el.classList.add('lk-gone'); holder.insertBefore(el, after ? after.nextSibling : holder.firstChild); after = el; }
+      else if (el.parentElement === holder) after = el;
+    }
+    let run = null;
+    for (const el of holder.children) {
+      const kind = gone.has(el) ? 'goes' : old.has(el) ? '' : 'comes';
+      if (!kind) { run = null; continue; }
+      if (!run || run.kind !== kind) runs.push(run = { kind, els: [] });
+      run.els.push(el);
+    }
+  }
+  if (!runs.length) return;
+  for (const run of runs) run.full = run.els.map(el => { const look = view.getComputedStyle(el); return { height: el.offsetHeight, edges: ['margin-top', 'margin-bottom', 'padding-top', 'padding-bottom'].map(name => [name, parseFloat(look.getPropertyValue(name)) || 0]) }; });
+  const ms = G.look.MOTION.roll, from = view.performance.now();
+  const at = part => {
+    for (const run of runs) {
+      let left = run.full.reduce((sum, one) => sum + one.height, 0) * (run.kind === 'comes' ? part : 1 - part);
+      run.els.forEach((el, i) => {
+        const { height, edges } = run.full[i]; if (!height) return;
+        const now = Math.max(0, Math.min(height, left)), share = now / height; left -= height;
+        el.style.setProperty('height', `${now}px`); el.style.setProperty('min-height', '0'); el.style.setProperty('overflow', 'hidden');
+        for (const [name, full] of edges) el.style.setProperty(name, `${full * share}px`);
+      });
+    }
+  };
+  const end = () => {
+    root.lkSettle = null; view.cancelAnimationFrame(frame); view.clearTimeout(cap);
+    for (const run of runs) for (const el of run.els) { if (run.kind === 'goes') el.remove(); else for (const name of SIZES) el.style.removeProperty(name); }
+  };
+  const step = time => { const t = Math.min(1, Math.max(0, (time - from) / ms)); if (t >= 1) return end(); at(1 - (1 - t) * (1 - t)); frame = view.requestAnimationFrame(step); };
+  at(0);
+  let frame = view.requestAnimationFrame(step); const cap = view.setTimeout(end, ms + 300);
+  root.lkSettle = end;
 }
 function open(row) {
   if (row.dataset.open || !G.touch.editor.can()) { if (!row.dataset.open) G.touch.open(row.dataset.uuid); return; }
@@ -170,7 +221,7 @@ const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null, offDigs = null;
 function listing(el, read, opts = {}) {
-  const state = { el, read, all: new Set(), turn: 0, hits: 0, draft: null, ticks: opts.ticks || null, press: opts.press || null, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
+  const state = { el, read, all: new Set(), turn: 0, hits: 0, draft: null, ticks: opts.ticks || null, press: opts.press || null, leaves: opts.leaves || null, left: new Set(), rolls: false, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
   state.redraw = () => { if (state.last && el.isConnected) draw(state, ...state.last); };
   state.again = () => load(state);
   mounted.set(el, state);
@@ -235,12 +286,40 @@ async function load(state) {
     const holds = await G.read.withLines(made.flatMap(list => list.rows.map(row => row.id)));
     if (turn !== state.turn || !state.el.isConnected) return;
     for (const list of made) for (const row of list.rows) row.holds = holds.has(row.id);
+    if (state.leaves && state.last && !(await finished(state, made, statuses, turn))) return;
     state.last = [made, names, statuses];
-    draw(state, made, names, statuses);
+    if (state.rolls) { state.rolls = false; moved(state.el, () => draw(state, made, names, statuses)); } else draw(state, made, names, statuses);
     state.el.dispatchEvent(new (state.el.ownerDocument.defaultView.CustomEvent)('lk-drawn'));
   } catch (error) {
     console.error('Logseq Plugin: a list of nodes could not be read', error);
   }
+}
+/* A task finished from a list that lets finished tasks go (Todo): its circle shows it ticked, the line waits a moment, then rolls
+   up; undone, it rolls back (the owner chose it, 27 November 2026: "Ticks, waits, closes"). False: a newer reading took over. */
+async function finished(state, made, statuses, turn) {
+  const view = state.el.ownerDocument.defaultView, next = new Set(made.flatMap(list => list.rows.map(row => row.uuid)));
+  if ([...next].some(uuid => state.left.delete(uuid))) state.rolls = true;
+  const lines = uuid => [...state.el.querySelectorAll(`.lk-row[data-uuid="${uuid}"]:not([data-open]):not(.lk-gone)`)];
+  // Only a task the place no longer holds at all is asked after: one narrowed or filtered away costs nothing while typing.
+  const gone = state.last[0].flatMap(list => list.rows).filter(row => !next.has(row.uuid) && state.leaves(row.uuid) && lines(row.uuid).length);
+  if (!gone.length) return true;
+  const now = await G.read.describe(gone.map(row => row.id));
+  if (turn !== state.turn || !state.el.isConnected) return false;
+  let until = 0;
+  for (const row of gone) {
+    const status = statuses.find(one => one.id === now.get(row.id)?.status);
+    if (!status || !G.line.ended(status)) continue;
+    state.left.add(row.uuid);
+    for (const line of lines(row.uuid)) {
+      if (!line.lkDone) G.line.mark(line, status);   // finished somewhere else: it shows ticked from now
+      until = Math.max(until, line.lkDone + G.look.MOTION.done);
+    }
+  }
+  if (!until) return true;
+  await new Promise(done => view.setTimeout(done, Math.max(0, until - Date.now())));
+  if (turn !== state.turn || !state.el.isConnected) return false;
+  state.rolls = true;
+  return true;
 }
 // Elements are kept by their key and only what changed is redrawn, so an opened row keeps its editor and the writing in it.
 function sync(parent, wanted, keyOf, make, update) {
@@ -259,6 +338,7 @@ function sync(parent, wanted, keyOf, make, update) {
   for (const child of have.values()) if (!child.dataset.open) child.remove();
 }
 function draw(state, made, names, statuses) {
+  state.el.lkSettle?.();
   const doc = state.el.ownerDocument, today = D.number(new Date());
   state.hits = 0;   // how many found nodes say where they were found, this drawing
   const wanted = made.length || !state.none ? made : [{ key: 'none', kind: 'none', name: state.none, rows: [] }];
@@ -390,14 +470,23 @@ function handle(state, event) {
   // still fold it from the head.
   if (head && head.parentElement.dataset.kind !== 'none' && ((event.type === 'click' && target.closest('.lk-fold')) || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' ')))) {
     if (target.closest('.lk-tick, button')) return;
-    event.preventDefault(); event.stopPropagation(); folded.flip(head.parentElement.dataset.key); state.view?.kinds.delete(head.parentElement.dataset.key); state.redraw(); return;   // a folded list keeps no kind chosen
+    event.preventDefault(); event.stopPropagation(); foldList(state, head.parentElement); return;
   }
-  if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-more').dataset.gkey || target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } state.redraw(); return; }
+  if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-more').dataset.gkey || target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } moved(state.el, state.redraw); return; }
   if (event.type === 'keydown' && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && target.matches('.lk-line, .lk-list-head')) {
     const stops = [...state.el.querySelectorAll('.lk-line, .lk-list-head')].filter(el => el.closest('.lk-rel') === state.el && el.offsetParent);
     const next = stops[stops.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)];
     if (next) { event.preventDefault(); event.stopPropagation(); next.focus(); }
   }
+}
+// A list folds: its lines roll up and then it is shut; opened, they roll out. A folded list keeps no kind chosen.
+function foldList(state, box) {
+  const key = box.dataset.key, rows = box.querySelector(':scope > .lk-rows');
+  const flip = () => { folded.flip(key); state.view?.kinds.delete(key); state.redraw(); };
+  if (box.lkShutting) return;
+  if (folded.has(key)) { flip(); roll(rows, 0); return; }
+  box.lkShutting = true; box.firstElementChild.setAttribute('aria-expanded', 'false');
+  rollUp(rows).then(() => { box.lkShutting = false; flip(); for (const name of ['height', 'overflow', 'transition']) rows.style.removeProperty(name); });
 }
 /* A line that adds: one field at the head of a place's list. Enter hands its words to add(words), which answers the uuid of what
    it made (or of what was there already); the list then moves to that row and lights it for a moment, while the field stays in
@@ -433,7 +522,7 @@ function once(base) {
   base.onStop(G.touch.changed(() => load().catch(() => {})));
   base.onStop(G.touch.watch(() => G.touch.once(placed)));
 }
-G.node = { peek, toggle, open, close, roll, rollUp, back, listing, lists, related, adder, folded, hit, once, ARROW, CHEV };
+G.node = { peek, toggle, open, close, roll, rollUp, moved, back, listing, lists, related, adder, folded, hit, once, ARROW, CHEV };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }

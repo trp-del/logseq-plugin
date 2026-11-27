@@ -128,8 +128,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   edge, one shadow; a window in the middle of the screen is on the page's paper with a hairline.
 - A key is told only where it is not a common one, as the Mac writes it, with no box. The one exception is the key sheet,
   where keys are what is read: there each stands in a small box.
-- An opened node rolls out of its line in one short move. A tick box on a line shows under the pointer and stays once
-  ticked (no list has tick boxes yet).
+- An opened node rolls out of its line in one short move, and so do a list's fold, a group's fold, **Show more** and
+  **Show fewer**. A tick box on a line shows under the pointer and stays once ticked (no list has tick boxes yet).
 - Three corners (a small one, one for what floats, the round of a press), the sizes of text, and the box a mark stands in
   with the gap after it (16 and 4) are named once in `ground/look.js`.
 
@@ -170,8 +170,15 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
 Where Logseq swaps the whole view at once, the bullet you focus into glides from where it stood to the top in about a
 quarter of a second, its children with it, and the rest of the old view fades where it stood. Stepping out runs the same
 glide back, the page fading in round the bullet; the bullet comes back selected with Logseq's own selection, until the view
-changes again. A bullet that lands out of sight is brought to the middle first, and on a longer page the glide waits the
-moment Logseq takes to draw it.
+changes again. A bullet that lands out of sight is brought to the middle first. Leaving a focused bullet, the old view
+stands until Logseq has drawn the next one, so nothing shows blank or half drawn on the way.
+
+A bullet focused into from the journal's list of days steps out (the arrow, Cmd-,, writing in it or not) back to that list,
+not to its day's page: the bullet stands where it stood, and where you were writing, the caret is put back. Back does the
+same. A press on the day in the line of steps still opens the day's page.
+
+A bullet folded or opened rolls: what is under it rolls shut or out, and the page below moves with it (a press on its fold
+arrow, Cmd-Up and Cmd-Down, t o).
 
 | Do | Result |
 |---|---|
@@ -179,7 +186,7 @@ moment Logseq takes to draw it.
 | The faint up arrow after the last step of that line (a press, or Enter or Space on it) | Steps out one level, as pressing that step does |
 | Cmd-. on the bullet that came back selected | Focuses into it again |
 | Cmd-, in a focused bullet, outside the editor | Steps out one level (Logseq alone opens its settings there; everywhere else Cmd-, is still Logseq's) |
-| Cmd-. or Cmd-, while you write in the bullet | Logseq's own; the cursor stays in it and nothing is selected |
+| Cmd-. or Cmd-, while you write in the bullet | Logseq's own; the cursor stays in it and nothing is selected. In a bullet focused into from the journal, Cmd-, goes back to the journal, the caret where it was |
 
 A node of an embed, focused into from the outline it is shown in, steps out (the arrow, Cmd-,) back to that outline, not to
 the page it was written on; inside the embed each step goes up one embedded node until then. With the Mac's Reduce motion
@@ -271,7 +278,7 @@ plain click and a Shift-click do what they did before; without the plugin Logseq
 | Drag the hairline between the halves | One half grows; neither gets narrower than 320 px. It is held just right of the line, so the left page's scroll bar stays free |
 | Double-click the hairline | Equal halves again |
 | The two arrows, top right | The two pages change places (where the left shows no page, as on the journals, a notice says so) |
-| The ×, top right | The right page rolls up and the left one takes the whole width; the sidebar holds what it held, open or shut, as before. To close the left page, swap first |
+| The ×, top right | The right page leaves by the right edge, then the left one takes the whole width; the sidebar holds what it held, open or shut, as before. To close the left page, swap first |
 | Open anything in the sidebar (Shift-click, Cmd-K, Todo) | The split ends and the sidebar is shown as always, the page from the right among what it holds |
 | Shut the sidebar (its button, t r) | The split ends; the page stays in the sidebar for the next time |
 
@@ -280,7 +287,8 @@ The two icons are drawn as Logseq's own at the top of the window. The right half
 Logseq's #, a property's with its P), a tag's Parent line, its place under the title, its properties, Relations and bullets,
 with no rule or empty Add property that Logseq's sidebar would add, and no list of a tag's or a property's own settings. Two
 things differ: its place stands under the title rather than at its end, and Logseq draws no Unlinked references for a page in
-its sidebar. The right page rolls out as it opens (no motion where less motion is asked for). If it cannot be shown within a
+its sidebar. The right half comes in from the right as it opens, and another page taking it rolls out (no motion where less
+motion is asked for). If it cannot be shown within a
 couple of seconds, the split closes, the sidebar goes back to how it was, and a notice says so: a half never stands blank.
 Loading the plugin again closes the split. Nothing is written to the graph. Switch it off with **Two pages side by side** in
 the plugin's settings.
@@ -314,7 +322,8 @@ set: Logseq's keyboard settings set them. The part can be switched off in the pl
 The corner, or **Todo** in the command palette, opens a section of the right sidebar: your open tasks under **Overdue** (past
 its day), **Today**, **Coming up** and **Any time**, each under a small bold word, the words a size smaller
 than a page's. A task's day stands at the right end of its line, red once it has passed. The line at the top, **Add or find a
-todo**, narrows the list to the tasks holding every word typed, and Return adds what is typed as a task on today's journal. A task set Done or Canceled leaves the list.
+todo**, narrows the list to the tasks holding every word typed, and Return adds what is typed as a task on today's journal. A task set Done or Canceled shows its circle ticked, waits a
+moment, then leaves the list, the lines under it closing up; Undo rolls it back.
 
 Under that line, from five tasks with a day, stands a strip of time: a hairline from the first task's month to today, a dot for
 each listed task that has a day, a late one in red, today a short upright line. A press on a dot goes to its task. At the end

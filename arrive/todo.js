@@ -52,8 +52,10 @@ G.part({
       const BY = { day: 'By day', page: 'By page', parent: 'By parent', tag: 'By tag', priority: 'By priority', status: 'By status' };
       let by = BY[kept('lk.todo-by', 'day')] ? kept('lk.todo-by', 'day') : 'day', sort = kept('lk.todo-sort', 'day') === 'name' ? 'name' : 'day', out = new Set(kept('lk.todo-out', []));
       const plain = words => String(words || '').replace(/\[\[|\]\]/g, '');
+      let held = new Set();   // every open task, listed or not
       const read = async () => {
         const [all, statuses] = await Promise.all([G.read.tasks(), G.read.statuses()]), today = G.days.number(new Date());
+        held = new Set(all.map(task => task.uuid));
         const titleOf = new Map(statuses.map(status => [status.id, status.title])), open = statuses.filter(status => all.some(task => task.status === status.id));
         const listed = all.filter(task => !out.has(titleOf.get(task.status) || ''));
         // The strip of time: every listed task that has a day, a late one in red; a press on a dot goes to its line.
@@ -87,7 +89,7 @@ G.part({
             G.menu(at, [...[['Today', day(0)], ['Tomorrow', day(1)], ['Next week', day(monday)]].map(([word, to]) => ({ word, value: G.days.short(to, day(0)) || '', on: has === to, take: () => change(G.write.setDeadline(uuid, to)).catch(refused('The deadline could not be set')) })),
               ...(has ? [{ gap: true }, { word: 'Remove deadline', take: () => change(G.write.setDeadline(uuid, 0)).catch(refused('The deadline could not be taken off')) }] : [])]); } }];
       };
-      const list = G.node.listing(holder.lastElementChild, read, { few: 30, none: 'No open tasks', more });
+      const list = G.node.listing(holder.lastElementChild, read, { few: 30, none: 'No open tasks', more, leaves: uuid => !held.has(uuid) });
       const narrow = () => {
         const now = field.value.trim().toLowerCase(), said = G.todo.dayIn(field.value, G.days.number(new Date()));
         hint.textContent = said ? G.days.short(said.day) : '';   // a day is written one way everywhere

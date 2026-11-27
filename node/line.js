@@ -32,10 +32,23 @@ function html(node, { names, statuses, tagShown, day }) {
   return `<span class="lk-bul${node.holds ? ' lk-folded' : ''}" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? `\u2002<span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
 }
 
+const ended = status => /^(done|canceled|cancelled)$/.test(status.name);
+// A line's circle shows a status at once, ahead of the graph telling of it; lkDone says when it showed a task finished.
+function mark(row, status) {
+  const line = row.querySelector(':scope > .lk-line'), circle = line?.querySelector(':scope > .lk-status');
+  if (!circle) return;
+  circle.innerHTML = G.touch.statusIcon(status.icon) || G.esc(status.title); circle.title = status.title; circle.setAttribute('aria-label', `Status: ${status.title}`);
+  line.lkHtml = null;   // drawn again from the graph at the next reading
+  row.lkDone = ended(status) ? Date.now() : 0;
+}
+function setStatus(row, status) {
+  mark(row, status);
+  G.undo.after(row.dataset.uuid, G.write.setStatus(row.dataset.uuid, status.title)).catch(error => { G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning'); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); });
+}
 async function pickStatus(at, row) {
   const statuses = await G.read.statuses(), now = Number(row.dataset.status) || 0;
   G.menu(at, statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now,
-    take: () => G.undo.after(row.dataset.uuid, G.write.setStatus(row.dataset.uuid, s.title)).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) })));
+    take: () => setStatus(row, s) })));
 }
 // The person's tags as an outline, the node's own ticked: a press puts a tag on the node or takes it off.
 // typing: the list has a line to type in, and words no tag has make a new one, as Logseq's own list of tags does.
@@ -74,7 +87,7 @@ async function menu(at, row, more) {
     { word: 'Open', take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', take: () => G.touch.open(uuid, true) },
     ...(face ? [] : [{ gap: true }, { word: 'Tags…', take: () => pickTags(at, row.dataset.uuid) }]),   // not on a tag or a property itself
-    ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.undo.after(uuid, G.write.setStatus(uuid, s.title)).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
+    ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => setStatus(row, s) }))] : []),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
     { word: face ? 'Delete…' : 'Delete', goes: true, take: () => {
@@ -114,7 +127,7 @@ function act(event, row, more) {
   }
   return false;
 }
-G.line = { html, act, menu, addProperty, pickTags };
+G.line = { html, act, menu, mark, ended, addProperty, pickTags };
 G.line.CSS = `
 /* A row: its day, the fold arrow, the line. A list of Relations says the day inside the line, after the bullet (lk-dayin), and
    keeps no column for it. A place whose view puts the day at the right end says so on a box round its rows (lk-day-end: Find,

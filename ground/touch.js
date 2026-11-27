@@ -360,18 +360,16 @@ const glide = (() => {
       const at = body.getBoundingClientRect();   // the copy stands exactly where the view stood
       Object.assign(copy.style, { top: (at.top - box.top) + 'px', left: (at.left - box.left) + 'px', width: at.width + 'px', right: 'auto', margin: '0' });
     }
-    return { sign: sign(), focused: !!line(), rows, copy, box: { width: box.width, height: box.height } };
+    return { sign: sign(), focused: !!line(), feed: !line() && !!scroller.querySelector('.journal-item'), scroll: scroller.scrollTop, rows, copy, box: { width: box.width, height: box.height } };
   }
-  // The old view, a copy laid over the new one, fading where it stood; the bullet that moves is left out of it.
-  function fadeOld({ copy, box, rows }, uuid) {
-    const scroller = main(), { ms, fade, away, awayStill, cap } = timing();
-    if (!copy) return;
-    const ghost = host().createElement('div');
+  // The old view, a copy laid over Logseq's view where the old one stood. It stays where it is however the view under it scrolls.
+  function lay(was) {
+    const scroller = main(), { copy, box, rows } = was;
+    if (!copy || !scroller) return null;
+    if (was.ghost?.isConnected) { stay(was); return was.ghost; }
+    const ghost = was.ghost = host().createElement('div');
     ghost.className = 'lk-ghost'; ghost.inert = true; ghost.setAttribute('aria-hidden', 'true');
     Object.assign(ghost.style, { left: scroller.scrollLeft + 'px', top: scroller.scrollTop + 'px', width: box.width + 'px', height: box.height + 'px' });
-    for (const block of copy.querySelectorAll(`.ls-block[blockid="${uuid}"]`)) block.style.visibility = 'hidden';
-    // The line of steps never fades (the owner, 12 November 2026: it flashed): it stands where it is and only its words change.
-    for (const one of copy.querySelectorAll(STEPS)) one.style.visibility = 'hidden';
     ghost.append(copy);
     scroller.append(ghost);   // inside Logseq's view, so its rules for what stands in the view still hold for the copy
     for (const played of ghost.getAnimations({ subtree: true })) { try { played.finish(); } catch (error) { /* one that never ends */ } }   // Logseq's own fade-ins shown as they ended
@@ -382,6 +380,33 @@ const glide = (() => {
       copy.style.top = (parseFloat(copy.style.top) + at.y - now.top) + 'px'; copy.style.left = (parseFloat(copy.style.left) + at.x - now.left) + 'px';
       break;
     }
+    return ghost;
+  }
+  function stay(was) { const scroller = main(); if (was.ghost && scroller) { was.ghost.style.top = scroller.scrollTop + 'px'; was.ghost.style.left = scroller.scrollLeft + 'px'; } }
+  /* The old view held, on the ground the view stands on, while Logseq draws the next one: nothing blank and nothing half drawn
+     shows (the owner chose it, 27 November 2026: "One slide, same spot"). */
+  function cover(was) {
+    const ghost = lay(was), scroller = main();
+    if (!ghost) return;
+    let ground = '';
+    for (let at = scroller; at && !ground; at = at.parentElement) { const painted = win().getComputedStyle(at).backgroundColor; if (!/^(rgba\(0, 0, 0, 0\)|transparent)$/.test(painted)) ground = painted; }
+    ghost.style.background = ground || 'var(--lk-paper)';
+    was.stays = () => stay(was); scroller.addEventListener('scroll', was.stays);
+  }
+  function uncover(was) {
+    if (!was) return;
+    if (was.stays) { main()?.removeEventListener('scroll', was.stays); was.stays = null; }
+    was.ghost?.remove(); was.ghost = null;
+  }
+  // The old view fading where it stood; the bullet that moves is left out of it.
+  function fadeOld(was, uuid) {
+    const { ms, fade, away, awayStill, cap } = timing(), ghost = lay(was);
+    if (!ghost) return;
+    if (was.stays) { main().addEventListener('scroll', was.stays); was.stays = null; }
+    ghost.style.background = '';
+    for (const block of ghost.querySelectorAll(`.ls-block[blockid="${uuid}"]`)) block.style.visibility = 'hidden';
+    // The line of steps never fades (the owner, 12 November 2026: it flashed): it stands where it is and only its words change.
+    for (const one of ghost.querySelectorAll(STEPS)) one.style.visibility = 'hidden';
     const going = ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms * (still() ? awayStill : away), easing: fade, fill: 'forwards' });
     going.onfinish = () => ghost.remove();
     win().setTimeout(() => ghost.remove(), cap);
@@ -413,6 +438,63 @@ const glide = (() => {
     const others = [...scroller.querySelectorAll('.block-main-container, .block-children-left-border, .ls-page-title, .page-title, .ls-page-properties')]
       .filter(node => !node.closest('.lk-ghost') && !block.contains(node) && !node.contains(block) && inView(node.getBoundingClientRect(), box));
     for (const node of others) node.animate([{ opacity: 0 }, { opacity: 1 }], { id: 'lk-glide-in', duration: ms * part, delay: ms * (out ? outDelay : inDelay), easing: fade, fill: 'backwards' });
+  }
+  /* A bullet brought to the height it had on screen (y); true once it stands there, or the view can scroll no further. Measured
+     without the glide's own movement. */
+  function anchor(uuid, y) {
+    const scroller = main(), block = blockIn(uuid);
+    if (!scroller || !block) return false;
+    const shift = win().getComputedStyle(block).transform, moved = shift && shift !== 'none' ? new (win().DOMMatrix)(shift).f : 0;
+    const off = rowOf(block).getBoundingClientRect().top - moved - y;
+    if (Math.abs(off) < 1) return true;
+    const had = scroller.scrollTop; scroller.scrollTop += off;
+    return Math.abs(scroller.scrollTop - had) < 1;
+  }
+  // The same, kept for a while as Logseq draws the days round it, until the person scrolls, presses or types.
+  function hold(uuid, y, ms) {
+    const view = win(), doc = host(), end = Date.now() + ms, types = ['wheel', 'pointerdown', 'keydown', 'touchstart'];
+    let on = true;
+    const stop = () => { on = false; for (const type of types) doc.removeEventListener(type, stop, true); };
+    for (const type of types) doc.addEventListener(type, stop, { capture: true, passive: true });
+    const frame = () => { if (!on) return; anchor(uuid, y); if (Date.now() < end) view.requestAnimationFrame(frame); else stop(); };
+    frame();
+    return stop;
+  }
+  /* A bullet folded or opened by the person: closed(copy) gets a still copy of the children Logseq has just taken away, put back
+     where they stood, to roll up and remove; opened(el) the children Logseq has just put in. Only after a press on a fold arrow or
+     one of Logseq's folding keys, so a page that loads moves nothing. */
+  function folds(closed, opened) {
+    const doc = host(), view = win(), KIDS = 'block-children-container'; let until = 0;
+    const arm = () => { until = Date.now() + 900; };
+    const pressed = event => { if (event.target.closest?.('.block-control')) arm(); };
+    let t = 0;   // Logseq's "t o", which folds or opens every bullet
+    const keyed = event => {
+      if (((event.metaKey || event.ctrlKey) && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) || (event.key === 'o' && Date.now() - t < 1000 && !typing())) arm();
+      t = event.key === 't' ? Date.now() : 0;
+    };
+    const typing = () => !!doc.activeElement?.matches('textarea, input, [contenteditable="true"]');
+    const watcher = new view.MutationObserver(changes => {
+      if (Date.now() > until) return;
+      for (const change of changes) {
+        const block = change.target;
+        if (!block.classList?.contains('ls-block') || !block.isConnected) continue;
+        for (const el of change.removedNodes) {
+          if (!el.classList?.contains(KIDS) || el.classList.contains('lk-rolling') || block.querySelector(`:scope > .${KIDS}`)) continue;
+          const copy = el.cloneNode(true);
+          for (const node of [copy, ...copy.querySelectorAll('[id], [blockid]')]) { node.removeAttribute('id'); node.removeAttribute('blockid'); }
+          copy.classList.add('lk-rolling'); copy.inert = true; copy.setAttribute('aria-hidden', 'true');
+          block.append(copy); closed(copy);
+        }
+        for (const el of change.addedNodes) {
+          if (!el.classList?.contains(KIDS) || el.classList.contains('lk-rolling')) continue;
+          for (const old of block.querySelectorAll(':scope > .lk-rolling')) old.remove();
+          opened(el);
+        }
+      }
+    });
+    watcher.observe(doc.body, { childList: true, subtree: true });
+    doc.addEventListener('pointerdown', pressed, true); doc.addEventListener('keydown', keyed, true);
+    return () => { watcher.disconnect(); doc.removeEventListener('pointerdown', pressed, true); doc.removeEventListener('keydown', keyed, true); for (const old of doc.querySelectorAll('.lk-rolling')) old.remove(); };
   }
   // Each change of the view in the main window, said before it is drawn (leaving; pushed: a new step, not Back or Forward) and after.
   function moves(leaving, arrived) {
@@ -488,7 +570,7 @@ const glide = (() => {
 ${STEPS} > a.lk-out { display: inline-flex; align-items: center; margin-left: 4px; padding: 0; border-radius: var(--lk-corner); color: var(--lk-quiet) !important; cursor: pointer; text-decoration: none; }
 ${STEPS} > a.lk-out:hover, ${STEPS} > a.lk-out:focus-visible { color: var(--lk-text) !important; outline: none; }
 ${STEPS} > a.lk-out:focus-visible { background: var(--lk-wash); }`,
-    route, view, play, moves, soon, stepUp, wayOut, into, top, onBullet, embedOf, parent, still,
+    route, view, play, cover, uncover, stay, anchor, hold, folds, moves, soon, stepUp, wayOut, into, top, onBullet, embedOf, parent, still,
     clear() { for (const one of host().querySelectorAll('.lk-ghost, .lk-out')) one.remove(); },
     address: () => win().location.hash,
     back(address) { win().location.hash = address; },
@@ -498,6 +580,11 @@ ${STEPS} > a.lk-out:focus-visible { background: var(--lk-wash); }`,
     focused: () => !!line(),
     isBullet: async uuid => !!(await logseq.Editor.getBlock(uuid).catch(() => null))?.parent,
     typing: () => !!host().activeElement?.matches('textarea, input, [contenteditable="true"]'),
+    // The bullet of the main view being written in, and where the caret is; and writing there again.
+    writingAt() { const el = host().activeElement, block = el?.tagName === 'TEXTAREA' && el.closest('#main-content-container .ls-block[blockid]'); return block ? { uuid: block.getAttribute('blockid'), pos: el.selectionStart } : null; },
+    leaveWriting: () => logseq.Editor.exitEditingMode(false),
+    write: at => logseq.Editor.editBlock(at.uuid, { pos: at.pos }),
+    scrollTo(y) { const scroller = main(); if (scroller) scroller.scrollTop = y; },
     editing: async () => !!(await logseq.Editor.checkEditing?.()),
     select: uuid => logseq.Editor.selectBlock?.(uuid),
     unselect: () => logseq.Editor.clearSelectedBlocks?.(),
@@ -1929,6 +2016,17 @@ function presses(fn) {
   for (const type of types) view.addEventListener(type, on, true);
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
-const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
+/* The right half moved sideways with its line and icons: from and to are how far out it stands (1: off the window's right edge,
+   0: in its place). Held at the end until drop() is called. Where the Mac asks for less motion nothing moves. */
+function slide(from, to, ms, ease) {
+  const doc = host(), view = doc.defaultView, side = doc.querySelector(RIGHT);
+  if (!side || view.matchMedia('(prefers-reduced-motion: reduce)').matches) return { done: Promise.resolve(), drop() {} };
+  const width = parseFloat(doc.documentElement.style.getPropertyValue('--lk-split-w')) || side.getBoundingClientRect().width;
+  const played = [side, ...doc.querySelectorAll('body > .lk-split-line, body > .lk-split-tools')]
+    .map(el => el.animate([{ transform: `translateX(${from * width}px)` }, { transform: `translateX(${to * width}px)` }], { id: 'lk-beside', duration: ms, easing: ease, fill: 'both' }));
+  const done = new Promise(over => { played[0].onfinish = played[0].oncancel = () => over(); view.setTimeout(over, ms + 200); });
+  return { done, drop() { for (const one of played) one.cancel(); } };
+}
+const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
 G.touch = { notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

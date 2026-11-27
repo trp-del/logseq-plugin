@@ -809,6 +809,58 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.emulateMedia({ reducedMotion: null });
       return is(got, [[false, ...IN.slice(1)], [false, ...OUT.slice(1)]]);
     });
+    // ---- Moving (the owner's choices of 27 November 2026)
+    // How many places in between a number passed through, read at every frame while something is done.
+    const between = async (read, act, ms = 900) => { const seen = page.evaluate(([src, ms]) => new Promise(done => { const f = eval(src), got = [], t0 = performance.now(); const frame = () => { got.push(f()); performance.now() - t0 < ms ? requestAnimationFrame(frame) : done(got); }; frame(); }), [read, ms]);
+      await wait(60); await act(); const got = (await seen).filter(x => x != null).map(Math.round), a = got[0], z = got[got.length - 1]; await wait(300);
+      return new Set(got.filter(x => x > Math.min(a, z) + 2 && x < Math.max(a, z) - 2)).size; };
+    await step('a bullet zoomed into from the journal: Cmd-, , the up arrow and Back return to the journal at the same spot, never blank', async () => {
+      const day = await box.frame().evaluate(async () => { const p = await logseq.Editor.createJournalPage(new Date().toLocaleDateString('en-CA')), ids = [];
+        for (let k = 0; k < 14; k++) ids.push((await logseq.Editor.appendBlockInPage(p.uuid, `Zz day note ${k}`)).uuid);
+        await logseq.Editor.insertBlock(ids[8], 'Zz under it', { sibling: false }); return ids; });
+      const row = `#main-content-container .ls-block[blockid="${day[8]}"] > .block-main-container`, got = [];
+      const at = () => page.evaluate(sel => [location.hash, Math.round(document.querySelector(sel)?.getBoundingClientRect().top)], row);
+      for (const way of ['key', 'arrow', 'back']) {
+        await page.evaluate(() => window.logseq.api.push_state('home')); await wait(1800);
+        await page.evaluate(sel => { const main = document.getElementById('main-content-container'); main.scrollTop += document.querySelector(sel).getBoundingClientRect().top - 350; }, row); await wait(600);
+        const was = await at(); await page.locator(`${row} .bullet-container`).first().click(); await wait(1300);
+        const seen = page.evaluate(() => new Promise(done => { let blank = 0; const t0 = performance.now(); const frame = () => { const main = document.getElementById('main-content-container'); if (!main.querySelector('.block-main-container')) blank++; performance.now() - t0 < 2000 ? requestAnimationFrame(frame) : done(blank); }; frame(); }));
+        await wait(60); if (way === 'key') await page.keyboard.press('Meta+,'); else if (way === 'arrow') await page.locator('#main-content-container .lk-out').click(); else await page.evaluate(() => history.back());
+        const blank = await seen; await wait(500); const now = await at(); got.push([now[0] === was[0], Math.abs(now[1] - was[1]) <= 2, blank]);
+      }
+      return is(got, [[true, true, 0], [true, true, 0], [true, true, 0]]);
+    });
+    await step('a bullet folded or opened rolls', async () => {
+      const row = page.locator('#main-content-container .ls-block[haschild="true"] > .block-main-container', { hasText: 'Zz day note 8' }).first();
+      const read = `() => document.querySelector('#main-content-container .journal-item .page-blocks-inner')?.offsetHeight`;
+      const press = async () => { await row.hover(); await row.locator('.block-control').click(); };
+      const shut = await between(read, press), open = await between(read, press);
+      return is([shut > 2, open > 2, await count('.lk-rolling')], [true, true, 0]);
+    });
+    await step('"Show more" and a list\'s fold roll, nothing left behind', async () => {
+      await goto(FATIGUE);
+      const read = `() => document.querySelector('#main-content-container .lk-relpage .lk-list').offsetHeight`, fold = page.locator('#main-content-container .lk-list-head > .lk-fold').first();
+      const more = await between(read, () => page.locator('#main-content-container .lk-relpage .lk-more').first().click());
+      await fold.hover(); const shut = await between(read, () => fold.click()), open = await between(read, () => fold.click());
+      return is([more > 1, shut > 2, open > 2, await count('.lk-gone')], [true, true, true, 0]);
+    });
+    await step('a task finished in Todo shows its tick, waits, rolls up; Undo rolls it back', async () => {
+      const uuid = await box.frame().evaluate(async () => { const p = await logseq.Editor.createJournalPage(new Date().toLocaleDateString('en-CA')), b = await logseq.Editor.appendBlockInPage(p.uuid, 'Zz finish me'); await window.PluginDoor.write.setStatus(b.uuid, 'Todo'); return b.uuid; });
+      await page.evaluate(() => window.logseq.api.push_state('home')); await wait(800); await page.keyboard.press('g'); await page.keyboard.press('d'); await wait(2000);
+      const read = `() => { const row = document.querySelector('#main-content-container .lk-todo .lk-row[data-uuid="${uuid}"]'); return row ? [row.offsetHeight, row.querySelector('.lk-status').title] : []; }`;
+      const watch = async act => { const seen = page.evaluate(src => new Promise(done => { const f = eval(src), got = [], t0 = performance.now(); const frame = () => { got.push(f()); performance.now() - t0 < 2600 ? requestAnimationFrame(frame) : done(got); }; frame(); }), read); await wait(60); await act(); return seen; };
+      await page.locator(`#main-content-container .lk-todo .lk-row[data-uuid="${uuid}"] .lk-status`).click(); await wait(500);
+      const went = await watch(() => page.locator('.lk-menu .lk-item', { hasText: /^Done$/ }).click()), back = await watch(() => page.keyboard.press('Meta+z'));
+      const part = got => new Set(got.filter(one => one[0] > 1 && one[0] < 22).map(one => one[0])).size;
+      return is([went.filter(one => one[1] === 'Done' && one[0] > 20).length > 25, part(went) > 2, went[went.length - 1].length, part(back) > 1, back[back.length - 1][1]], [true, true, 0, true, 'Todo']);
+    });
+    await step('the page beside slides in from the right and out again', async () => {
+      await goto(FATIGUE);
+      const read = `() => { const side = document.getElementById('right-sidebar'); return side.hasAttribute('data-lk-split') ? side.getBoundingClientRect().left : null; }`;
+      const came = await between(read, () => page.locator('#main-content-container .lk-row .lk-line').first().click({ modifiers: ['Meta'] }), 3500);
+      await wait(500); const left = await between(read, () => page.locator('.lk-split-tools [data-do="close"]').click(), 2500); await wait(800);
+      return is([came > 3, left > 3, await page.evaluate(() => document.getElementById('right-sidebar').getAnimations().length)], [true, true, 0]);
+    });
     }
     {
     // ---- Beside: the key sheet (the owner chose it again, 26 November 2026)
