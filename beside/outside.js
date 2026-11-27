@@ -201,21 +201,23 @@ const answers = {
   async setValue(request) {
     const node = await shown(request), prop = node.props.find(one => one.ident === request.ident) || fail('That property is no longer on this node.');
     const lit = 'p:' + prop.ident, has = prop.values.map(value => value.raw), text = String(request.text ?? '').trim();
+    /* The ground refuses a change that would take away a value with bullets written under it, before anything is written.
+       Its refusal carries the plugin's own words (why, and what to do): they are said as they are, after what was not done. */
+    const written = async write => { try { return await write(); } catch (error) { if (error?.plain) fail([`${prop.name} was not changed: ${error.message}.`, error.then].filter(Boolean).join(' ')); throw error; } };
     const put = async (raw, ref, reads) => {
-      if (!prop.many) { await Wr.setValue(node.uuid, prop.ident, raw, { ref }); return changed(node.uuid, 1, `${prop.name} is now ${reads}`, lit); }
-      // Counted as Ontology counts it: a property that held nothing is written in one step (nothing is taken off first); one
-      // that held something is taken off and written again, two steps, or only taken off when its last value goes.
-      const on = has.includes(raw), next = on ? has.filter(one => one !== raw) : [...has, raw], fresh = !has.length;
-      await Wr.setValues(node.uuid, prop.ident, next, { ref, many: true, fresh });
-      return changed(node.uuid, fresh || !next.length ? 1 : 2, on ? `${reads} taken off ${prop.name}` : `${reads} added to ${prop.name}`, lit);
+      if (!prop.many) { await written(() => (ref ? Wr.setNode(node.uuid, prop.ident, raw) : Wr.setText(node.uuid, prop.ident, raw))); return changed(node.uuid, 1, `${prop.name} is now ${reads}`, lit); }
+      // One of several: the ground writes the whole set in one step and answers the steps it made (none where nothing changed).
+      const on = has.includes(raw), next = on ? has.filter(one => one !== raw) : [...has, raw];
+      const steps = await written(() => Wr.setValues(node.uuid, prop.ident, next, { ref, many: true }));
+      return steps ? changed(node.uuid, steps, on ? `${reads} taken off ${prop.name}` : `${reads} added to ${prop.name}`, lit) : { ok: true, steps: 0, said: '', lit, node };
     };
     const clear = async () => {
       if (!has.length) return { ok: true, steps: 0, said: '', lit, node };
-      await Wr.clearValue(node.uuid, prop.ident);
+      await written(() => Wr.clear(node.uuid, prop.ident));
       return changed(node.uuid, 1, `${prop.name} is empty`, lit);
     };
     if (request.clear) return clear();   // before the kinds: a tick box is never turned over by it, a set choice needs no pick
-    if (prop.kind === 'checkbox') { const to = !(has[0] === true); await Wr.setValue(node.uuid, prop.ident, to); return changed(node.uuid, 1, `${prop.name} is now ${to ? 'Yes' : 'No'}`, lit); }
+    if (prop.kind === 'checkbox') { const to = !(has[0] === true); await written(() => Wr.setText(node.uuid, prop.ident, to)); return changed(node.uuid, 1, `${prop.name} is now ${to ? 'Yes' : 'No'}`, lit); }
     if (prop.kind === 'choice') { const choice = prop.choices.find(one => String(one.raw) === String(request.pick)) || fail('That choice is no longer there.'); return put(choice.raw, true, choice.text); }
     if (prop.kind === 'node' && request.pick) {
       const [to] = await R.byUuids([request.pick]);

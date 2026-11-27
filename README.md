@@ -680,7 +680,10 @@ Logseq's Undo it took. `note` writes a note from outside at the end of today's j
 by its name (made if there is none), with the tag picked and the person's own words under it; `show` sends Logseq to a node, a
 page or a bullet. `undo` (and Todo's `todoUndo`) takes back only what Alfred changed last on the node it names, in as many
 steps as that change took, and refuses, taking nothing back, once anything else has changed in the graph: Logseq's Undo would
-then take back that later change. `setValue` asked to clear empties a property of any kind. For files the plugin answers
+then take back that later change. `setValue` asked to clear empties a property of any kind; a change the ground refuses
+because a value has bullets written under it is answered in the plugin's words, with what to do. `setWords` takes a bullet's
+words as they were read and changed, and every link and tag the bullet already held stays the link it is. A bullet is
+answered with every tag it has. For files the plugin answers
 `check` (each file's name, and the node it already is in the graph), `add` (to today, the open page or a page by its name, a
 file already in the graph linked instead where asked), `progress` and `unadd`; they stand on three pieces of the ground
 (`touch.file`, `read.fileTwin`, `write.addFile`), and while the ground does not give them, `add` and `check` answer in plain
