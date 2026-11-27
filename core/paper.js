@@ -2,6 +2,7 @@
    the one on the right). No Logseq here. An export (core/export.js) as running text on the printed page: a serif, a centred
    title, the page's properties on one line, headings from the # bullets, justified paragraphs, and each citation in the
    words, ([[Page]], p. 3), ([title](url)) or (*words*, p. 2), as a raised number with its note at the end under Notes.
+   Chosen as Bullets instead (options.text 'outline'), the words are bullets nested as in Logseq, citations as written.
    Black on white with greys and hairlines, no colour. The same page is what the export window shows.
      html(sheet, options)        the page's words, every piece with a class x-<name>; options.picture(file) answers where a
                                  picture or a file of the graph loads from
@@ -40,7 +41,7 @@ function html(held, given = {}) {
   const out = [], push = (...pieces) => out.push(...pieces);
   // Each source at a page is one note, numbered as it first comes; the number stands after the stop or comma that followed it.
   const notes = [], numbers = new Map();
-  const rich = text => words(String(text ?? '').replace(CITE, (whole, source, page = '', stop = '') => {
+  const rich = text => options.text === 'outline' ? words(text, options) : words(String(text ?? '').replace(CITE, (whole, source, page = '', stop = '') => {
     const key = `${source}|${page}`;
     if (!numbers.has(key)) { notes.push({ source, page }); numbers.set(key, notes.length); }
     return `${stop}\u0001${numbers.get(key)}\u0001`;
@@ -121,7 +122,7 @@ function html(held, given = {}) {
       else push(`<p class="x-p">${made.html}</p>`);
     }
   }
-  const { blocks, tagged } = E.prose(held, options);
+  const { blocks, tagged } = options.text === 'outline' ? E.outline(held) : E.prose(held, options);
   render(blocks);
   if (tagged.length) { if (blocks.length) push('<hr class="x-hr">'); render(tagged); }
   if (notes.length) {
@@ -166,6 +167,7 @@ body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .x-h3, .x-h4 { margin: ${k(16)} 0 ${k(5)}; font-size: ${k(11.5)}; font-weight: 400; font-style: italic; line-height: 1.3; }
 .x-p { margin: 0 0 ${k(8.5)}; text-align: justify; hyphens: auto; }
 .x-ul, .x-ol { margin: 0 0 ${k(6.3)}; padding-left: ${k(18)}; }
+.x-ul { list-style-type: disc; } .x-li::marker { color: #999; }   /* one dot at every level, as in Logseq */
 .x-li { margin: 0 0 ${k(2.6)}; }
 .x-li > .x-ul, .x-li > .x-ol { margin: ${k(3)} 0 0; }
 .x-li.x-bare { list-style: none; }

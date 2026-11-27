@@ -91,7 +91,7 @@ function open(sheet, what) {
 </div>
 <div class="lk-xp-body">
   <div class="lk-xp-side">
-    ${group('Page', pick('paper', 'Paper') + pick('margins', 'Margins') + pick('size', 'Text size') + turn('pageNumbers', 'Page numbers') + field('footer', 'Footer', chosen.footer), 'pdf')}
+    ${group('Page', pick('text', 'Layout') + pick('paper', 'Paper') + pick('margins', 'Margins') + pick('size', 'Text size') + turn('pageNumbers', 'Page numbers') + field('footer', 'Footer', chosen.footer), 'pdf')}
     ${group('Markdown', pick('links', 'Links') + turn('frontMatter', 'Front matter'), 'md')}
     ${sheet.title ? group('Title', turn('titleDate', 'Today’s date') + field('kicker', 'Line above', titles.kicker) + field('subtitle', 'Subtitle', titles.subtitle) + field('preparedBy', 'Prepared by', chosen.preparedBy)) : ''}
     ${group('Show', turn('tags', 'Tags') + turn('tasks', 'Task marks') + lists.map(list).join(''))}
@@ -102,7 +102,7 @@ function open(sheet, what) {
   const q = selector => root.querySelector(selector), desk = q('.lk-xp-desk');
   const remember = () => { const words = JSON.stringify(chosen); if (words !== G.setting('exportChoices')) { try { G.touch.keep({ exportChoices: words }); } catch (error) { console.warn('Logseq Plugin: the export’s choices could not be kept', error); } } };
   // What decides the words in the preview. Anything else (the paper, the footer, the size) leaves changed words where they are.
-  const keyOf = target => JSON.stringify([chosen.tags, chosen.tasks, chosen.hiddenHead, chosen.hiddenNodes, E.lines(chosen, sheet), chosen.titleDate, chosen.preparedBy, target === 'md' ? [chosen.links, chosen.frontMatter] : 0]);
+  const keyOf = target => JSON.stringify([chosen.tags, chosen.tasks, chosen.hiddenHead, chosen.hiddenNodes, E.lines(chosen, sheet), chosen.titleDate, chosen.preparedBy, target === 'md' ? [chosen.links, chosen.frontMatter] : chosen.text]);
   const changed = target => edits[target]?.key === keyOf(target) ? edits[target].value : null;
 
   function describe() {

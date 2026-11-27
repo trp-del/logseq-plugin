@@ -16,6 +16,7 @@
                                 other line of words is a paragraph, and the lines under it are its further sentences; a line
                                 that shows properties starts a paragraph of its own; a task, a picture, code, a quotation, a
                                 query and numbered lines stand by themselves
+     outline(sheet, options)    what the printed page writes as bullets, nested as they are in Logseq, in the same shapes
      head(sheet, options)       { kicker, title, subtitle, byline: [words], tags, properties: [{ name, value }] }
      meta(sheet, node, options) what is said under a node's words: its shown properties, its task's days and priority
      tags(node, options, all)   the tags written after its words (all: every tag, for a table's column)
@@ -153,6 +154,7 @@ function running(sheet, nodes, options) {
   return out;
 }
 const prose = (sheet, options) => ({ blocks: running(sheet, sheet.nodes, options), tagged: running(sheet, sheet.tagged, options) });
+const outline = sheet => ({ blocks: listed(sheet.nodes), tagged: listed(sheet.tagged) });
 
 function head(sheet, options) {
   const lines = options.title || {};
@@ -188,13 +190,14 @@ function propertiesIn(sheet, role) {
 
 const OFFERED = {
   target: [['pdf', 'PDF'], ['md', 'Markdown']],
+  text: [['prose', 'Paragraphs'], ['outline', 'Bullets']],
   paper: [['A4', 'A4'], ['Letter', 'Letter']],
   margins: [['narrow', 'Narrow'], ['normal', 'Normal'], ['wide', 'Wide']],
   size: [['small', 'Small'], ['normal', 'Normal'], ['large', 'Large']],
   links: [['plain', 'Links as words'], ['wiki', '[[Wikilinks]]'], ['file', 'Links to .md files']],
   zoom: [['fit', 'Fit the window'], ['75', '75%'], ['100', '100%'], ['125', '125%'], ['150', '150%']],
 };
-const DEFAULTS = { target: 'pdf', paper: 'A4', margins: 'wide', size: 'normal', links: 'plain', zoom: 'fit', footer: '', preparedBy: '', folder: '',
+const DEFAULTS = { target: 'pdf', text: 'prose', paper: 'A4', margins: 'wide', size: 'normal', links: 'plain', zoom: 'fit', footer: '', preparedBy: '', folder: '',
   pageNumbers: true, tags: true, tasks: true, titleDate: true, frontMatter: false, side: false, hiddenHead: [], hiddenNodes: [], titles: {} };
 function choices(saved) {
   let kept = saved;
@@ -219,7 +222,7 @@ function withLines(chosen, sheet, next) {
 }
 const shownBut = (sheet, role, hidden) => hidden.length ? new Set(propertiesIn(sheet, role).map(p => p.ident).filter(ident => !hidden.includes(ident))) : null;
 function options(sheet, chosen, today, locale) {
-  return { tags: chosen.tags, tasks: chosen.tasks, links: chosen.links, frontMatter: chosen.frontMatter, names: sheet.names, locale,
+  return { text: chosen.text, tags: chosen.tags, tasks: chosen.tasks, links: chosen.links, frontMatter: chosen.frontMatter, names: sheet.names, locale,
     shownHead: shownBut(sheet, 'head', chosen.hiddenHead), shownNodes: shownBut(sheet, 'nodes', chosen.hiddenNodes),
     title: sheet.title ? { ...lines(chosen, sheet), date: chosen.titleDate ? today : 0, preparedBy: chosen.preparedBy.trim() } : null };
 }
@@ -235,7 +238,7 @@ async function freeName(name, taken) {
   return next;
 }
 
-const api = { node, written, kids, empty, all, everything, said, meta, tags, state, layout, prose, head, inline, propertiesIn, OFFERED, choices, lines, withLines, options, fileName, freeName };
+const api = { node, written, kids, empty, all, everything, said, meta, tags, state, layout, prose, outline, head, inline, propertiesIn, OFFERED, choices, lines, withLines, options, fileName, freeName };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).export = api;
 })(typeof window !== 'undefined' ? window : globalThis);

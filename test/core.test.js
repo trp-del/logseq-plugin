@@ -462,6 +462,14 @@ test('the paper writes running text: lines under a line join its paragraph, a # 
   for (const piece of ['<h2 class="x-h2">Side effects</h2>', 'cycle 2.<sup class="x-ref">1</sup> The dose was cut.<sup class="x-ref">2</sup></p>', '<p class="x-p">Again later<sup class="x-ref">1</sup></p>', '<p class="x-p">A short line. and its detail.</p>',
     '<h2 class="x-notes-head">Notes</h2>', '<span class="x-note-n">1</span>Dr. Mei Chen, p. 2.</p>', 'https://example.org/l.</p>']) assert.ok(got.includes(piece), `${piece} not in\n${got}`);
 });
+test('the paper as bullets: every line a bullet, nested as in Logseq, a citation left as written', () => {
+  const sheet = { kind: 'page', title: 'Care', tags: [], properties: [], tagged: [], names, nodes: [
+    nodeOf('## Side effects', {}, [nodeOf(`Tingling ([[${A}]], p. 2)`, {}, [nodeOf('The dose was cut')])])] };
+  const got = paper.html(sheet, X.options(sheet, chosen({ text: 'outline' }), 20261126, 'en-GB'));
+  assert.ok(/<ul class="x-ul">\n<li class="x-li"><strong>Side effects<\/strong>\n<ul class="x-ul">\n<li class="x-li">Tingling \(Dr\. Mei Chen, p\. 2\)\n<ul class="x-ul">\n<li class="x-li">The dose was cut/.test(got), got);
+  assert.ok(!got.includes('x-ref') && !got.includes('x-notes-head'));
+  assert.equal(X.choices('{"text":"nonsense"}').text, 'prose');
+});
 test('the paper: properties on one line, a tag, a heading, task circles, numbered lines, nothing unescaped', () => {
   const sheet = sheetOf(), got = paper.html(sheet, X.options(sheet, chosen({ kicker: '' }), 20261126, 'en-GB'));
   for (const piece of ['<h1 class="x-title">Fatigue</h1>', '<span class="x-prop">Provider: Dr. Mei Chen</span>', '<span class="x-prop"><span class="x-tag">Symptom</span></span>', '<p class="x-p">How it went. Worse after Dr. Mei Chen,', 'x-task x-todo', 'x-task x-off', '<ol class="x-ol">', 'a &lt; b']) assert.ok(got.includes(piece), `${piece} not in\n${got}`);

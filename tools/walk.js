@@ -724,6 +724,12 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-menu .lk-item', { hasText: 'Letter' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
       return is(took, [0, true]);
     });
+    await step('Layout turns the page into bullets and back to paragraphs', async () => {
+      const bullets = () => page.evaluate(() => document.querySelector('.lk-xp iframe').contentDocument.querySelectorAll('li.x-li').length);
+      const pickLayout = async word => { await page.locator('.lk-xp [data-pick="text"]').click(); await wait(300); await page.locator('.lk-menu .lk-item', { hasText: word }).click(); await wait(1300); };
+      const before = await bullets(); await pickLayout('Bullets'); const as = await bullets(); await pickLayout('Paragraphs');
+      return is([as > before, await bullets()], [true, before]);
+    });
     await step('Escape closes an open list first, then the export window', async () => {
       await page.locator('.lk-xp [data-pick="margins"]').click(); await wait(300); await page.keyboard.press('Escape'); await wait(300);
       const first = [await count('.lk-menu'), await count('.lk-xp')];

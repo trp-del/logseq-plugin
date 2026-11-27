@@ -448,7 +448,7 @@ size or footer, and while you look at the other tab; when something changes what
 line, the links) the preview is drawn again from the page and a notice says the changed words went. Cmd-Enter presses the
 button; Escape closes an open list, then the window.
 
-**The column**, put away until asked for, holds the choices: **Page** (paper A4 or Letter, margins, text size, page numbers, a
+**The column**, put away until asked for, holds the choices: **Page** (paragraphs or bullets, paper A4 or Letter, margins, text size, page numbers, a
 footer) or **Markdown** (page links as words, as `[[wikilinks]]` or as links to `.md` files; the page's properties as front
 matter), **Title** (today's date, a line above, a subtitle, "Prepared by"; the two lines are kept for each page), and **Show**
 (tags, task marks, and the page's properties and the nodes' own, each ticked or left out, with all and none). A row that holds
@@ -467,7 +467,8 @@ properties on one line, wide margins unless another is chosen. It writes the pag
 `#`, `##` or `###` is a heading; every other line is a paragraph, and the lines under it become its further sentences (a full
 stop added where one is missing); numbered lines, tasks, pictures, code, quotations and tables stand by themselves. A citation
 in the words, `([[Page]], p. 3)`, `([title](address))` or `(*words*, p. 2)`, becomes a raised number with its note at the end
-under **Notes**. Markdown keeps the words and bullets as they are. **Save PDF…** opens
+under **Notes**. **Layout** in the column turns it into **Bullets** instead of **Paragraphs**: every line a bullet, nested as
+in Logseq, a heading bold, citations as written. Markdown keeps the words and bullets as they are. **Save PDF…** opens
 the Mac's print window (choose *Save as PDF* there; the page's name is the file's name), and the export window comes back
 afterwards. **Save as file…** asks for a folder, names the file after the page, leaves a file of that name alone ("Notes
 2.md") and shows it in the Finder. In Markdown, pictures and files are named by their path in the graph's `assets` folder and
