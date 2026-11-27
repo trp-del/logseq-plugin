@@ -1749,6 +1749,10 @@ ${AREA} .ls-page-title-container${OUT} :is(.block-title-wrap, .editor-inner text
 /* The plugin's own pages (Ontology, Todo, the Recycle list) title the same way as Logseq's. */
 .lk-page > .lk-page-title { font-size: 30px; line-height: 1.3; letter-spacing: -.015em; }
 #journals .journal-item { border-bottom-color: transparent !important; }`,
+  /* A page's title without the two presses Logseq shows over it under the pointer, "Add icon" and "Set property" (the owner,
+     27 November 2026: "hide add property and set icon on a page"). A tag's and a property's page keep theirs. */
+  actions: `
+${AREA} .cp__page-inner-wrap:not([data-page-tags*='"Tag"'], [data-page-tags*='"Property"']) .ls-page-title-actions${OUT} { display: none !important; }`,
   /* "Add property" under a page's properties: quiet words, a little apart from the rows, not a filled press. */
   add: `
 ${AREA} .ls-new-property${OUT} { margin-top: 10px !important; }

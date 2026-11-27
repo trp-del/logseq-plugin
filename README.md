@@ -148,6 +148,7 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
   with nothing in it has no word. Favorites and Recent have Logseq's own heads over them, the names'
   size and bold; a press folds one, and one with nothing in it is left out. Logseq's ? at the bottom right goes.
 - A page's title is a step smaller and tighter.
+- The pointer on a page's title brings up no **Add icon** or **Set property**; a tag's and a property's page keep Logseq's.
 - Logseq's own menus, pop-ups and lists to choose from stand on the plugin's glass, their lines the menu's size and their keys
   faint marks; the question before a page is deleted is small and in the middle, as the Mac asks; Logseq's windows and its
   settings are on the page's paper with a hairline.
