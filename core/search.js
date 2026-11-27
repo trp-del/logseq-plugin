@@ -11,6 +11,13 @@
                                 every node holds, narrows nothing and is left out; so are words with a value per node (more than 24)
      holds(node, picks)         whether a node holds every value and month picked: picks [{ kind: 'value', prop, label } | { kind: 'month', key }]
      kindsAmong(nodes)          the kinds of the nodes found, most first: [{ title, count }]
+     within(nodes, time)        the nodes a time holds, time as core/sentence.js reads one ({ from, to, nearFrom, nearTo }, days as
+                                numbers): { rows: those dated inside it, near: those dated just outside it }, or null when it
+                                holds none of them
+     taken(nodes, text, said)   with a kind taken, what the words typed find among its nodes; said is how the words read
+                                (core/sentence.js read): { rows, near, time }. A time read holds the nodes inside it and near it
+                                (time: that time); a time that holds none of the nodes was no time, and the words are plain
+                                words ("may" still finds Maya; time: null)
    A node: { uuid, words, tag, day, values: [name], held: { prop: [words] } } (words as plain text). */
 (function (root) {
 const tokens = text => String(text == null ? '' : text).toLowerCase().split(/\s+/).filter(Boolean);
@@ -77,7 +84,16 @@ function kindsAmong(nodes) {
   for (const node of nodes) if (node.tag) counts.set(node.tag, (counts.get(node.tag) || 0) + 1);
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([title, count]) => ({ title, count }));
 }
-const api = { tokens, kinds, narrow, rank, choices, holds, kindsAmong };
+function within(nodes, time) {
+  const rows = nodes.filter(node => node.day && node.day >= time.from && node.day <= time.to);
+  const near = nodes.filter(node => node.day && (node.day < time.from || node.day > time.to) && node.day >= time.nearFrom && node.day <= time.nearTo);
+  return rows.length || near.length ? { rows, near } : null;
+}
+function taken(nodes, text, said) {
+  const time = said.picks.find(pick => pick.kind === 'when'), timed = time ? within(narrow(nodes, said.words.join(' ')), time) : null;
+  return timed ? { ...timed, time } : { rows: narrow(nodes, text), near: [], time: null };
+}
+const api = { tokens, kinds, narrow, rank, choices, holds, kindsAmong, within, taken };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).search = api;
 })(typeof window !== 'undefined' ? window : globalThis);

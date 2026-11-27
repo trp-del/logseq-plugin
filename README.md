@@ -231,7 +231,9 @@ again: a sidebar the key had opened is shut, and the keys go back to the bullet 
 - One line does it all; there are no ways of searching to switch between. "Consultation with Mei Chen around Aug 2026" typed
   there is read as a kind, a value and a time, each said under the line with what it was read as; the time is a strip of months,
   and the nodes just outside it follow under **Near**. Words that name no time, and no kind with something else, are plain
-  words, and so is a sentence that finds nothing. Tab puts the lit choice's name in place of the letters that lit it.
+  words, and so is a sentence that finds nothing. With a kind, letters that could be a month are read as one only while that
+  month holds nodes of the kind or has some near it: "may" with Person taken still finds Maya. Tab puts the lit choice's name
+  in place of the letters that lit it.
 
 | Do | Result |
 |---|---|

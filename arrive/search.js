@@ -12,6 +12,8 @@
    - One line, no ways to switch between: "Consultation with Mei Chen around Aug 2026" typed there is read as a kind, a value
      and a time, each said over what it read; the time shows as a strip of months, and the nodes just outside it follow under
      "Near". Words that name no time and no kind with something else are plain words, and so is a sentence that finds nothing.
+     With a kind, letters that read as a time are one only while it holds nodes of that kind or has some near it: "may" with
+     Person taken still finds Maya.
      Tab puts the lit choice's name in place of the letters that lit it.
    - A row: the fold arrow, or Right, opens the node in place under its line; a press on the line, or Enter, goes to the node in
      the main view, Shift to the sidebar; right-click is the line's own menu.
@@ -79,7 +81,9 @@ G.part({
     };
     const kindCounts = async () => { const [tags, pairs] = await Promise.all([G.read.tags(), G.read.tagPairs()]); return { tags, counts: G.tags.counts(tags, pairs) }; };
     const byNorm = (list, key) => new Map(list.map(one => [R.norm(key(one)), one]));
-    const shown = (nodes, words) => S.narrow(nodes.map(node => ({ ...node, shown: node.words, words: node.plain })), words).map(node => ({ ...node, words: node.shown }));
+    // Words are found in a node's words as a person reads them (plain); a row shows them as Logseq keeps them.
+    const asRead = nodes => nodes.map(node => ({ ...node, shown: node.words, words: node.plain })), asKept = nodes => nodes.map(node => ({ ...node, words: node.shown }));
+    const shown = (nodes, words) => asKept(S.narrow(asRead(nodes), words));
     const draw = holder => {
       const doc = holder.ownerDocument, win = doc.defaultView;
       holder.classList.add('lk-search');
@@ -194,13 +198,11 @@ G.part({
         drawRead([]); paint.push(() => { timeEl.hidden = true; });
         if (tag) {
           const base = (await kindNodes(tag)).filter(node => S.holds(node, rest));
-          const said = R.read(text, {}), time = said.picks.find(pick => pick.kind === 'when');
+          // Letters that read as a time are one only while it holds nodes of the kind: "may" with Person taken still finds Maya.
+          const said = R.read(text, {}), got = S.taken(asRead(base), text, said), time = got.time;
           drawChoices(valueLines(base, rest.concat(time ? [time] : [])), time ? said.trail : want);
-          if (!time) return { rows: await placed(shown(base, text), false) };
-          drawRead([time]);
-          const held = shown(base, said.words.join(' ')), inside = held.filter(node => node.day && node.day >= time.from && node.day <= time.to);
-          const near = held.filter(node => node.day && (node.day < time.from || node.day > time.to) && node.day >= time.nearFrom && node.day <= time.nearTo);
-          return { rows: await placed(inside, false), near: await placed(near, false) };
+          if (time) drawRead([time]);
+          return { rows: await placed(asKept(got.rows), false), near: await placed(asKept(got.near), false) };
         }
         const { tags, counts } = await kindCounts();
         if (!text) {
@@ -229,12 +231,14 @@ G.part({
           read = R.read(text, names);
         }
         box.names = names;
-        drawRead(read.picks);
-        const values = read.picks.filter(pick => pick.kind === 'value'), time = read.picks.find(pick => pick.kind === 'when'), page = read.picks.find(pick => pick.kind === 'page'), words = read.words.join(' ');
+        const values = read.picks.filter(pick => pick.kind === 'value'), page = read.picks.find(pick => pick.kind === 'page');
+        let picks = read.picks, time = picks.find(pick => pick.kind === 'when'), words = read.words.join(' ');
         let nodes;
         if (base) {
           nodes = base.filter(node => S.holds(node, values));
           if (page) { const name = R.norm(page.title); nodes = nodes.filter(node => R.norm(node.plain).includes(name) || node.values.some(value => R.norm(value) === name)); }
+          // As with a kind taken: a time that holds none of the kind's nodes was no time, and its letters narrow as words.
+          if (time && !S.within(shown(nodes, words), time)) { words = `${words} ${text.slice(time.at, time.end)}`.trim(); picks = picks.filter(pick => pick !== time); time = null; }
           drawChoices(valueLines(nodes, values.concat(time ? [time] : [])), read.trail);
         } else if (page) {
           const pagesById = pages.find(one => one.uuid === page.uuid), at = pagesById ? await G.read.pointingAt(pagesById.id) : { links: [], mentions: [] };
@@ -249,12 +253,10 @@ G.part({
           drawChoices(spelled.length ? [kindLine('kinds', spelled.map(one => ({ tag: one })), counts, false)] : [], read.trail);
           nodes = [];
         }
+        drawRead(picks); box.want = S.tokens(words);
         if (base || page) nodes = shown(nodes, words);
         let near = [];
-        if (time) {
-          near = nodes.filter(node => node.day && (node.day < time.from || node.day > time.to) && node.day >= time.nearFrom && node.day <= time.nearTo);
-          nodes = nodes.filter(node => node.day && node.day >= time.from && node.day <= time.to);
-        }
+        if (time) ({ rows: nodes, near } = S.within(nodes, time) || { rows: [], near: [] });
         const dots = [...nodes, ...near].filter(node => node.day).map(node => ({ day: node.day, title: node.plain || '', uuid: node.uuid }));
         paint.push(() => { timeEl.hidden = !time || !dots.length; });
         if (time && dots.length) paint.push(() => G.timeline.strip(timeEl, dots, G.days.number(new Date()), dot => { const line = holder.querySelector(`.lk-row[data-uuid="${dot.uuid}"] > .lk-line`); if (line) { line.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); line.focus({ preventScroll: true }); } }));
@@ -288,7 +290,7 @@ G.part({
       const more = () => [{ gap: true }, ...G.listview.dayPlaces(dayStart(), start => { try { win.localStorage.setItem(AT, start ? 'start' : 'end'); } catch (error) { /* this sitting only */ } for (const one of boxes) if (one.holder.isConnected) one.again(); })];
       const list = G.node.listing(rel, read, { few: 8, dayStart, more, press: (row, event) => { G.touch.open(row.dataset.uuid, event.shiftKey); return true; },
         key: (row, event) => { if (event.key !== 'Enter') return false; G.touch.open(row.dataset.uuid, event.shiftKey); return true; } });
-      const mark = () => { const want = box.sentence ? R.read(box.text, box.names || {}).words : S.tokens(box.text); for (const words of rel.querySelectorAll('.lk-line > .lk-words')) G.node.hit(words, want); };
+      const mark = () => { const want = box.sentence ? box.want || [] : S.tokens(box.text); for (const words of rel.querySelectorAll('.lk-line > .lk-words')) G.node.hit(words, want); };
       rel.addEventListener('lk-drawn', mark);
       const again = () => list.again();
       box.take = tag => { box.picks = tag ? [{ kind: 'tag', tag }] : []; box.text = ''; field.value = ''; box.more.clear(); again(); field.focus(); };
