@@ -386,7 +386,7 @@ Nothing is written where two things could be meant, into a property that already
 change. Each value is one step of Logseq's own Undo.
 
 A web address held by a plain-text property reads very short in the property's row: the site's name, `/…` when the address
-goes further, underlined with the arrow like other web links. Cmd-click opens it; the full address shows under the pointer,
+goes further, underlined like other links. No web address in a property has the arrow after it. Cmd-click opens it; the full address shows under the pointer,
 and a plain click stays Logseq's. Nothing in the graph is changed.
 
 A web address typed without http:// in front is made a link when you leave its bullet: `vanguard.com` is written as

@@ -1540,13 +1540,13 @@ ${IN} .block-tag:hover a.hash-symbol { opacity: .6; }
 a.external-link { color: var(--lk-text) !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; border-bottom: none !important; }   /* a web link is a link: the ink, underlined, never Logseq's blue, wherever Logseq draws it (a card over a link too); one line under it, not Logseq's second */
 a.external-link:hover { text-decoration-color: currentColor !important; }
 a.external-link:not(:has(img))::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }   /* the small arrow after it, as in the plugin's own lists */
+.property-value-inner a.external-link::after { content: none !important; }   /* none in a property: its name says it is an address (the owner, 27 November 2026) */
 ${OWN} .ls-page-properties:not(.lk-editor *) { margin-left: 10px; }   /* a page's property names and Add property on the edge its title and its bullets stand on */
 ${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
 ${OWN} .property-pair .property-block-container:not(.lk-editor *) { margin-left: 0 !important; }   /* and none of the 20 Logseq pulls a value in words back by, to make room for that bullet */
 .ls-string[data-lk-short] { font-size: 0 !important; min-width: 0; }
 .ls-string[data-lk-short]::before { content: attr(data-lk-short); font-size: var(--lk-line-size); color: var(--lk-text); text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .ls-string[data-lk-short]:hover::before { text-decoration-color: currentColor; }
-.ls-string[data-lk-short]::after { content: "\\2197"; font-size: var(--lk-line-size); margin-left: .2em; color: var(--lk-quiet); }
 ${IN} .bottom-property-pill .property-value-inner [class*="multi-value"] { flex-wrap: wrap !important; }   /* several values go on to a second line, never past the edge: their + stands after the last */
 ${valueMark(`${IN} ${VROWS}`, ONE, 'chevron')}
 ${valueMark(`${IN} ${VROWS}`, SEVERAL, 'plus', 'last')}
