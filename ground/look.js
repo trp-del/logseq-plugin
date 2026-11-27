@@ -1,15 +1,23 @@
 /* GROUND: the look's ground. The greys, sizes and faces every piece is drawn from, mixed from Logseq's own text colour so
-   they follow light, dark and any theme. A piece names what it draws with these and carries no colour or size of its own. */
+   they follow light, dark and any theme. A piece names what it draws with these and carries no colour or size of its own.
+   A longer motion's length and curve are named here too (MOTION). */
 (function () {
 const G = window.PluginDoor;
 G.look = {
+  /* Focusing into a bullet and out (the owner picked it, 11 and 26 November 2026). The bullet moves for ms on ease. The views
+     fade on fade, over parts of ms: the old one goes in away (awayStill where the Mac asks for less motion and nothing moves),
+     the new one comes in over in, after inDelay going in and outDelay stepping out. wait: how long the new view is waited for; rest: how long a bullet
+     drawn late must stand still before it moves;
+     cap: when a copy of the old view or a lifted cut is cleared although its motion never ended (a window in the background). */
+  MOTION: { glide: { ms: 280, ease: 'cubic-bezier(.2,.7,.2,1)', fade: 'ease-out', away: .35, awayStill: .6, in: .8, inDelay: .35, outDelay: .25, wait: 2000, rest: 40, cap: 2000 } },
   /* The faces. Logseq reaches no face of the Mac by its name alone ("New York" came out as Georgia, "SF Mono" as Menlo), so
      each face the look uses comes with the plugin, in fonts/, and is said from there once Logseq has told the plugin where its
-     folder is (root: logseq.baseInfo.lsr, known at the start, not at load). A tag is written in Literata, a property's name in
+     folder is (root: logseq.baseInfo.lsr, known at the start, not at load). A tag is written in Commissioner with its stroke ends widened, a property's name in
      Fragment Mono (the owner, 26 November 2026); the words are in Logseq's own text face. Both are free under the SIL Open
-     Font License, the licences beside the files. Literata is one file for all its weights and sizes. Where a file is not
+     Font License, the licences beside the files. Commissioner is one file for all its weights; the widened ends are
+     its FLAR setting at 100. Where a file is not
      there the next face in the token stands in. */
-  faces: root => root ? ['Literata.ttf|LK Literata|200 900|normal', 'FragmentMono-Regular.ttf|LK Fragment|400|normal'].map(one => { const [file, name, weight, style] = one.split('|'); return `@font-face { font-family: "${name}"; font-weight: ${weight}; font-style: ${style}; src: url("${root}fonts/${file}") format("truetype"); }`; }).join('\n') : '',
+  faces: root => root ? ['Commissioner.ttf|LK Commissioner|100 900|normal|"FLAR" 100', 'FragmentMono-Regular.ttf|LK Fragment|400|normal'].map(one => { const [file, name, weight, style, set] = one.split('|'); return `@font-face { font-family: "${name}"; font-weight: ${weight}; font-style: ${style}; ${set ? `font-variation-settings: ${set}; ` : ''}src: url("${root}fonts/${file}") format("truetype"); }`; }).join('\n') : '',
   TOKENS: `
 :root { --lk-text: var(--ls-primary-text-color, hsl(var(--foreground))); --lk-paper: var(--ls-primary-background-color, hsl(var(--background)));
   --lk-quiet: color-mix(in srgb, var(--lk-text) 70%, transparent); --lk-off: color-mix(in srgb, var(--lk-text) 46%, transparent);
@@ -17,7 +25,7 @@ G.look = {
   --lk-link: color-mix(in srgb, var(--lk-text) 45%, transparent); --lk-link-width: .5px;
   --lk-wash: color-mix(in srgb, var(--lk-text) 7%, transparent); --lk-lit: color-mix(in srgb, var(--lk-text) 16%, transparent);
   --lk-glass: color-mix(in srgb, var(--lk-paper) 72%, transparent); --lk-glass-blur: blur(22px) saturate(1.6); --lk-float-shadow: 0 12px 34px rgba(0,0,0,.22);
-  --lk-tag-face: "LK Literata", Georgia, serif; --lk-tag-size: .9em;
+  --lk-tag-face: "LK Commissioner", system-ui, sans-serif; --lk-tag-size: .92em;
   --lk-prop-face: "LK Fragment", Menlo, Monaco, monospace; --lk-prop-weight: 400;
   --lk-words-size: 16px; --lk-small: 13px; --lk-label: 12px; --lk-prop-size: .87em;   /* the sizes: a page's words (a window's and a menu's are --lk-line-size), small, a label; a property's name a touch under the words beside it */
   --lk-corner: 6px; --lk-corner-float: 10px; --lk-corner-round: 999px;   /* three corners: a lit line, a field and a small box; what floats; a press */
@@ -83,6 +91,10 @@ G.look = {
 :is(.lk-btn, .lk-accent, .lk-del, .lk-big)[class*="lk-i-"] { gap: 0; }
 /* A key is told only where it is not a common one, as the Mac writes it, with no box round it (the owner, 25 November 2026). */
 .lk-key { color: var(--lk-off); font-size: var(--lk-small); letter-spacing: .04em; white-space: nowrap; }
+/* The one place keys are what is read, the key sheet: each key in a small box in mono, in the text colour (the owner, 12 and
+   26 November 2026); the Mac's marks in the system face, which draws them whole. */
+.lk-keycap { display: inline-block; padding: 0 6px; border: 1px solid var(--lk-line); border-radius: var(--lk-corner); font-family: var(--lk-prop-face); font-size: var(--lk-line-size); font-weight: var(--lk-prop-weight); line-height: 1.35; }
+.lk-keymark { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
 input.lk-tick[type=checkbox] { appearance: none; -webkit-appearance: none; position: relative; box-sizing: border-box; width: 14px; height: 14px; margin: 0; padding: 0; flex: none; border: 1.5px solid var(--lk-line); border-radius: 4px; background: none; color: inherit; cursor: pointer; vertical-align: -1px; box-shadow: none; outline: none; }
 input.lk-tick[type=checkbox]:is(:checked, :indeterminate, :focus, :hover) { border-color: currentColor; background: none; box-shadow: none; outline: none; }
 input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; inset: 0; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.2 6.5 11.2 12.5 5.2'/%3E%3C/svg%3E") center / 8px 8px no-repeat; }

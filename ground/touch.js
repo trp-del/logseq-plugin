@@ -20,10 +20,18 @@
      touch.left(fn)           fn(uuid) runs a moment after a bullet whose words changed stops being written in; gives back what
                               stops it. Only looks on: nothing of Logseq's editor is touched while it is written in
      touch.tagList(say)       words after each tag's name in Logseq's own list of tags (the one on "#"): say(name) -> words
-     touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k'), matched by its place on the keyboard; gives back what
-                              lets it go. fn answers false to leave the press to Logseq after all
+     touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k', 'mod+.'), matched by its place on the keyboard; gives
+                              back what lets it go. fn answers false to leave the press to Logseq after all
+     touch.glide              focusing into a bullet and out, in the main view (beside/glide.js decides, this draws):
+                              moves(leaving, arrived) hears each change of view, before and after; view() what the view shows
+                              now; replaced(view) whether another stands; play(view, uuid, out) the motion; soon(fn) calls fn at
+                              each change of the screen until stopped; wayOut(press) the arrow after the line of steps;
+                              route(), address(), has(uuid), top(uuid), focused(), into(uuid), stepUp(), parent(uuid), go(uuid), back(address),
+                              and the embed and selection pieces
      touch.command(key, label, run)   a line in Logseq's command palette; touch.commands() the ones made, { name, label, run };
-                              touch.logseqCommands() Logseq's own, { id, label, key, run }
+                              touch.logseqCommands() Logseq's own, { id, label, key, run }; each key is the one in force
+                              once touch.keysRead() has read the graph's config
+     touch.keepPlace()        where the keys are now; gives back what returns them there
      touch.plugins           the plugins Logseq runs: those from a folder (reloaded) and those from its marketplace (updated
                               by Logseq's own updater)
      touch.section(key, title, draw, path)  a section of Logseq's right sidebar that is the plugin's own: Logseq hosts it and
@@ -35,12 +43,30 @@
      touch.foldedSpots()      Logseq's folded bullets on screen, each { uuid, at, put(el) }: at, what the plugin put after its
                               words before; put(el) places el right after its words. touch.FOLDED the stylesheet that shows
                               it only while the bullet is folded
+     touch.beside             Logseq's right sidebar shown as the right half of two pages (beside/split.js):
+                              presses(fn) fn(to, 'beside' | 'sidebar', click) on a Cmd- or Shift-press on a link in the main
+                              view ('beside' answering true takes the press); list(), isOpen(), setOpen(on), put(uuid) the
+                              sidebar's list and what changes it; mark(id, head) draws the node as the right half, unmark()
+                              takes that off; shown(id) whether it is really on screen; body(id) what it holds; takeOut(id),
+                              reorder(ids); openProps(); until(fn, ms), mainLeft(), mainSized(fn), headIcons(), mainPage()
+     touch.SPLIT              the stylesheet for the sidebar as the right half
+     touch.menuItem(label, run)       an item in a bullet's right-click menu and in a page's: run({ uuid }) or run({ page })
+     touch.keep(settings)     settings of the plugin's own, kept by Logseq
+     touch.copy(text)         words put on the clipboard; answers whether they are there
+     touch.save(name, text, folder)   a file written where the person picks, in Logseq's folder window (opened at folder); a file
+                              of that name is left alone and the next number taken. Answers { path, folder }, or null
+     touch.print(html)        a page of the plugin's own handed to the Mac's print window; settles when that closes
+     touch.settled(doc)       settles once a page's pictures have loaded
+     touch.pictures(files)    files of the graph's assets folder as a page can load them: a function file -> address
+     touch.queryShown(uuid)   a query's table as it is drawn on screen: { columns, order } or null
+     touch.dragBand()         how tall the band at the window's top is that moves the window, where no press reaches the page
+     touch.graphChanged(fn)   fn runs when another graph is opened; gives back what stops it
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
 const G = window.PluginDoor;
 const host = () => G.host();
 const PAGE = '.cp__page-inner-wrap', PAGE_NODE = '.ls-page-title .ls-block[blockid]', FIRST_NODE = '.ls-page-blocks .ls-block[blockid]', FEED = '.journal-item';
-const OURS = '.lk-open, .lk-rel';
+const OURS = '.lk-open, .lk-rel, .lk-ghost';   // what is the plugin's own on Logseq's screen, never read as a page of Logseq's
 
 // One watcher of Logseq's page for every part: passes run once a frame, whatever changed and however often.
 const passes = new Set(); let observer = null, queued = false;
@@ -135,6 +161,9 @@ function pages() {
   }
   return out;
 }
+// The first of a page's own: a node opened in one of its lists is a whole page of Logseq's inside it, with a title and
+// properties of its own, which are not this page's.
+const own = (el, selector) => [...el.querySelectorAll(selector)].find(one => !one.closest('.lk-open')) || null;
 // Logseq draws a page as two boxes: the page itself, then its references. The plugin's own stands between them, a child of the
 // page's box that Logseq does not draw and so does not take away while the page stays.
 function pageFoot(el, name) {
@@ -147,7 +176,7 @@ function pageFoot(el, name) {
 // the page has no title of its own (a bullet shown as a page).
 function pageUnder(el, name) {
   // A page in the sidebar has no title block: there it is the box that holds the page's properties, above its bullets.
-  const block = el.querySelector(':scope > .page-inner .ls-page-title .ls-block') || (el.closest(SIDE_PAGE) ? el.querySelector(':scope > .page-inner .ls-sidebar-page-properties')?.parentElement : null);
+  const block = own(el, ':scope > .page-inner .ls-page-title .ls-block') || (el.closest(SIDE_PAGE) ? own(el, ':scope > .page-inner .ls-sidebar-page-properties')?.parentElement : null);
   if (!block) return null;
   let under = [...block.children].find(child => child.classList.contains(name));
   if (!under) { under = host().createElement('div'); under.className = name; block.appendChild(under); }
@@ -155,10 +184,10 @@ function pageUnder(el, name) {
 }
 // Under the title's own row and above the page's properties, inside the title's block.
 function pageHead(el, name, above = false) {
-  const row = el.querySelector(':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
+  const row = own(el, ':scope > .page-inner .ls-page-title .ls-block > .is-page-title-row');
   if (!row) {
     // A page in the sidebar: its name is in the section's head, so what stands by a title stands first in the page, above its properties.
-    const props = el.closest(SIDE_PAGE) ? el.querySelector(':scope > .page-inner .ls-sidebar-page-properties') : null;
+    const props = el.closest(SIDE_PAGE) ? own(el, ':scope > .page-inner .ls-sidebar-page-properties') : null;
     if (!props) return null;
     let line = [...props.parentElement.children].find(child => child.classList.contains(name));
     if (!line) { line = host().createElement('div'); line.className = name; if (above) props.parentElement.prepend(line); else props.before(line); }
@@ -236,6 +265,200 @@ const editor = (() => {
   };
 })();
 
+/* Where the keys are now, for what takes them for a while: gives back what returns them there. A bullet being written that
+   Logseq has closed meanwhile is opened again, the caret where it was. */
+function keepPlace() {
+  const el = host().activeElement, block = el?.tagName === 'TEXTAREA' ? el.closest('.ls-block[blockid]') : null;
+  const uuid = block?.getAttribute('blockid'), at = el?.selectionStart;
+  return () => { if (el?.isConnected && el !== host().body) el.focus({ preventScroll: true }); else if (uuid) logseq.Editor.editBlock(uuid, { pos: at }); };
+}
+/* FOCUSING INTO A BULLET AND OUT, where it meets Logseq's screen (beside/glide.js decides which bullet moves, and when). Only
+   the main view. Logseq swaps the whole view in one frame, and every way in and out goes through the app's history, so the view
+   is read just before the history changes (pushState, and popstate for Back and Forward, both while the old view is still
+   drawn) and the motion is played once the new view stands. Nothing is written to the graph. */
+const glide = (() => {
+  const MOST = 600;   // a view with more blocks than this is not copied for the fade: only the bullet glides
+  const ROW = ':scope > .block-main-container', STEPS = '.breadcrumb--block-page', STEP = ':scope > a:not(.lk-out)';
+  const ASIDE = `.references, ${OURS}`;   // a bullet there is not the view's own
+  const win = () => host().defaultView;
+  const main = () => host().getElementById('main-content-container');
+  const timing = () => G.look.MOTION.glide;
+  const still = () => win().matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rowOf = block => block.querySelector(ROW);
+  const inView = (rect, box) => rect.bottom > box.top && rect.top < box.bottom && rect.height > 0;
+  const blocks = () => [...(main()?.querySelectorAll('.ls-block[blockid]') || [])].filter(block => !block.closest('.lk-ghost'));
+  const blockIn = uuid => [...(main()?.querySelectorAll(`.ls-block[blockid="${uuid}"]`) || [])].find(block => !block.closest(ASIDE) && rowOf(block)) || null;
+  // The line of steps above a focused bullet in the main view (never one inside a node opened in a list).
+  const line = () => [...(main()?.querySelectorAll(STEPS) || [])].find(one => !one.closest(OURS)) || null;
+  // What view stands: whether a bullet is focused, and the view's first bullet.
+  const sign = () => `${!!line()}|${blocks().find(block => !block.closest(ASIDE) && rowOf(block))?.getAttribute('blockid') || ''}`;
+  const route = () => /#\/page\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(win().location.hash)?.[1].toLowerCase() || null;
+
+  // The view as it stands: where each block's row is on screen, and a still copy of the view for the fade.
+  function view() {
+    const scroller = main(), rows = new Map();
+    if (!scroller) return null;
+    const box = scroller.getBoundingClientRect(), all = blocks();
+    for (const block of all) {
+      const uuid = block.getAttribute('blockid'), row = rows.has(uuid) ? null : rowOf(block);
+      if (!row) continue;
+      const rect = row.getBoundingClientRect();
+      if (inView(rect, box)) rows.set(uuid, { x: rect.left, y: rect.top });
+    }
+    let copy = null;
+    const body = [...scroller.children].find(child => !child.classList.contains('lk-ghost'));
+    if (all.length <= MOST && body) {
+      copy = body.cloneNode(true);
+      for (const node of copy.querySelectorAll('[id]')) node.removeAttribute('id');
+      copy.removeAttribute('id');
+      const at = body.getBoundingClientRect();   // the copy stands exactly where the view stood
+      Object.assign(copy.style, { top: (at.top - box.top) + 'px', left: (at.left - box.left) + 'px', width: at.width + 'px', right: 'auto', margin: '0' });
+    }
+    return { sign: sign(), focused: !!line(), rows, copy, box: { width: box.width, height: box.height } };
+  }
+  // The old view, a copy laid over the new one, fading where it stood; the bullet that moves is left out of it.
+  function fadeOld({ copy, box, rows }, uuid) {
+    const scroller = main(), { ms, fade, away, awayStill, cap } = timing();
+    if (!copy) return;
+    const ghost = host().createElement('div');
+    ghost.className = 'lk-ghost'; ghost.inert = true; ghost.setAttribute('aria-hidden', 'true');
+    Object.assign(ghost.style, { left: scroller.scrollLeft + 'px', top: scroller.scrollTop + 'px', width: box.width + 'px', height: box.height + 'px' });
+    for (const block of copy.querySelectorAll(`.ls-block[blockid="${uuid}"]`)) block.style.visibility = 'hidden';
+    // The line of steps never fades (the owner, 12 November 2026: it flashed): it stands where it is and only its words change.
+    for (const one of copy.querySelectorAll(STEPS)) one.style.visibility = 'hidden';
+    ghost.append(copy);
+    scroller.append(ghost);   // inside Logseq's view, so its rules for what stands in the view still hold for the copy
+    for (const played of ghost.getAnimations({ subtree: true })) { try { played.finish(); } catch (error) { /* one that never ends */ } }   // Logseq's own fade-ins shown as they ended
+    // Margins fold differently in a copy that stands on its own, so it is put right by one bullet it holds.
+    for (const [id, at] of rows) {
+      const row = copy.querySelector(`.ls-block[blockid="${id}"] > .block-main-container`); if (!row) continue;
+      const now = row.getBoundingClientRect();
+      copy.style.top = (parseFloat(copy.style.top) + at.y - now.top) + 'px'; copy.style.left = (parseFloat(copy.style.left) + at.x - now.left) + 'px';
+      break;
+    }
+    const going = ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: ms * (still() ? awayStill : away), easing: fade, fill: 'forwards' });
+    going.onfinish = () => ghost.remove();
+    win().setTimeout(() => ghost.remove(), cap);
+  }
+  /* The motion: the bullet glides from where it stood in the old view to where it stands now, its children with it, the old
+     view fades where it stood and the rest of the new one fades in. Stepping out, a bullet that landed off screen is brought
+     to the middle first. Where the Mac asks for less motion, only the old view fades. */
+  function play(was, uuid, out) {
+    const scroller = main(), block = blockIn(uuid), row = block && rowOf(block);
+    if (!row) return;
+    const box = scroller.getBoundingClientRect();
+    // Only the main view is scrolled: scrollIntoView would also move Logseq's whole window.
+    const at = row.getBoundingClientRect();
+    if (out && !inView(at, box)) scroller.scrollTop += at.top + at.height / 2 - (box.top + box.height / 2);
+    fadeOld(was, uuid);
+    if (still()) return;
+    const { ms, ease, fade, in: part, inDelay, outDelay, cap } = timing(), from = was.rows.get(uuid), to = row.getBoundingClientRect();
+    if (from) {
+      // Logseq's list of a page's bullets cuts off what stands outside it (overflow hidden), so a bullet gliding in from
+      // above would be hidden for the first part of the way: the cut is lifted for the glide alone.
+      const cut = [];
+      for (let node = block.parentElement; node && node !== scroller; node = node.parentElement)
+        if (win().getComputedStyle(node).overflow !== 'visible') { cut.push([node, node.style.overflow]); node.style.overflow = 'visible'; }
+      const back = () => { for (const [node, had] of cut.splice(0)) node.style.overflow = had; };
+      const moving = block.animate([{ transform: `translate(${from.x - to.left}px, ${from.y - to.top}px)` }, { transform: 'none' }], { id: 'lk-glide', duration: ms, easing: ease });
+      moving.onfinish = moving.oncancel = back;
+      win().setTimeout(back, cap);
+    }
+    const others = [...scroller.querySelectorAll('.block-main-container, .block-children-left-border, .ls-page-title, .page-title, .ls-page-properties')]
+      .filter(node => !node.closest('.lk-ghost') && !block.contains(node) && !node.contains(block) && inView(node.getBoundingClientRect(), box));
+    for (const node of others) node.animate([{ opacity: 0 }, { opacity: 1 }], { id: 'lk-glide-in', duration: ms * part, delay: ms * (out ? outDelay : inDelay), easing: fade, fill: 'backwards' });
+  }
+  // Each change of the view in the main window, said before it is drawn (leaving; pushed: a new step, not Back or Forward) and after.
+  function moves(leaving, arrived) {
+    const history = win().history, own = history.pushState; let on = true;
+    const tell = (fn, arg) => { if (!on) return; try { fn(arg); } catch (error) { console.error('Logseq Plugin: the glide could not follow a change of view', error); } };
+    const wrapped = function (...args) { tell(leaving, true); const done = own.apply(this, args); tell(arrived); return done; };
+    const popped = () => { tell(leaving, false); tell(arrived); };
+    history.pushState = wrapped;
+    win().addEventListener('popstate', popped, true);
+    return () => { on = false; if (history.pushState === wrapped) history.pushState = own; win().removeEventListener('popstate', popped, true); };
+  }
+  /* fn the moment Logseq puts something in (before it is first painted, so the new view never shows standing still), and once a
+     frame in case that was missed, until what is given back is called. */
+  function soon(fn) {
+    const view = win(); let on = true;
+    const watcher = new view.MutationObserver(() => { if (on) fn(); });
+    watcher.observe(view.document.body, { childList: true, subtree: true });
+    const frame = () => { if (!on) return; fn(); if (on) view.requestAnimationFrame(frame); };
+    view.requestAnimationFrame(frame);
+    return () => { on = false; watcher.disconnect(); };
+  }
+  // Logseq's step of the line goes on the press (its pointerdown and pointerup), not on a click alone.
+  function press(el) {
+    const view = win();
+    for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'])
+      el.dispatchEvent(new (type.startsWith('pointer') ? view.PointerEvent : view.MouseEvent)(type, { bubbles: true, cancelable: true, view, button: 0, buttons: type.endsWith('down') ? 1 : 0, pointerType: 'mouse', isPrimary: true }));
+  }
+  // One level out by a press on the last step of the line; false when no line stands.
+  function stepUp() {
+    const last = [...(line()?.querySelectorAll(STEP) || [])].pop();
+    if (last) press(last);
+    return !!last;
+  }
+  // The way out: an up arrow after the last step of the line, kept there; press is what it does. null takes it away.
+  function wayOut(act) {
+    if (!act) { for (const one of host().querySelectorAll('.lk-out')) one.remove(); return; }
+    const at = line(), last = [...(at?.querySelectorAll(STEP) || [])].pop();
+    if (!last) return;
+    const had = at.querySelector(':scope > .lk-out');
+    if (had && had.previousElementSibling === last) return;
+    had?.remove();
+    const arrow = host().createElement('a');
+    arrow.className = 'lk-out'; arrow.tabIndex = 0; arrow.title = 'Step out one level';
+    arrow.setAttribute('role', 'button'); arrow.setAttribute('aria-label', 'Step out one level');
+    arrow.innerHTML = icon('arrow-up', 14);
+    const go = event => { event.preventDefault(); event.stopPropagation(); act(); };
+    arrow.addEventListener('click', go);
+    arrow.addEventListener('pointerdown', event => event.stopPropagation());
+    arrow.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') go(event); });
+    last.after(arrow);
+  }
+  /* Focused as a press on its dot focuses, Logseq's own way in, which also starts the new view at its top (a bare change of
+     address would keep how far the page was scrolled). */
+  function into(uuid) { const dot = rowOf(blockIn(uuid) || host().body)?.querySelector('.bullet-container'); if (dot) press(dot); }
+  // Where a bullet's row stands now.
+  const top = uuid => { const block = blockIn(uuid); return block ? Math.round(rowOf(block).getBoundingClientRect().top) : null; };
+  // Whether a press fell on a bullet's dot; and the node of the embed a bullet stands in (the target given, else the one written in or selected).
+  const onBullet = target => !!target?.closest?.('.bullet-container, .bullet');
+  const embedOf = target => (target || host().activeElement?.closest?.('.ls-block') || host().querySelector('#main-content-container .ls-block.selected'))
+    ?.closest?.('#main-content-container .embed-block[blockid]')?.getAttribute('blockid') || null;
+  // What a node sits under: the bullet above it, or its page.
+  async function parent(uuid) {
+    const node = await logseq.Editor.getBlock(uuid);
+    if (!node?.parent) return null;
+    const up = node.parent.id === node.page?.id ? await logseq.Editor.getPage(node.page.id) : await logseq.Editor.getBlock(node.parent.id);
+    return up?.uuid || null;
+  }
+  return {
+    CSS: `
+.lk-ghost { position: absolute; overflow: hidden; pointer-events: none; z-index: 9; }
+.lk-ghost > * { position: absolute; }
+.lk-ghost * { transition: none !important; }
+${STEPS} > a.lk-out { display: inline-flex; align-items: center; margin-left: 4px; padding: 0; border-radius: var(--lk-corner); color: var(--lk-quiet) !important; cursor: pointer; text-decoration: none; }
+${STEPS} > a.lk-out:hover, ${STEPS} > a.lk-out:focus-visible { color: var(--lk-text) !important; outline: none; }
+${STEPS} > a.lk-out:focus-visible { background: var(--lk-wash); }`,
+    route, view, play, moves, soon, stepUp, wayOut, into, top, onBullet, embedOf, parent, still,
+    clear() { for (const one of host().querySelectorAll('.lk-ghost, .lk-out')) one.remove(); },
+    address: () => win().location.hash,
+    back(address) { win().location.hash = address; },
+    go: uuid => logseq.App.pushState('page', { name: uuid }),
+    replaced: was => !!main() && sign() !== was.sign,
+    has: uuid => !!blockIn(uuid),
+    focused: () => !!line(),
+    isBullet: async uuid => !!(await logseq.Editor.getBlock(uuid).catch(() => null))?.parent,
+    typing: () => !!host().activeElement?.matches('textarea, input, [contenteditable="true"]'),
+    editing: async () => !!(await logseq.Editor.checkEditing?.()),
+    select: uuid => logseq.Editor.selectBlock?.(uuid),
+    unselect: () => logseq.Editor.clearSelectedBlocks?.(),
+    selected: uuid => !!host().querySelector(`#main-content-container .ls-block.selected[blockid="${uuid}"]`),
+  };
+})();
+
 // Whether one of Logseq's own floats is open (a menu, a list to pick from, a window): a key pressed then is Logseq's.
 const busy = () => !!host().querySelector('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac');
 // The bullet being written in is the one whose text box has the keys. It is "left" when another one has them, or none.
@@ -254,11 +477,12 @@ function left(fn) {
   for (const type of types) doc.addEventListener(type, soon, true);
   return () => { clearTimeout(timer); for (const type of types) doc.removeEventListener(type, soon, true); };
 }
+const KEY_CODES = { '.': 'Period', ',': 'Comma' };
 function key(combo, fn) {
   const parts = combo.toLowerCase().split('+'), code = parts.pop(), want = { mod: parts.includes('mod'), shift: parts.includes('shift'), alt: parts.includes('alt') };
   const onKey = event => {
     const mod = event.metaKey || event.ctrlKey;
-    if (event.code !== (code.length === 1 ? 'Key' + code.toUpperCase() : code) || mod !== want.mod || event.shiftKey !== want.shift || event.altKey !== want.alt) return;
+    if (event.code !== (KEY_CODES[code] || (code.length === 1 ? 'Key' + code.toUpperCase() : code)) || mod !== want.mod || event.shiftKey !== want.shift || event.altKey !== want.alt) return;
     if (fn(event) === false) return;
     event.preventDefault(); event.stopPropagation();
   };
@@ -328,10 +552,12 @@ function tableBar(word, run) {
 // A command in Logseq's palette; with keys ('u p'), also a shortcut of Logseq's own kind, listed and changed in its settings.
 const said = new Map();   // the plugin's own commands, for a place that lists them (the corner)
 const command = (name, label, run, keys) => { said.set(name, { name, label, run }); return logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run); };
-const commands = () => [...said.values()];
+const commands = () => { const keys = new Map(palette().map(one => [one.id.split('/').pop(), one.key])); return [...said.values()].map(one => ({ ...one, key: keys.get(one.name) || '' })); };
 /* Logseq's own commands, as its palette lists them, each { id, label, key, run }: the key it has (as the Mac's marks, "⌘⇧K",
    or two letters one after another, "g j"); run as its palette runs it, by its id (a plugin's own by its action). The plugin's
-   own lines are left out: commands() has them. Read from the app's state, which it hands to a plugin in the same window. */
+   own lines are left out: commands() has them. Read from the app's state, which it hands to a plugin in the same window.
+   The palette's state keeps each command's first key: a key changed in Logseq's keyboard settings is in the graph's config
+   (:shortcuts), where an empty one means none. keysRead() reads that; what it last read stands over the state's. */
 const LOGSEQ_NAMES = {   // the English name of each of Logseq's commands: the app hands its commands to a plugin, not its dictionary
   'auto-complete/complete': 'Auto-complete: Choose selected item',
   'auto-complete/meta-complete': 'Auto-complete: Cmd + Enter to choose selected item',
@@ -471,20 +697,30 @@ const keyMarks = spelling => {
     return parts.map(part => MARK[part.toLowerCase()] || (part.length === 1 ? part.toUpperCase() : part)).join(''); }).join(' ');
 };
 const nameOf = id => { const words = id.split('/').pop().replace(/-/g, ' '); return words.charAt(0).toUpperCase() + words.slice(1); };
-const logseqCommands = () => {
+let changedKeys = {};
+async function keysRead() {
+  try { const all = await logseq.App.getCurrentGraphConfigs('shortcuts'); changedKeys = all && typeof all === 'object' && !Array.isArray(all) ? all : {}; }
+  catch (error) { changedKeys = {}; }
+}
+// Every line of the palette once, the plugin's among them, with the key in force.
+function palette() {
   let all = [];
   try { all = host().defaultView.logseq.api.get_state_from_store('command-palette/commands') || []; } catch (error) { all = []; }
   const seen = new Set(), out = [];
   for (const one of Array.isArray(all) ? all : []) {
     const id = String(one?.id ?? '').replace(/^:/, '');
-    if (!id || seen.has(id) || /(^|[/.])lk-/.test(id)) continue;
+    if (!id || seen.has(id)) continue;
     seen.add(id);
-    const action = typeof one.action === 'function' ? one.action : null;
-    out.push({ id, label: LOGSEQ_NAMES[id] || (typeof one.desc === 'string' && one.desc) || nameOf(id), key: keyMarks(one.shortcut),
-      run: () => (/[A-Z]/.test(id) && action) ? action() : logseq.App.invokeExternalCommand('logseq.' + id) });
+    const set = Object.hasOwn(changedKeys, id) ? [].concat(changedKeys[id])[0] : one.shortcut;
+    out.push({ id, one, key: keyMarks(set) });
   }
   return out;
-};
+}
+const logseqCommands = () => palette().filter(({ id }) => !/(^|[/.])lk-/.test(id)).map(({ id, one, key }) => {
+  const action = typeof one.action === 'function' ? one.action : null;
+  return { id, label: LOGSEQ_NAMES[id] || (typeof one.desc === 'string' && one.desc) || nameOf(id), key,
+    run: () => (/[A-Z]/.test(id) && action) ? action() : logseq.App.invokeExternalCommand('logseq.' + id) };
+});
 /* The plugins Logseq runs, each { id, title, version }, as Update plugins took them before the rebuild (0.5.17, the owner,
    26 November 2026: "u p is still not working. look to pre 0.6.0 to find it correctly used").
    market() (async): the ones Logseq installed itself, from its marketplace or a GitHub release, read from Logseq's own list of
@@ -634,6 +870,92 @@ async function open(to, side = false) {
   if (!side) return logseq.App.pushState('page', { name: to });
   const uuid = G.read.UUID.test(to) ? to : (await logseq.Editor.getPage(to).catch(() => null))?.uuid;
   if (uuid) return logseq.Editor.openInRightSidebar(uuid);
+}
+
+/* Out of Logseq: the right-click items, the clipboard, a file, the print window, the graph's pictures. */
+function menuItem(label, run) {
+  logseq.Editor.registerBlockContextMenuItem(label, event => run({ uuid: event?.uuid }));
+  logseq.App.registerPageMenuItem?.(label, event => run({ page: event?.page }));
+}
+const keep = settings => logseq.updateSettings(settings);
+async function copy(text) {
+  try { await host().defaultView.navigator.clipboard.writeText(text); return true; } catch (error) { console.warn('Logseq Plugin: the clipboard could not be reached', error); return false; }
+}
+/* In Logseq's desktop window a download from a plugin goes nowhere (seen 29 October 2026), so a file is written through the
+   bridge Logseq's own exports use: its folder window, then writeFile, then the file shown in the Finder. */
+async function save(name, text, folder = '') {
+  const apis = host().defaultView.apis;
+  if (!apis?.doAction) throw new Error('this Logseq lends plugins no way to save a file');
+  const picked = await apis.doAction(['showOpenDialog', { title: `Save ${name}`, message: `Choose the folder for ${name}`, buttonLabel: 'Save here', properties: ['openDirectory', 'createDirectory'], ...(folder ? { defaultPath: folder } : {}) }]);
+  const dir = picked && !picked.canceled && picked.filePaths?.[0];
+  if (!dir) return null;
+  const at = one => `${String(dir).replace(/\/$/, '')}/${one}`;
+  const free = await G.export.freeName(name, async one => { try { return !!await apis.doAction(['stat', at(one)]); } catch (error) { return false; } });
+  await apis.doAction(['writeFile', null, at(free), text]);
+  try { apis.doAction(['openFileInFolder', at(free)]); } catch (error) { /* the file is saved all the same */ }
+  return { path: at(free), folder: String(dir) };
+}
+const settled = (doc, ms = 4000) => new Promise(resolve => {
+  const loading = [...doc.images].filter(image => !image.complete);
+  let left = loading.length;
+  if (!left) return resolve();
+  const one = () => { if (--left <= 0) resolve(); };
+  for (const image of loading) { image.addEventListener('load', one); image.addEventListener('error', one); }
+  setTimeout(resolve, ms);
+});
+// The page stands in a frame of Logseq's own page, off the screen: the plugin's own frame is hidden and prints nothing.
+function print(html) {
+  return new Promise((resolve, reject) => {
+    const doc = host(), frame = doc.createElement('iframe');
+    frame.className = 'lk-print'; frame.setAttribute('aria-hidden', 'true');
+    frame.style.cssText = 'position:fixed;left:-10000px;top:0;width:800px;height:1000px;border:0;';
+    doc.body.appendChild(frame);
+    const page = frame.contentDocument;
+    page.open(); page.write(html); page.close();
+    settled(page).then(() => setTimeout(() => {
+      let failed = null;
+      try { frame.contentWindow.focus(); frame.contentWindow.print(); } catch (error) { failed = error; }   // answers when the print window closes
+      setTimeout(() => { frame.remove(); if (failed) reject(failed); else resolve(); }, 500);
+    }, 150));
+  });
+}
+/* Logseq serves a graph's files on its assets:// address. Each picture is read once into the page itself, so the preview and
+   the printed page both carry it. A file that cannot be read keeps its address. */
+const read = new Map();
+async function pictures(files) {
+  let folder = '';
+  try { folder = String((await logseq.App.getCurrentGraph())?.path || ''); } catch (error) { folder = ''; }
+  const at = file => folder ? `assets://${encodeURI(folder.replace(/\/$/, ''))}/${file}` : file, out = new Map();
+  await Promise.all([...new Set(files)].map(async file => {
+    const address = at(file);
+    if (!read.has(address)) {
+      try {
+        const blob = await (await fetch(address)).blob();
+        read.set(address, await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); }));
+      } catch (error) { console.warn('Logseq Plugin: a picture could not be read', file, String(error?.message || error)); }
+    }
+    out.set(file, read.get(address) || address);
+  }));
+  return file => out.get(file) || at(file);
+}
+// Logseq draws a query as a table: its columns, and the rows' order, are read from the screen when it is drawn there.
+function queryShown(uuid) {
+  const block = host().querySelector(`.ls-block[blockid="${uuid}"]`), table = block?.querySelector('.ls-table');
+  if (!table) return null;
+  const columns = [...table.querySelectorAll('.ls-table-header .ls-table-header-cell [title]')].map(cell => cell.getAttribute('title')).filter(Boolean);
+  const ids = [...new Set([...table.querySelectorAll('[blockid]')].map(row => row.getAttribute('blockid').toLowerCase()))], count = Number(block.querySelector('.ls-view-head')?.textContent.match(/\((\d+)\)/)?.[1]);
+  return { columns: columns.length ? columns : null, order: ids.length && ids.length === count ? ids : null };   // only when every row is drawn
+}
+// Logseq's header moves the window when pressed: a real press there never reaches the page, whatever is drawn over it.
+function dragBand() {
+  const doc = host();
+  let bottom = 0;
+  for (const el of doc.querySelectorAll('.drag-region, #head')) if (doc.defaultView.getComputedStyle(el).webkitAppRegion === 'drag') { const box = el.getBoundingClientRect(); if (box.top < 100 && box.width > 300) bottom = Math.max(bottom, box.bottom); }
+  return Math.round(bottom) || 48;
+}
+function graphChanged(fn) {
+  const off = logseq.App.onCurrentGraphChanged(() => { read.clear(); fn(); });
+  return () => { if (typeof off === 'function') off(); };
 }
 
 // One of Logseq's own icons, drawn as Logseq draws it (its tablerIcons hand back a React element), else from the icon font it loads.
@@ -848,6 +1170,7 @@ function here() {
    picture of both). One sheet for each thing, so each can be switched off on its own. Nothing here is inside an opened node:
    those rows are laid out by OPENED. */
 const AREA = ':is(#main-content-container, #right-sidebar)', OUT = ':not(.lk-editor *)';
+const PLAIN_SIDE = '#right-sidebar:not([data-lk-split]) .sidebar-item.item-type-page';   // a page in the sidebar, not one shown as the right half
 const PILLS = `${AREA} .ls-block .positioned-properties.block-below`;
 const CALM = {
   /* What floats over Logseq's own screens (its menus, pop-ups, lists to choose from, the question before a delete, its windows
@@ -973,16 +1296,16 @@ ${SIDE_PAGE} .ls-sidebar-page-properties > hr { display: none !important; }
 /* One edge in the sidebar: the words of every line of a page start where its properties' names start, and the marks (a fold
    arrow, a list's mark, the + of "Add property", a value's bullet) stand in the gutter before that edge (the owner, 25
    November 2026: "I see a lot of problems with alignment of elements"). */
-${SIDE_PAGE} .lk-relwrap { padding-left: 0; margin-left: -2px; }
-${SIDE_PAGE} .ls-sidebar-page-properties .ls-new-property { margin-left: -20px; }
+${PLAIN_SIDE} .lk-relwrap { padding-left: 0; margin-left: -2px; }
+${PLAIN_SIDE} .ls-sidebar-page-properties .ls-new-property { margin-left: -20px; }
 /* Where the sidebar is narrow a property has its name on one line and its values under it, as before 0.9: beside a name
    150 wide a value would be broken into pieces. Wider, a property reads as it does on the page. */
 ${SIDE_PAGE} .sidebar-panel-content { container: lk-side / inline-size; }
 @container lk-side (max-width: 420px) {
   ${SIDE_PAGE} .ls-sidebar-page-properties .property-pair.property-panel-row { display: block !important; padding-right: 0 !important; }
   ${SIDE_PAGE} .ls-sidebar-page-properties .property-key-panel { width: auto !important; min-width: 0 !important; }
-  ${SIDE_PAGE} .ls-sidebar-page-properties .property-value-container { margin-left: -22px; }
-  ${SIDE_PAGE} .ls-sidebar-page-properties .properties-panel { overflow: visible !important; }   /* Logseq clips the panel at its edge, which would hide a value's bullet in the gutter */
+  ${PLAIN_SIDE} .ls-sidebar-page-properties .property-value-container { margin-left: -22px; }
+  ${PLAIN_SIDE} .ls-sidebar-page-properties .properties-panel { overflow: visible !important; }   /* Logseq clips the panel at its edge, which would hide a value's bullet in the gutter */
 }`,
   /* Logseq's tables: the page's own ground under the column names, no lines between columns, a hairline under each row, the
      wash under the pointer; the words in the plugin's greys; a link as a link is everywhere; what each tool does said in a
@@ -1062,13 +1385,13 @@ function titleEnd(el, name) {
    draws the properties shut behind "Open properties", and shut again after the section is folded, opened or redrawn, so the
    press is made for the person whenever they are shut: never while one of Logseq's own lists or menus is open (a press would
    close the list under a bullet being written), and at most twice a minute for one section. Gives back what stops it. */
-function sidePages() {
+function sidePages(within = SIDE_PAGE) {
   const doc = host(), pressed = new WeakMap();
   const shut = box => box.children.length === 1 ? box.querySelector(':scope > div:first-child > button:only-child') : null;
   const off = watch(() => {
     if (busy()) return;
     const now = Date.now();
-    for (const box of doc.querySelectorAll(`${SIDE_PAGE} .ls-sidebar-page-properties`)) {
+    for (const box of doc.querySelectorAll(`${within} .ls-sidebar-page-properties`)) {
       const press = shut(box), times = (pressed.get(box) || []).filter(at => now - at < 60000);
       if (!press || times.length >= 2) continue;
       pressed.set(box, [...times, now]); press.click();
@@ -1084,5 +1407,193 @@ function sidePages() {
   doc.addEventListener('click', onName, true);
   return () => { off(); doc.removeEventListener('click', onName, true); };
 }
-G.touch = { sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, section, page, toolbar, icon, statusIcon, foldedSpots, FOLDED, HIDES, HIDES_TAGS, OPENED, PAGE };
+/* Two pages side by side: Logseq's right sidebar shown as the right half of the main area, so the page there is a whole page of
+   Logseq's own, written in as anywhere. While it is shown so (data-lk-split on the sidebar, data-lk-split-item on the one
+   section), the other sections wait unseen, the section has no head or card, a band as tall as Logseq's header stands over it,
+   and the page's name stands over it as a title. Logseq's list of what its sidebar holds is changed only by Logseq's own calls
+   and its own ×. Seen in Logseq 2.0.2: anything opened in the sidebar, there already or not, goes to the top of that list. */
+const RIGHT = '#right-sidebar', HALF = `${RIGHT}[data-lk-split]`, MINE = `${HALF} [data-lk-split-item]`, PROPS = '.ls-sidebar-page-properties';
+const SPLIT = `
+${HALF} { width: var(--lk-split-w, 50vw) !important; min-width: 0 !important; max-width: none !important; transition: none !important; background: var(--lk-split-ground, var(--lk-paper)) !important; border-left: 0 !important; }
+${HALF} .resizer { display: none !important; }
+/* The band over the right page, the header's height: the page scrolls under it, so nothing runs behind the two icons. */
+${HALF}${HALF} .cp__right-sidebar-topbar { display: block !important; position: sticky; top: 0; z-index: 8; height: 48px; min-height: 48px; padding: 0 !important; border: 0 !important; box-shadow: none !important; background: var(--lk-split-ground, var(--lk-paper)) !important; }
+${HALF} .cp__right-sidebar-topbar > * { visibility: hidden !important; }
+${HALF} .cp__right-sidebar-inner, ${HALF} .cp__right-sidebar-scrollable { background: transparent !important; }
+${HALF}${HALF} .cp__right-sidebar-topbar::before, ${HALF}${HALF} .cp__right-sidebar-topbar::after { display: none !important; }
+/* Every other section and the places to drop one: unseen, by a rule weightier than any that shows a section. */
+${HALF}${HALF} .sidebar-item-list > :not([data-lk-split-item]):not([data-lk-split-item]) { display: none !important; }
+${HALF}${HALF} .sidebar-item-list { margin: 0 !important; padding: 0 0 96px !important; }
+${HALF}${HALF} .sidebar-item-list > [data-lk-split-item] { display: flex !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; border-radius: 0 !important; overflow: visible !important; }
+${MINE} .sidebar-item-header { display: none !important; }
+${MINE} .sidebar-panel-content { display: block !important; padding: 0 clamp(16px, 4%, 40px) !important; }
+${MINE} .sidebar-panel-content > .cp__page-inner-wrap { margin: 0 !important; }
+/* The page's name over it, as a title stands on the main view (its size and weight are read from there). A tag's page has
+   Logseq's # before its name and a property's its P, as on the main view. */
+.lk-split-title { display: flex; align-items: flex-start; gap: 10px; margin: 32px 0 6px var(--lk-split-col, 20px); color: var(--lk-text); overflow-wrap: anywhere; }
+.lk-split-title > span:last-child { min-width: 0; }
+.lk-split-title > .lk-split-sign { flex: none; display: inline-flex; align-items: center; height: 1.3em; color: var(--lk-quiet); }
+.lk-parent:not([hidden]) + .lk-split-title { margin-top: 0; }
+${MINE} .sidebar-panel-content > .lk-split-title:first-child + * { margin-top: 0; }
+${HALF} .sidebar-item-list .lk-parent:not([hidden]) { margin-top: 12px; margin-left: var(--lk-split-col, 20px); }
+/* As on the main view: no rule under the properties; no empty "Add property" on a page with no property; and no list of a tag's
+   or a property's own settings, which the main view keeps in Logseq's windows and in Ontology's lines. */
+${MINE} ${PROPS} > hr, ${MINE} ${PROPS} > div:first-child:has(> button:only-child) { display: none !important; }   /* nor Logseq's press to hide them */
+${MINE} ${PROPS}:not(:has(.property-pair)), ${HALF} [data-lk-split-item][data-lk-split-kind] ${PROPS} { display: none !important; }
+${MINE} .sidebar-panel-content .page-inner > .-mb-8 { margin-bottom: 0 !important; }
+${MINE} .sidebar-panel-content .ls-page-blocks { margin-top: 8px; }
+/* The place under the title and the air round it, as where it stands under the main view's title in a window this narrow. */
+${HALF} [data-lk-split-item] .lk-place { margin: 13px 0 14px calc(var(--lk-split-col, 0px) + 8px); }
+/* In a narrow half a property's words stand under its name (as in a narrow sidebar), not drawn back past the edge and cut. */
+@container lk-side (max-width: 420px) { ${MINE} ${PROPS} .property-block-container { margin-left: 0 !important; } }`;
+const state = id => { try { return host().defaultView.logseq.api.get_state_from_store(id); } catch (error) { return null; } };
+const sideList = () => (state('sidebar/blocks') || []).map(entry => entry?.[1]);
+const sideOpen = () => !!state('ui/sidebar-open?');
+const sections = () => [...host().querySelectorAll(`${RIGHT} .sidebar-item-list > .sidebar-item`)];
+/* The section Logseq drew for an entry of its list, by its place there. Where the list and the screen disagree (Logseq has not
+   drawn it yet, or cannot draw an entry further down), only the top one is sure. */
+const sectionOf = id => {
+  const list = sideList(), all = sections(), i = list.indexOf(id);
+  if (i < 0) return null;
+  return all.length === list.length ? all[i] : i === 0 && all[0]?.querySelector('.sidebar-panel-content') ? all[0] : null;
+};
+const body = id => sectionOf(id)?.querySelector('.sidebar-panel-content') || null;
+/* fn() asked once a frame until it answers something, or until ms have passed. The first asking waits two frames: Logseq draws
+   its sidebar a frame after its list changes, and until then a section's place in the list is not its place on screen. */
+const until = (fn, ms) => new Promise(done => {
+  const view = host().defaultView, end = Date.now() + ms;
+  const next = then => view.requestAnimationFrame(() => view.setTimeout(then, 16));
+  const look = () => { const got = fn(); if (got || Date.now() > end) return done(got || null); next(look); };
+  next(() => next(look));
+});
+const unfolded = new WeakSet();
+/* Draws the section of a node as the right half. head: { page, title, kind: 'tag' | 'property' | '' }. Put there again at every
+   pass, since Logseq draws its sidebar anew when it likes. Answers whether the section stands on screen. */
+function mark(id, head) {
+  const doc = host(), side = doc.querySelector(RIGHT), item = sectionOf(id);
+  if (!side) return false;
+  if (!side.hasAttribute('data-lk-split')) side.setAttribute('data-lk-split', '');
+  if (!item) return false;
+  for (const other of side.querySelectorAll('[data-lk-split-item]')) if (other !== item) { other.removeAttribute('data-lk-split-item'); other.removeAttribute('data-lk-split-kind'); }
+  for (const stray of side.querySelectorAll('.lk-split-title')) if (!item.contains(stray)) stray.remove();   // Logseq may hand a section's box to another node
+  if (!item.hasAttribute('data-lk-split-item')) item.setAttribute('data-lk-split-item', '');
+  if ((item.getAttribute('data-lk-split-kind') || '') !== head.kind) { if (head.kind) item.setAttribute('data-lk-split-kind', head.kind); else item.removeAttribute('data-lk-split-kind'); }
+  // The right half on the very ground the main view stands on: the first ground painted under it, read as it is now.
+  let ground = '';
+  for (let at = doc.getElementById('main-content-container'); at && !ground; at = at.parentElement) { const painted = doc.defaultView.getComputedStyle(at).backgroundColor; if (!/^(rgba\(0, 0, 0, 0\)|transparent)$/.test(painted)) ground = painted; }
+  if (side.style.getPropertyValue('--lk-split-ground') !== ground) side.style.setProperty('--lk-split-ground', ground);
+  const panel = item.querySelector('.sidebar-panel-content');
+  // A section left folded in the sidebar is unfolded, once: its head, which does that, is unseen here.
+  if (panel && !panel.firstElementChild?.getBoundingClientRect().height && /(^| )hidden( |$)/.test(panel.className) && !unfolded.has(item)) { unfolded.add(item); item.querySelector('.sidebar-item-header button')?.click(); }
+  if (!panel) return false;
+  if (!head.page) { panel.querySelector('.lk-split-title')?.remove(); return true; }
+  let title = panel.querySelector('.lk-split-title');
+  // Where it stands: first in the page, after the tag's Parent line, which stands over the title on the main view too.
+  const box = own(panel, PROPS)?.parentElement || panel;
+  if (!title) { title = doc.createElement('div'); title.className = 'lk-split-title'; title.setAttribute('role', 'heading'); title.setAttribute('aria-level', '1'); }
+  const parent = [...box.children].find(child => child.classList.contains('lk-parent')), after = parent ? parent.nextElementSibling : box.firstElementChild;
+  if (title.parentElement !== box || (after !== title && !(parent && title.previousElementSibling === parent))) { if (parent) parent.after(title); else box.prepend(title); }
+  const said = `${head.kind}\n${head.title}`;
+  if (title.lkSaid !== said) {
+    title.lkSaid = said;
+    title.innerHTML = `${head.kind ? `<span class="lk-split-sign">${icon(head.kind === 'tag' ? 'hash' : 'letterP', 36)}</span>` : ''}<span>${G.esc(head.title)}</span>`;
+  }
+  const main = doc.querySelector('#main-content-container .ls-page-title-container .block-title-wrap'), like = main ? doc.defaultView.getComputedStyle(main) : null;
+  const font = { fontSize: like?.fontSize || '30px', fontWeight: like?.fontWeight || '600', lineHeight: like?.lineHeight || '39px', letterSpacing: like?.letterSpacing || '-.45px', color: like?.color || '' };
+  for (const [name, value] of Object.entries(font)) if (title.style[name] !== value) title.style[name] = value;
+  // The title's left edge on the column of the page's bullets, as the main title stands over the main page's (once they are drawn).
+  const dot = own(panel, '.ls-page-blocks .bullet-container'), at = dot?.getBoundingClientRect();
+  if (at?.width) {
+    const now = parseFloat(doc.defaultView.getComputedStyle(title).marginLeft) || 0, shift = at.left - title.getBoundingClientRect().left;
+    if (Math.abs(shift) > 1) side.style.setProperty('--lk-split-col', `${Math.max(0, Math.round(now + shift))}px`);
+  }
+  return true;
+}
+function unmark() {
+  const doc = host(), side = doc.querySelector(RIGHT);
+  for (const el of doc.querySelectorAll('.lk-split-title')) el.remove();
+  for (const el of doc.querySelectorAll('[data-lk-split-item]')) { el.removeAttribute('data-lk-split-item'); el.removeAttribute('data-lk-split-kind'); }
+  side?.removeAttribute('data-lk-split'); side?.style.removeProperty('--lk-split-col'); side?.style.removeProperty('--lk-split-ground');
+}
+// Whether the right half really shows the page: its section marked, nothing hiding it, and something of Logseq's drawn in it.
+function shown(id) {
+  const item = sectionOf(id), panel = item?.querySelector('.sidebar-panel-content'), view = host().defaultView;
+  if (!item?.hasAttribute('data-lk-split-item') || !panel || !panel.querySelector('.cp__page-inner-wrap, .ls-block')) return false;
+  for (let el = panel; el && el !== host().body; el = el.parentElement) if (view.getComputedStyle(el).display === 'none') return false;
+  return panel.getBoundingClientRect().height > 0;
+}
+// A node's section opened at the top of Logseq's sidebar, the sidebar shown.
+async function put(uuid) { await logseq.Editor.openInRightSidebar(String(uuid)); if (!sideOpen()) logseq.App.setRightSidebarVisible(true); }
+const setOpen = on => logseq.App.setRightSidebarVisible(!!on);
+// An entry taken out of the sidebar by its own ×, once Logseq has drawn the list as it holds it. Answers whether it went.
+async function takeOut(id) {
+  if (!sideList().includes(id)) return true;
+  const item = await until(() => sectionOf(id), 1500);
+  const press = item?.querySelector('.item-actions .ls-icon-x')?.closest('button');
+  if (!press) return false;
+  press.click();
+  return !!(await until(() => !sideList().includes(id), 1500));
+}
+/* The sidebar's list put back in an order it had. Opening what was already there moved it to the top, so what stood above it is
+   opened again too, lowest first; nothing is added or taken out. Logseq's list can be changed only this way, so where it holds
+   something that cannot be opened again (Contents, a graph, another plugin's piece) the order is left as it is. */
+async function reorder(before = []) {
+  const want = before.filter(id => sideList().includes(id)), now = sideList().filter(id => want.includes(id));
+  let k = want.length;   // what already stands in the old order at the bottom stays
+  for (let j = now.length - 1; k > 0 && j >= 0; j--) if (now[j] === want[k - 1]) k--;
+  const move = want.slice(0, k).reverse(), OWN_ID = `:${logseq.baseInfo?.id}/`;
+  if (!move.length) return;
+  const ways = await Promise.all(move.map(async id => typeof id === 'number' ? (await logseq.Editor.getBlock(id).catch(() => null) || await logseq.Editor.getPage(id).catch(() => null))?.uuid
+    : typeof id === 'string' && id.startsWith(OWN_ID) ? id.slice(OWN_ID.length) : null));
+  if (ways.some(way => !way)) return;
+  for (let i = 0; i < move.length; i++) { await logseq.Editor.openInRightSidebar(String(ways[i])); await until(() => sideList()[0] === move[i], 1500); }
+}
+const mainLeft = () => host().getElementById('main-content-container')?.getBoundingClientRect().left || 0;
+// fn runs when the main view changes its width (the left sidebar opened or shut, the window). Gives back what stops it.
+function mainSized(fn) {
+  const main = host().getElementById('main-content-container'), Sized = host().defaultView.ResizeObserver;
+  if (!main || !Sized) return () => {};
+  const watcher = new Sized(() => fn()); watcher.observe(main);
+  return () => watcher.disconnect();
+}
+// The properties of the page shown as the right half opened, where the quiet sidebar is not there to open them.
+const openProps = () => sidePages(MINE);
+// Logseq's own icons at the right of its header, as drawn: where they stand and how they look, for icons drawn the same.
+function headIcons() {
+  const doc = host(), head = doc.querySelector('#head > .r'), view = doc.defaultView;
+  const all = [...(head?.querySelectorAll('button, a.button') || [])].filter(el => el.getBoundingClientRect().width);
+  const last = all[all.length - 1];
+  if (!last) return null;
+  const r = last.getBoundingClientRect(), look = view.getComputedStyle(last), svg = last.querySelector('svg'), before = all[all.length - 2]?.getBoundingClientRect();
+  return { top: r.top, edge: Math.max(0, head.getBoundingClientRect().right - r.right), gap: before ? Math.max(0, r.left - before.right) : 0,
+    width: r.width, height: r.height, padding: look.padding, radius: look.borderRadius, color: look.color, opacity: look.opacity, stroke: svg ? view.getComputedStyle(svg).strokeWidth : '' };
+}
+// The uuid of the page (or bullet) the main view shows; '' where it shows none (the journals, a page of the plugin's own).
+async function mainPage() {
+  if (!/#\/page\//.test(host().defaultView.location.hash)) return '';
+  const page = await logseq.Editor.getCurrentPage().catch(() => null);
+  return String(page?.uuid || '').toLowerCase();
+}
+/* A link, or a line of the plugin's lists, pressed in the main view with Cmd (Ctrl away from the Mac) or with Shift. A Cmd-press
+   the plugin takes is held back from its first event, so that Logseq does not also go to the page. */
+const LINK = 'a.page-ref[data-uuid], a.tag[data-uuid], a[data-to], .lk-row > .lk-line';
+function presses(fn) {
+  const view = host().defaultView, types = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
+  const mac = /Mac|iPhone|iPad/.test(view.navigator.platform);
+  const on = event => {
+    const cmd = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+    if (event.button !== 0 || event.altKey || cmd === event.shiftKey) return;
+    const at = event.target.closest?.(`${LINK}, button, input, .lk-url`);
+    if (!at?.matches(LINK) || !at.closest('#main-content-container')) return;
+    const to = at.getAttribute('data-uuid') || at.getAttribute('data-to') || at.parentElement.dataset.uuid;
+    if (!to) return;
+    if (!cmd) { if (event.type === 'click') fn(to, 'sidebar'); return; }
+    if (fn(to, 'beside', event.type === 'click') !== true) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+  };
+  for (const type of types) view.addEventListener(type, on, true);
+  return () => { for (const type of types) view.removeEventListener(type, on, true); };
+}
+const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
+G.touch = { menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

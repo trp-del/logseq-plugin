@@ -316,7 +316,7 @@ G.part({
     const focus = async (how = {}) => {
       section.open();
       for (let tries = 0; tries < 20; tries++) {
-        const box = [...boxes].find(one => one.holder.isConnected);
+        const box = [...boxes].find(one => one.holder.isConnected && one.field.offsetParent);   // on screen: a line not yet shown takes no keys (the sidebar giving up a page shown beside)
         if (box) { if (how.tag) box.take(how.tag); if (how.sentence != null && box.sentence !== how.sentence) box.way(); box.field.focus(); box.field.select(); return; }
         await new Promise(resolve => setTimeout(resolve, 100));
       }

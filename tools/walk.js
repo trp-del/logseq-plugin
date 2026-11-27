@@ -543,6 +543,269 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await goto(CHEN);
       return is([told.length > 0, rows ? asked : 'nothing to delete', after], [true, rows ? 'Leave it' : 'nothing to delete', rows]);
     });
+    {
+    // ---- Beside: two pages side by side (the owner chose the old feature, 26 November 2026)
+    await goto(CHEN);
+    const sideNow = () => page.evaluate(() => ({ list: window.logseq.api.get_state_from_store('sidebar/blocks').map(e => e[1]), open: !!window.logseq.api.get_state_from_store('ui/sidebar-open?') }));
+    const halves = () => page.evaluate(() => { const side = document.querySelector('#right-sidebar'), main = document.querySelector('#main-content-container'); return [Math.round(main.getBoundingClientRect().left), Math.round(side.getBoundingClientRect().width), window.innerWidth]; });
+    const split = () => page.evaluate(() => { const side = document.querySelector('#right-sidebar'), shown = [...side.querySelectorAll('.sidebar-item')].filter(el => el.offsetParent);
+      return { on: side.hasAttribute('data-lk-split'), title: side.querySelector('.lk-split-title')?.innerText.trim() || '', shown: shown.length, head: !!shown[0]?.querySelector('.sidebar-item-header')?.offsetParent, own: document.querySelectorAll('.lk-split-line, .lk-split-tools, .lk-split-title').length }; });
+    const hospital = () => page.locator('#main-content-container .ls-page-properties a.page-ref', { hasText: 'Northgate' }).first();
+    const beside = async locator => { await locator.click({ modifiers: ['Meta'] }); await wait(3000); };
+    const press = async what => { await page.locator(`.lk-split-tools [data-do="${what}"]`).click(); await wait(3000); };
+    if (!(await sideNow()).open) { await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(true)); await wait(800); }
+    await page.keyboard.press('Meta+k'); await wait(1200);   // the sidebar holds Search, and what the walk left there
+    await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(false)); await wait(800);
+    const before = await sideNow();
+    await step('Cmd-click on a link in the main view opens its page beside: equal halves, one page with its title, no head, the main view where it was', async () => {
+      const hash = await page.evaluate(() => location.hash);
+      await beside(hospital());
+      const [left, width, whole] = await halves(), got = await split();
+      return is([got, Math.abs(width - (whole - left) / 2) <= 1, (await page.evaluate(() => location.hash)) === hash], [{ on: true, title: 'Northgate Cancer Center', shown: 1, head: false, own: 3 }, true, true]);
+    });
+    await step('the page beside shows its place, its properties and its Relations, and its title stands level with the main title', async () => is(await page.evaluate(() => { const item = document.querySelector('[data-lk-split-item]');
+      return [!!item.querySelector('.lk-place')?.innerText.trim(), item.querySelectorAll('.property-pair').length > 0, item.querySelectorAll('.lk-relwrap .lk-list').length > 0,
+        Math.abs(item.querySelector('.lk-split-title').getBoundingClientRect().top - document.querySelector('#main-content-container .ls-page-title-container .block-title-wrap').getBoundingClientRect().top) <= 8]; }), [true, true, true, true]));
+    await step('a line opened in the page beside leaves that page its own title and place where they were', async () => {
+      const at = () => page.evaluate(() => { const item = document.querySelector('[data-lk-split-item]'), title = item.querySelector('.lk-split-title').getBoundingClientRect(), place = item.querySelector('.lk-place'); return [Math.round(title.left), Math.round(title.top), !!place.closest('.lk-open'), place.innerText.trim()]; });
+      const was = await at();
+      await page.locator('[data-lk-split-item] .lk-row .lk-line').first().click(); await wait(2500);
+      const open = await count('[data-lk-split-item] .lk-row[data-open]'), now = await at();
+      await page.keyboard.press('Escape'); await wait(700);
+      return is([open, now, await count('[data-lk-split-item] .lk-row[data-open]')], [1, was, 0]);
+    });
+    await step('the line between the halves drags, stops at 320, and a double-click gives equal halves', async () => {
+      const line = page.locator('.lk-split-line'), box = await line.boundingBox();
+      const drag = async to => { const at = await line.boundingBox(); await page.mouse.move(at.x + 4, 400); await page.mouse.down(); await page.mouse.move(to, 400, { steps: 8 }); await page.mouse.up(); await wait(500); return halves(); };
+      const wider = await drag(box.x - 60), narrow = await drag(2000), wide = await drag(0);
+      await line.dblclick({ position: { x: 4, y: 400 } }); await wait(500);
+      const [left, width, whole] = await halves();
+      return is([wider[1] > box.x / 2 && Math.abs(wider[1] - (whole - box.x + 60)) <= 6, narrow[1], whole - left - wide[1], Math.abs(width - (whole - left) / 2) <= 1], [true, 320, 320, true]);
+    });
+    await step('another Cmd-click puts that page on the right instead, and the one before leaves the sidebar', async () => {
+      await beside(page.locator('#main-content-container .lk-place a', { hasText: 'Doctor' }));
+      const got = await split(), now = await sideNow();
+      return is([got.title, got.shown, now.list.length - before.list.length, await page.evaluate(() => !!document.querySelector('[data-lk-split-item] .lk-split-sign') && !document.querySelector('[data-lk-split-item] .ls-sidebar-page-properties')?.offsetParent)], ['Doctor', 1, 1, true]);
+    });
+    await step('swap puts the right page on the left and the left page on the right', async () => {
+      await press('swap');
+      return is([(await split()).title, await page.evaluate(() => document.querySelector('#main-content-container .ls-page-title-container .block-title-wrap')?.innerText.trim())], ['Dr. Mei Chen', 'Doctor']);
+    });
+    await step('the close icon ends the split: the sidebar shut as before, holding what it held, nothing of the split left', async () => {
+      await press('close');
+      return is([await sideNow(), await split()], [before, { on: false, title: '', shown: 0, head: false, own: 0 }]);
+    });
+    await goto(CHEN);
+    await step('Cmd-click on a line of Relations opens its node beside and does not open the line', async () => {
+      const line = page.locator('#main-content-container .lk-relpage > .lk-list > .lk-rows > .lk-row > .lk-line').first(), uuid = await line.evaluate(el => el.parentElement.dataset.uuid);
+      await beside(line);
+      const got = await split(), opened = await count('#main-content-container .lk-row[data-open]');
+      await press('close');
+      return is([got.on, got.shown, opened, await sideNow()], [true, 1, 0, before]);
+    });
+    await step('with the sidebar open, Cmd-K during the split ends it and shows Search with the keys in its line', async () => {
+      await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(true)); await wait(800);
+      await beside(hospital()); const on = (await split()).on;
+      await page.keyboard.press('Meta+k'); await wait(2000);
+      return is([on, (await split()).own, await page.evaluate(() => document.activeElement?.closest('.lk-search') != null), (await sideNow()).list.length - before.list.length], [true, 0, true, 1]);
+    });
+    await step('Shift-click during the split ends it and the page from the right stays in the sidebar; shutting the sidebar ends it too', async () => {
+      await beside(hospital()); const title = (await split()).title;
+      await hospital().click({ modifiers: ['Shift'] }); await wait(2500);
+      const shifted = [await split().then(s => [s.on, s.own]), (await sideNow()).open];
+      await beside(hospital());
+      await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(false)); await wait(2000);
+      return is([title, ...shifted, (await split()).own, (await sideNow()).list.length >= before.list.length + 1], ['Northgate Cancer Center', [false, 0], true, 0, true]);
+    });
+    await step('a reload of the plugin during the split closes it and leaves the sidebar as it was', async () => {
+      const was = await sideNow();
+      await page.locator('#main-content-container .lk-row .lk-line').first().click({ modifiers: ['Meta'] }); await wait(3000);
+      const on = (await split()).on;
+      await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(6000);
+      return is([on, (await split()).own, (await split()).on, await sideNow()], [true, 0, false, was]);
+    });
+    }
+    {
+    // ---- Focusing into a bullet and out (the owner, 26 November 2026)
+    const focus = await box.frame().evaluate(async () => { const p = await logseq.Editor.createPage('Zzfocus walk', {}, { redirect: false }); const first = await logseq.Editor.appendBlockInPage(p.uuid, 'Above one');
+      await logseq.Editor.insertBatchBlock(first.uuid, [{ content: 'Above two' }, { content: 'Above three' }, { content: 'Go in here', children: [{ content: 'Under it' }] }, { content: 'Below' }], { sibling: true });
+      return { page: p.uuid, bullet: (await logseq.Editor.getPageBlocksTree(p.uuid))[3].uuid }; });
+    const dot = page.locator(`#main-content-container .ls-block[blockid="${focus.bullet}"] > .block-main-container .bullet-container`).first();
+    /* What the glide does from a press on, read at each frame: how far the bullet moved by it, whether it moved the whole way
+       smoothly, whether the old view faded; then how things stand at rest. */
+    const glided = async act => {
+      const seen = page.evaluate(uuid => new Promise(done => { const tops = []; let ghost = false; const t0 = performance.now(); const frame = () => {
+        const main = document.getElementById('main-content-container'), block = [...main.querySelectorAll(`.ls-block[blockid="${uuid}"]`)].find(b => !b.closest('.lk-ghost'));
+        if (main.querySelector('.lk-ghost')) ghost = true;
+        if (block?.getAnimations().some(a => a.id === 'lk-glide')) tops.push(Math.round(block.querySelector(':scope > .block-main-container').getBoundingClientRect().top));
+        if (performance.now() - t0 < 1400) requestAnimationFrame(frame); else done({ moved: new Set(tops).size > 4 && Math.abs(tops[0] - tops[tops.length - 1]) > 40, ghost }); }; frame(); }), focus.bullet);
+      await wait(60); await act(); const got = await seen; await wait(500);
+      return [got.moved, got.ghost, ...await page.evaluate(uuid => [location.hash.includes(uuid), !!document.querySelector(`#main-content-container .ls-block.selected[blockid="${uuid}"]`), document.querySelectorAll('#main-content-container .lk-out').length, document.querySelectorAll('.lk-ghost').length, !!document.querySelector('.ui__dialog-content')], focus.bullet)];
+    };
+    // moved, old view faded, in the bullet, selected, arrows, copies left, a window of Logseq's open
+    const IN = [true, true, true, false, 1, 0, false], OUT = [true, true, false, true, 0, 0, false];
+    await goto(focus.page);
+    await step('a press on a bullet glides it to the top, the old view fading, an up arrow after the line of steps', async () => is(await glided(() => dot.click()), IN));
+    await step('the up arrow steps out with the same glide back, and the bullet comes back selected', async () => is(await glided(() => page.locator('#main-content-container .lk-out').click()), OUT));
+    await step('Cmd-. goes back into the selected bullet and Cmd-, steps out again, Logseq\'s settings staying shut', async () => is([await glided(() => page.keyboard.press('Meta+.')), await glided(() => page.keyboard.press('Meta+,'))], [IN, OUT]));
+    await step('Back and Forward glide too', async () => is([await glided(() => page.evaluate(() => history.back())), (await glided(() => page.evaluate(() => history.forward()))).slice(0, 4)], [IN, [true, true, false, true]]));
+    await step('Cmd-, while writing in the focused bullet keeps the cursor and selects nothing', async () => {
+      await dot.click(); await wait(1200);
+      await page.locator(`#main-content-container .ls-block[blockid="${focus.bullet}"] > .block-main-container .block-content`).first().click(); await wait(500);
+      const got = await glided(() => page.keyboard.press('Meta+,')), writing = await page.evaluate(() => document.activeElement?.tagName);
+      await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('Escape'); await wait(300);
+      return is([got, writing], [[true, true, false, false, 0, 0, false], 'TEXTAREA']);
+    });
+    await step('with Reduce motion on nothing moves: the old view only fades, and the bullet still comes back selected', async () => {
+      await page.emulateMedia({ reducedMotion: 'reduce' }); await goto(focus.page);
+      const got = [await glided(() => dot.click()), await glided(() => page.locator('#main-content-container .lk-out').click())];
+      await page.emulateMedia({ reducedMotion: null });
+      return is(got, [[false, ...IN.slice(1)], [false, ...OUT.slice(1)]]);
+    });
+    }
+    {
+    // ---- Beside: the key sheet (the owner chose it again, 26 November 2026)
+    const sheet = () => page.evaluate(() => { const box = document.querySelector('.lk-sheet.on'); return box ? { stays: box.classList.contains('stays'), presses: getComputedStyle(box).pointerEvents, keys: document.activeElement === box.querySelector('.lk-field'), heads: [...box.querySelectorAll('.lk-sheet-group:not([hidden]) > .lk-sheet-head')].map(el => el.textContent) } : null; });
+    const lines = () => page.evaluate(() => [...document.querySelectorAll('.lk-sheet .lk-sheet-line:not([hidden])')].map(el => `${el.querySelector('.lk-sheet-words').textContent} = ${[...el.querySelectorAll('.lk-keycap')].map(key => key.textContent).join(' ')}`));
+    const holdOption = async () => { await page.keyboard.down('Alt'); await wait(1100); await page.keyboard.up('Alt'); await wait(300); };
+    await goto(CHEN);
+    await step('Option held on its own brings the key sheet after a moment, which takes nothing while held and stays once let go', async () => {
+      await page.keyboard.down('Alt'); await wait(300); const early = await sheet(); await wait(800); const held = await sheet(), size = await page.evaluate(() => document.querySelector('.lk-sheet').offsetHeight);
+      await page.keyboard.up('Alt'); await wait(300); const stayed = await sheet();
+      return is([early, held?.stays, held?.presses, held?.heads, stayed?.stays, stayed?.keys, await page.evaluate(() => document.querySelector('.lk-sheet').offsetHeight) - size], [null, false, 'none', ['Writing', 'Arranging bullets', 'Finding', 'Moving around', 'Two letters, outside a bullet'], true, true, 0]);
+    });
+    await step('the sheet says each key as it is: Logseq\'s and the plugin\'s, and no Cmd-K for Logseq\'s search while Search takes it', async () => { const got = await lines(); return is(['Undo, redo = ⌘Z ⌘⇧Z', 'Indent, outdent = ⇥ ⇧⇥', 'Search = ⌘K', 'Search by a sentence = ⌥⌘K', 'Todo = g d', 'Update plugins = u p'].filter(want => !got.includes(want)).concat(got.filter(line => line.startsWith('Logseq’s search'))), []); });
+    await step('letters typed find among the keys and reach nothing else; Up and Down light a line; Escape clears, then closes', async () => {
+      const theme = () => page.evaluate(() => document.documentElement.className + document.documentElement.dataset.theme), before = await theme();
+      await page.keyboard.type('t t', { delay: 60 }); await wait(500); const same = await theme() === before;
+      await page.keyboard.press('Meta+a'); await page.keyboard.type('go', { delay: 40 }); await wait(300);
+      const found = (await lines()).every(line => /go/i.test(line.split(' = ')[0])), marked = await page.locator('.lk-sheet mark.lk-hit').first().innerText();
+      const lit = () => page.evaluate(() => [...document.querySelectorAll('.lk-sheet-line:not([hidden])')].findIndex(el => el.classList.contains('lit')));
+      const first = await lit(); await page.keyboard.press('ArrowDown'); const second = await lit(); await page.keyboard.press('ArrowUp'); const back = await lit();
+      await page.keyboard.type('zzzz'); await wait(200); const none = await page.locator('.lk-sheet-none').innerText();
+      await page.keyboard.press('Escape'); await wait(300); const cleared = [await page.locator('.lk-sheet .lk-field').inputValue(), (await lines()).length > 20];
+      await page.keyboard.press('Escape'); await wait(300);
+      return is([same, found, marked.toLowerCase(), first, second, back, none, cleared, await sheet()], [true, true, 'go', 0, 1, 0, 'No key does that.', ['', true], null]);
+    });
+    await step('a quick Option and a letter, Option with Shift, and any other key while held bring or keep no sheet', async () => {
+      await page.keyboard.press('Alt+e'); await wait(1000); const quick = await sheet();
+      await page.keyboard.down('Alt'); await page.keyboard.down('Shift'); await wait(1000); const shifted = await sheet(); await page.keyboard.up('Shift'); await page.keyboard.up('Alt'); await wait(200);
+      await page.keyboard.down('Alt'); await wait(1100); const up = !!(await sheet()); await page.keyboard.press('ArrowDown'); await wait(300); const gone = await sheet(); await page.keyboard.up('Alt'); await wait(300);
+      return is([quick, shifted, up, gone, await sheet()], [null, null, true, null, null]);
+    });
+    await step('a press puts the sheet away while Option is held and, once it stays, only a press outside it', async () => {
+      await page.keyboard.down('Alt'); await wait(1100); await page.mouse.click(8, 400); await wait(300); const held = await sheet(); await page.keyboard.up('Alt'); await wait(300);
+      await holdOption(); await page.locator('.lk-sheet-head').first().click(); await wait(300); const inside = await sheet();
+      await page.mouse.click(8, 400); await wait(300);
+      return is([held, inside?.keys, await sheet()], [null, true, null]);
+    });
+    await step('Escape gives the keys back to the bullet being written, the caret where it was and its words untouched', async () => {
+      const own = await page.evaluate(async u => (await window.logseq.api.append_block_in_page(u, 'Words being written')).uuid, CHEN); await wait(1200);
+      await page.evaluate(u => window.logseq.api.edit_block(u), own); await wait(900);
+      await page.evaluate(() => document.activeElement.setSelectionRange(3, 3)); const was = await page.evaluate(() => document.activeElement.value);
+      await holdOption(); const up = (await sheet())?.keys; await page.keyboard.press('Escape'); await wait(700);
+      const got = await page.evaluate(() => [document.activeElement.tagName, document.activeElement.selectionStart, document.activeElement.value]);
+      await page.keyboard.press('Escape'); await wait(500);
+      return is([up, got], [true, ['TEXTAREA', 3, was]]);
+    });
+    await step('a key changed in Logseq\'s own settings shows on the sheet as it now is', async () => {
+      const set = keys => box.frame().evaluate(shortcuts => logseq.App.setCurrentGraphConfigs({ shortcuts }), keys);
+      await set({ 'editor/undo': ['mod+shift+9'], 'editor/redo': [] }); await wait(1500);
+      await holdOption(); const got = (await lines()).filter(line => line.startsWith('Undo, redo')); await page.keyboard.press('Escape'); await wait(300);
+      await set({}); await wait(1000);
+      return is(got, ['Undo, redo = ⌘⇧9']);
+    });
+    await step('Show the keys in the command palette opens the sheet staying; Option brings none over that palette', async () => {
+      await page.keyboard.press('Meta+Shift+p'); await wait(700); await holdOption(); const over = await sheet();
+      await page.keyboard.type('Show the keys', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(900);
+      const got = await sheet(); await page.keyboard.press('Escape'); await wait(300);
+      return is([over, got?.stays, got?.keys, await sheet()], [null, true, true, null]);
+    });
+    }
+    {
+    // ---- Export: the window the owner chose again (26 November 2026), Markdown and the one paper template
+    const written = () => page.evaluate(async () => JSON.stringify(await window.logseq.api.datascript_query('[:find (count ?b) (max ?u) :where [?b :block/uuid _] [?b :block/updated-at ?u]]')));
+    const preview = () => page.evaluate(() => document.querySelector('.lk-xp iframe:not(.lk-xp-coming)')?.contentDocument.body.innerText || '');
+    // A real press on words in the preview. The preview is drawn smaller or larger (zoom), so the point is worked out here.
+    const pressWords = async words => { const at = await page.evaluate(w => { const frame = document.querySelector('.lk-xp iframe:not(.lk-xp-coming)'), zoom = Number(frame.style.zoom) || 1, piece = [...frame.contentDocument.querySelectorAll('p.x-p, pre')].find(el => el.textContent.includes(w)), a = frame.getBoundingClientRect(), r = piece.getBoundingClientRect(); return { x: a.left + (r.left + 30) * zoom, y: a.top + (r.top + 7) * zoom }; }, words); await page.mouse.click(at.x, at.y); await wait(200); };
+    let untouched = '';
+    await step('the corner opens the export window on this page, the preview the sheet as it will print', async () => {
+      await goto(CHEN); untouched = await written();
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2500);
+      const said = await preview();
+      return is([await page.locator('.lk-xp-what').innerText(), await page.locator('.lk-xp-tabs button').allInnerTexts(), ['Dr. Mei Chen', 'Specialty', 'Oncology', 'Consultant medical oncologist'].every(w => said.includes(w)), await page.evaluate(() => document.querySelector('.lk-xp iframe').contentDocument.querySelectorAll('.sheet').length)], ['Export this page', ['PDF', 'Markdown'], true, 1]);
+    });
+    await step('the column unfolds; a property left out leaves the preview, and comes back ticked', async () => {
+      if (!(await page.locator('.lk-xp-side').isVisible())) await page.locator('.lk-xp-column').click();
+      await wait(400);
+      const box = page.locator('.lk-xp-prop', { hasText: 'Specialty' }).locator('input');
+      await box.click(); await wait(1200); const without = (await preview()).includes('Oncology');
+      await box.click(); await wait(1200);
+      return is([without, (await preview()).includes('Oncology')], [false, true]);
+    });
+    await step('words changed in the preview stay through a change of paper, and go, said, when what is written changes', async () => {
+      await pressWords('Consultant'); await page.keyboard.press('End'); await page.keyboard.type(' Walked.', { delay: 20 }); await wait(1200);
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300); await page.locator('.lk-menu .lk-item', { hasText: 'Letter' }).click(); await wait(1300);
+      const kept = [(await preview()).includes('Walked.'), await page.evaluate(() => document.querySelector('.lk-xp iframe').style.width)];
+      await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1300);
+      const gone = [(await preview()).includes('Walked.'), await page.getByText('the words changed in it went').count() > 0];
+      await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1200);
+      return is([...kept, ...gone], [true, '856px', false, true]);
+    });
+    await step('Enter takes the line the arrows are on, in a list of the export window', async () => {   // seen by hand, 26 November 2026: Enter did nothing
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300);
+      await page.locator('.lk-menu .lk-item', { hasText: 'A4' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
+      const took = [await count('.lk-menu'), await page.locator('.lk-xp [data-pick="paper"]').innerText().then(t => /A4/.test(t))];
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300);   // back to Letter, which the steps after this expect
+      await page.locator('.lk-menu .lk-item', { hasText: 'Letter' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
+      return is(took, [0, true]);
+    });
+    await step('Layout turns the page into bullets and back to paragraphs', async () => {
+      const bullets = () => page.evaluate(() => document.querySelector('.lk-xp iframe').contentDocument.querySelectorAll('li.x-li').length);
+      const pickLayout = async word => { await page.locator('.lk-xp [data-pick="text"]').click(); await wait(300); await page.locator('.lk-menu .lk-item', { hasText: word }).click(); await wait(1300); };
+      const before = await bullets(); await pickLayout('Bullets'); const as = await bullets(); await pickLayout('Paragraphs');
+      return is([as > before, await bullets()], [true, before]);
+    });
+    await step('Escape closes an open list first, then the export window', async () => {
+      await page.locator('.lk-xp [data-pick="margins"]').click(); await wait(300); await page.keyboard.press('Escape'); await wait(300);
+      const first = [await count('.lk-menu'), await count('.lk-xp')];
+      await page.keyboard.press('Escape'); await wait(400);
+      return is([...first, await count('.lk-xp')], [0, 1, 0]);
+    });
+    await step('Save PDF hands the sheet, with the words changed in it, to the print window; the export window stays', async () => {
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2500);
+      await pressWords('Consultant'); await page.keyboard.press('End'); await page.keyboard.type(' Printed.', { delay: 20 }); await wait(1200);
+      // The Mac's print window is not opened by the walk: the page's print is taken over as the frame appears.
+      await page.evaluate(() => { window.__printed = ''; new MutationObserver((list, watch) => { for (const r of list) for (const n of r.addedNodes) if (n.classList?.contains('lk-print')) { n.contentWindow.print = () => { window.__printed = n.contentDocument.documentElement.outerHTML; }; watch.disconnect(); } }).observe(document.body, { childList: true }); });
+      await page.locator('.lk-xp [data-do="pdf"]').click(); await wait(2500);
+      const got = await page.evaluate(() => [window.__printed.includes('Printed.'), window.__printed.includes('size: Letter'), window.__printed.includes('class="sheet'), document.querySelectorAll('.lk-print').length, !!document.querySelector('.lk-xp:not([hidden])')]);
+      return is(got, [true, true, false, 0, true]);
+    });
+    await step('Copy Markdown copies the text as changed in the preview, and closes the window', async () => {
+      await page.locator('.lk-xp-tabs [data-target="md"]').click(); await wait(1300);
+      const shown = await preview();
+      await pressWords('# Dr. Mei Chen'); await page.keyboard.press('Meta+ArrowDown'); await page.keyboard.type('Added by hand', { delay: 20 }); await wait(400);
+      // The Mac's own clipboard is left alone.
+      await page.evaluate(() => { window.__copied = ''; navigator.clipboard.writeText = async text => { window.__copied = text; }; });
+      await page.keyboard.press('Meta+Enter'); await wait(900);
+      const copied = await page.evaluate(() => { delete navigator.clipboard.writeText; return window.__copied; });
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2200);
+      const remembered = await page.locator('.lk-xp-tabs .on').innerText();
+      await page.locator('.lk-xp-tabs [data-target="pdf"]').click(); await wait(400); await page.locator('.lk-xp [data-do="close"]').click(); await wait(400);
+      return is([shown.startsWith('# Dr. Mei Chen'), copied.startsWith('# Dr. Mei Chen'), copied.includes('Added by hand'), remembered, await count('.lk-xp')], [true, true, true, 'Markdown', 0]);
+    });
+    await step('a bullet\'s right-click menu exports that bullet alone', async () => {
+      await page.locator('#main-content-container .ls-page-blocks .bullet-container').first().click({ button: 'right' }); await wait(700);
+      await page.getByText('PDF or Markdown…').first().click(); await wait(2500);
+      const got = [await page.locator('.lk-xp-what').innerText().catch(() => ''), (await preview()).includes('Consultant medical oncologist'), (await preview()).includes('Specialty')];
+      await page.keyboard.press('Escape'); await wait(400);
+      return is(got, ['Export this bullet', true, false]);
+    });
+    await step('exporting wrote nothing to the graph', async () => is(await written(), untouched));
+    }
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

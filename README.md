@@ -16,13 +16,13 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 
 | Layer | Folder | What it gives |
 |---|---|---|
-| 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (a tag in Literata, a property's name in Fragment Mono, both carried in `fonts/`). |
+| 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (a tag in Commissioner, a property's name in Fragment Mono, both carried in `fonts/`). |
 | 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. One table, its rows sorted by a press on a column's name (Ontology's properties). |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. At the right end of a page's title, its tags and the tags above them; on a tag's page, its parent above the title. |
 | 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
 | 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
-| Beside the stack | `beside/` | Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
+| Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. The key sheet: Option held alone shows the keys. Export: a page or some bullets out as a printed page (PDF) or as Markdown, with a preview whose words can be changed first. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
 nothing of Logseq and are checked without it (`node --test test/`).
@@ -54,6 +54,7 @@ A row:
 | Click the line, or Enter on it | The node opens in place: Logseq's own editor for it, then what points at it |
 | Click the arrow, or Escape once nothing is being written | The opened node closes; Escape closes the innermost first |
 | Shift-click, or Shift-Enter | Opens the node in the right sidebar |
+| ⌘-click | In the main view, opens the node beside the page you are on (Two pages side by side) |
 | Click a link in the line | Goes to that node |
 | Click a task's circle | Lists Logseq's statuses; a press sets one |
 | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, Delete (in red): words alone, a status with its circle |
@@ -94,7 +95,7 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 
 - A node's bullet is Logseq's own, with Logseq's ring round it where the node holds lines that are folded away. A tick box
   is a small rounded square with a short check.
-- A tag is written in Literata, quiet grey, with no # and no box. A property's name is written in Fragment Mono, quiet grey,
+- A tag is written in Commissioner, quiet grey, with no # and no box. A property's name is written in Fragment Mono, quiet grey,
   with no small picture before it. A link to a node is the ink with a faint underline, never blue, never in brackets. This
   holds on Logseq's own pages, in the sidebar and inside an opened node, as in the plugin's lists. On Logseq's own pages a
   property with nothing in it is its name, fainter.
@@ -111,7 +112,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   Undo, Restore, Move values).
 - What floats (a menu, a list to choose from) stands on the Mac's glass: the page shows through, a 10-point corner, a hair-thin
   edge, one shadow; a window in the middle of the screen is on the page's paper with a hairline.
-- A key is told only where it is not a common one, as the Mac writes it, with no box.
+- A key is told only where it is not a common one, as the Mac writes it, with no box. The one exception is the key sheet,
+  where keys are what is read: there each stands in a small box.
 - An opened node rolls out of its line in one short move. A tick box on a line shows under the pointer and stays once
   ticked (no list has tick boxes yet).
 - Three corners (a small one, one for what floats, the round of a press), the sizes of text, and the box a mark stands in
@@ -145,6 +147,28 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
   value's bullet) stand in the gutter before that edge.
 - Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
   it does in a word beside its icon; a tag's own table leaves out its Tags column.
+
+### Focusing into a bullet and out (`beside/glide.js`, drawn in `ground/touch.js`, timed in `ground/look.js`)
+
+Where Logseq swaps the whole view at once, the bullet you focus into glides from where it stood to the top in about a
+quarter of a second, its children with it, and the rest of the old view fades where it stood. Stepping out runs the same
+glide back, the page fading in round the bullet; the bullet comes back selected with Logseq's own selection, until the view
+changes again. A bullet that lands out of sight is brought to the middle first, and on a longer page the glide waits the
+moment Logseq takes to draw it.
+
+| Do | Result |
+|---|---|
+| Press a bullet's dot, a step of the line above a focused bullet, Back or Forward, or Logseq's keys for focusing | The glide |
+| The faint up arrow after the last step of that line (a press, or Enter or Space on it) | Steps out one level, as pressing that step does |
+| Cmd-. on the bullet that came back selected | Focuses into it again |
+| Cmd-, in a focused bullet, outside the editor | Steps out one level (Logseq alone opens its settings there; everywhere else Cmd-, is still Logseq's) |
+| Cmd-. or Cmd-, while you write in the bullet | Logseq's own; the cursor stays in it and nothing is selected |
+
+A node of an embed, focused into from the outline it is shown in, steps out (the arrow, Cmd-,) back to that outline, not to
+the page it was written on; inside the embed each step goes up one embedded node until then. With the Mac's Reduce motion
+on, nothing moves: the old view only fades. Only the main view moves, not the right sidebar. A view with more than 600
+bullets is not faded, only the bullet glides; a bullet so far down that Logseq has not drawn it gets no glide. Nothing is
+written to the graph. The part has its own switch in the plugin's settings (**Focusing into a bullet and out**).
 
 ### A page's place (`page/place.js`)
 
@@ -190,6 +214,57 @@ comes near; then a quiet ···, and a press opens a list to type into, as Logse
 first (Search, Todo, Ontology, New page…, Recycle, Update plugins and the rest), then every command of Logseq's own with its
 key. Letters narrow it, the closest line first; Enter does the lit line; words no command has offer a new page of that name.
 What is done to a node stays on its right-click.
+
+### Two pages side by side (`beside/split.js`, Logseq's markup in `ground/touch.js`)
+
+⌘-click (Ctrl-click away from the Mac) a link to a page in the main view: a link in the words or in a property's value, a
+tag, a tag in a page's place, or a line of the plugin's lists. That page opens beside the one you are on: the main area splits
+into two equal halves, your page on the left, the one you ⌘-clicked on the right, both whole Logseq pages you write in. A
+plain click and a Shift-click do what they did before; without the plugin Logseq treats ⌘-click as a plain click.
+
+| Do | Result |
+|---|---|
+| ⌘-click another link in the left page | That page takes the right half; the one before leaves the sidebar, unless it was there before the split |
+| Drag the hairline between the halves | One half grows; neither gets narrower than 320 px. It is held just right of the line, so the left page's scroll bar stays free |
+| Double-click the hairline | Equal halves again |
+| The two arrows, top right | The two pages change places (where the left shows no page, as on the journals, a notice says so) |
+| The ×, top right | The right page rolls up and the left one takes the whole width; the sidebar holds what it held, open or shut, as before. To close the left page, swap first |
+| Open anything in the sidebar (Shift-click, Cmd-K, Todo) | The split ends and the sidebar is shown as always, the page from the right among what it holds |
+| Shut the sidebar (its button, t r) | The split ends; the page stays in the sidebar for the next time |
+
+The two icons are drawn as Logseq's own at the top of the window. The right half is Logseq's own right sidebar drawn as a page
+(its other sections wait unseen), so the page there reads as it does on the left: its name as a title over it (a tag's with
+Logseq's #, a property's with its P), a tag's Parent line, its place under the title, its properties, Relations and bullets,
+with no rule or empty Add property that Logseq's sidebar would add, and no list of a tag's or a property's own settings. Two
+things differ: its place stands under the title rather than at its end, and Logseq draws no Unlinked references for a page in
+its sidebar. The right page rolls out as it opens (no motion where less motion is asked for). If it cannot be shown within a
+couple of seconds, the split closes, the sidebar goes back to how it was, and a notice says so: a half never stands blank.
+Loading the plugin again closes the split. Nothing is written to the graph. Switch it off with **Two pages side by side** in
+the plugin's settings.
+
+### The key sheet (`beside/keys.js`, its lines in `core/sheet.js`)
+
+Hold Option on its own for a moment (0.7 seconds) and a sheet of keys fills most of the window: **Writing**, **Arranging
+bullets**, **Finding**, **Moving around** and **Two letters, outside a bullet** (Logseq's and the plugin's, such as g j and
+g d). Each line is its words, then each key in a small box in mono, the Mac's marks (⌘⇧P). Every key is read as it is when
+the sheet comes, a key changed in Logseq's keyboard settings included; a line with no key is left out, and so are Search's
+lines while Search is switched off. While Cmd-K opens Search, Logseq's own search is not listed with it. The page is not
+dimmed.
+
+| Do | Result |
+|---|---|
+| Hold Option alone | The sheet comes; while Option is still down it takes nothing |
+| Any other key, a press, the wheel or leaving the window, Option still down | The sheet goes, and the key or press does its own job |
+| Let go of Option | The sheet stays, the keys in its line **Find a key** |
+| Type | Only the lines that hold every word typed stay, those letters a step heavier; the sheet keeps its size |
+| Up, Down | Light a line |
+| Escape | Clears what was typed, then closes; the keys go back where they were, into the bullet being written with its caret |
+| A press outside | Closes it, and the press lands |
+| **Show the keys**, in the command palette or the corner | Opens it staying |
+
+A quick Option with a letter, as in typing é, is over before the sheet would come. Option with Cmd, Shift or Ctrl never
+brings it, nor does it come over one of Logseq's windows, menus or lists, or one of the plugin's. Keys are told here, not
+set: Logseq's keyboard settings set them. The part can be switched off in the plugin's settings.
 
 ### Todo (`arrive/todo.js`)
 
@@ -420,6 +495,50 @@ plugin was up to date, or which could not be updated and why (GitHub did not ans
 The keys do nothing while you write in a bullet, and can be changed in Logseq's own keyboard settings. A folder is not fetched
 from anywhere: the key loads what the folder holds.
 
+### Export (`beside/export.js`, decided in `core/export.js`, written by `core/markdown.js` and `core/paper.js`)
+
+A page, or some bullets, out of Logseq as a printed page (PDF) or as Markdown. It reads your notes and never changes them.
+
+**The ways in:** in the command palette and in the corner's list, **Export: this page…**, **Export: the selected bullets…**,
+and, with the choices as they were left and no window, **Export: copy this page as Markdown** and **Export: save this page as
+PDF**; **PDF or Markdown…** on a bullet's right-click menu (that bullet with everything under it) and on a page's menu. With
+bullets picked, "this page" means the bullets picked.
+
+**The export window** lies over Logseq. Its bar has the column's icon, **PDF** and **Markdown** as two tabs, and at the right
+the button that does the export (**Save PDF…**, or **Copy Markdown** beside **Save as file…**), then ×. Under it is the
+preview: for PDF the sheets as they will print, with the margins, footer and page numbers chosen, broken where the print
+breaks; for Markdown the text. Over the preview, at the right, how large it is drawn. **Press into the words of the preview
+to change them for this export**; your notes do not change. The changed words stay through a change of paper, margins, text
+size or footer, and while you look at the other tab; when something changes what is written (a property, the tags, a title
+line, the links) the preview is drawn again from the page and a notice says the changed words went. Cmd-Enter presses the
+button; Escape closes an open list, then the window.
+
+**The column**, put away until asked for, holds the choices: **Page** (paragraphs or bullets, paper A4 or Letter, margins, text size, page numbers, a
+footer) or **Markdown** (page links as words, as `[[wikilinks]]` or as links to `.md` files; the page's properties as front
+matter), **Title** (today's date, a line above, a subtitle, "Prepared by"; the two lines are kept for each page), and **Show**
+(tags, task marks, and the page's properties and the nodes' own, each ticked or left out, with all and none). A row that holds
+one of several opens the plugin's menu; Up and Down walk the rows. Every choice is remembered; a property left out stays left
+out on later exports.
+
+**What is written:** the title, the page's properties and tags, then its words: headings, bold, italics, code, highlights,
+links, tags, tasks (Logseq's four states as a circle, `- [ ]` in Markdown) with their deadline, scheduled day and priority,
+code blocks, quotations, mathematics, pictures, files, PDF highlights as quotations, embedded nodes in place, references as the
+words they point at, and a query with the rows it showed (a table where its table is on screen). On a tag's page the nodes
+carrying the tag follow. A property's words kept as a bullet of their own, and templates, are left out. Markdown keeps the
+page's shape: a short line with lines under it reads as a heading, and bullets begin one level further in.
+
+There is one paper template, the old **Paper**: black on white with greys and hairlines, a serif, a centred title, the page's
+properties on one line, wide margins unless another is chosen. It writes the page as running text: only a bullet started with
+`#`, `##` or `###` is a heading; every other line is a paragraph, and the lines under it become its further sentences (a full
+stop added where one is missing); numbered lines, tasks, pictures, code, quotations and tables stand by themselves. A citation
+in the words, `([[Page]], p. 3)`, `([title](address))` or `(*words*, p. 2)`, becomes a raised number with its note at the end
+under **Notes**. **Layout** in the column turns it into **Bullets** instead of **Paragraphs**: every line a bullet, nested as
+in Logseq, a heading bold, citations as written. Markdown keeps the words and bullets as they are. **Save PDF…** opens
+the Mac's print window (choose *Save as PDF* there; the page's name is the file's name), and the export window comes back
+afterwards. **Save as file…** asks for a folder, names the file after the page, leaves a file of that name alone ("Notes
+2.md") and shows it in the Finder. In Markdown, pictures and files are named by their path in the graph's `assets` folder and
+are not copied.
+
 ### Alfred (`beside/outside.js`, `ground/outside.js`, `alfred/`)
 
 The Alfred workflow in `alfred/` (its own README says what its panels do) asks the plugin through Logseq's HTTP APIs server,
@@ -435,7 +554,8 @@ read is refused, never guessed. The part can be switched off in the plugin's set
 
 Only what you do: in Ontology a tag moved, merged, renamed or deleted, properties merged or renamed, a property put on a tag or taken off, the tags a property's values must have, and values moved; a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet, and what is changed from Alfred (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a tag, a status). Each is one of Logseq's own editor calls, so
 **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
-window's local storage and nothing else.
+window's local storage, and the export window's choices in the plugin's settings. Export writes nothing to the graph; the only
+file it writes is the one you save.
 
 ## Checking
 
