@@ -58,13 +58,15 @@ function under(what, task, names, today) {
    What a month and a day of it are is asked of core/days.js, the one reader of a day said in words: "Decadron 4 mg" and
    "Mark 2 times" hold no day, and stay in the words whole. */
 const WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+// "Next week" is its Monday: the one answer for the words typed and for a menu that offers it.
+const nextWeek = today => D.shift(today, ((8 - D.toDate(today).getDay()) % 7) || 7);
 function dayIn(text, today) {
   const words = String(text || ''), from = D.toDate(today), plus = n => D.shift(today, n);
   // The words without the phrase from at to end; a day alone is not a task.
   const without = (at, end, day) => { const rest = (words.slice(0, at) + ' ' + words.slice(end)).replace(/\s+/g, ' ').replace(/\s+([.,;!?])/g, '$1').trim(); return rest ? { day, words: rest } : null; };
   const tries = [
     [/(?:^|\s)(?:(?:by|on|due)\s+)?(today|tomorrow)(?=$|[\s.,;!?])/gi, m => plus(m[1].toLowerCase() === 'today' ? 0 : 1)],
-    [/(?:^|\s)next\s+week(?=$|[\s.,;!?])/gi, () => plus(((8 - from.getDay()) % 7) || 7)],
+    [/(?:^|\s)next\s+week(?=$|[\s.,;!?])/gi, () => nextWeek(today)],
     [/(?:^|\s)(?:(by|on|due|next)\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?=$|[\s.,;!?])/gi, m => {
       const said = m[2].toLowerCase(), lead = (m[1] || '').toLowerCase();
       if (said.length <= 5 && !WEEK.includes(said) && !lead) return 0;   // a short one alone is a word
@@ -86,7 +88,7 @@ function dayIn(text, today) {
   }
   return null;
 }
-const api = { groups, by, holding, under, dayIn };
+const api = { groups, by, holding, under, dayIn, nextWeek };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).todo = api;
 })(typeof window !== 'undefined' ? window : globalThis);

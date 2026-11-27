@@ -93,12 +93,12 @@ G.part({
       const more = (row, at) => {
         const uuid = row.dataset.uuid, change = write => G.undo.after(uuid, write);
         const task = async () => (await G.read.tasks()).find(one => one.uuid === uuid) || {};
-        const day = n => { const d = new Date(); return G.days.number(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)); };
+        const today = G.days.number(new Date());
         return [{ gap: true },
           { word: 'Priority…', take: async () => { const now = (await task()).priority; G.menu(at, [...PRIORITIES.map(word => ({ word, on: word === now, take: () => change(G.write.setPriority(uuid, word)).catch(refused('The priority could not be set')) })),
             ...(now ? [{ gap: true }, { word: 'Remove priority', take: () => change(G.write.setPriority(uuid, '')).catch(refused('The priority could not be taken off')) }] : [])]); } },
-          { word: 'Deadline…', take: async () => { const now = await task(), has = now.dayFrom === 'Deadline' ? now.day : 0, monday = ((8 - new Date().getDay()) % 7) || 7;
-            G.menu(at, [...[['Today', day(0)], ['Tomorrow', day(1)], ['Next week', day(monday)]].map(([word, to]) => ({ word, value: G.days.short(to, day(0)) || '', on: has === to, take: () => change(G.write.setDeadline(uuid, to)).catch(refused('The deadline could not be set')) })),
+          { word: 'Deadline…', take: async () => { const now = await task(), has = now.dayFrom === 'Deadline' ? now.day : 0;
+            G.menu(at, [...[['Today', today], ['Tomorrow', G.days.shift(today, 1)], ['Next week', G.todo.nextWeek(today)]].map(([word, to]) => ({ word, value: G.days.short(to, today) || '', on: has === to, take: () => change(G.write.setDeadline(uuid, to)).catch(refused('The deadline could not be set')) })),
               ...(has ? [{ gap: true }, { word: 'Remove deadline', take: () => change(G.write.setDeadline(uuid, 0)).catch(refused('The deadline could not be taken off')) }] : [])]); } }];
       };
       const list = G.node.listing(holder.lastElementChild, read, { few: 30, none: 'No open tasks', dayStart: () => dayAt === 'start', more, leaves: uuid => !held.has(uuid) });

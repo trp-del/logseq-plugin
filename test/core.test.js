@@ -676,3 +676,8 @@ test('Todo finds a task by a linked name, and a heading says a name, never an id
   assert.equal(todo.under('parent', { uuid: 'c', words: 'x', at: [{ uuid: 'p', words: `About [[${CHEN.replace('65', '66')}]]`, day: 0 }] }, names), 'About …', 'a node no name is known for reads as …');
   assert.equal(todo.under('page', { uuid: 'd', words: 'x' }, names), '');
 });
+// F95 of the round rundown-070: Todo's menu worked out next week's Monday by itself, beside the reader of "next week".
+test('next week is its Monday, one answer for the words typed and for the menu', () => {
+  assert.deepEqual([20261125, 20261129, 20261130, 20261231].map(day => todo.nextWeek(day)), [20261130, 20261130, 20261207, 20270104]);   // a Wednesday, a Sunday, a Monday, the year's last Thursday
+  assert.equal(todo.dayIn('Book the dentist next week', 20261231).day, todo.nextWeek(20261231));
+});
