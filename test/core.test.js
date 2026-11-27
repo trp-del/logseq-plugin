@@ -401,6 +401,20 @@ test('a kind\'s choices: what narrows, with counts, and the months newest first'
   assert.equal(S.holds(nodes[0], [{ kind: 'value', prop: 'Provider', label: 'Dr. Mei Chen' }, { kind: 'month', key: 202610 }]), true);
   assert.equal(S.holds(nodes[2], [{ kind: 'value', prop: 'Provider', label: 'Dr. Mei Chen' }]), false);
 });
+// F73 (rundown-070): with Person taken, "may" emptied the list while Maya Lin stood in the graph, and "marc" hid Marco.
+test('with a kind taken, letters that read as a month but hold none of its nodes are plain words', () => {
+  const today = new Date(2026, 10, 27), people = [{ uuid: 'a', words: 'Maya Lin' }, { uuid: 'b', words: 'Marco Rossi' }, { uuid: 'c', words: 'Otto Mayer' }, { uuid: 'd', words: 'Ann Lee' }];
+  const find = (nodes, text) => S.taken(nodes, text, sentence.read(text, {}, today));
+  assert.deepEqual(find(people, 'may').rows.map(n => n.uuid), ['a', 'c']);
+  assert.equal(find(people, 'may').time, null);
+  assert.deepEqual(find(people, 'marc').rows.map(n => n.uuid), ['b']);
+  assert.deepEqual(find(people, 'maya').rows.map(n => n.uuid), ['a']);
+  // A month that does hold nodes of the kind is still a month: those inside it, and those just outside as near.
+  const visits = [{ uuid: 'v1', words: 'Check-up', day: 20260512 }, { uuid: 'v2', words: 'Follow-up', day: 20260703 }, { uuid: 'v3', words: 'First visit', day: 20250110 }];
+  const may = find(visits, 'may');
+  assert.deepEqual([may.rows.map(n => n.uuid), may.near.map(n => n.uuid), may.time.label], [['v1'], ['v2'], 'May 2026']);
+  assert.equal(S.within(people, may.time), null);
+});
 test('a sentence reads a kind, a value of its nodes, a page and a time', () => {
   const today = new Date(2026, 10, 26);
   const names = { kinds: new Map([['consultation', { id: 1, title: 'Consultation' }]]), values: new Map([['dr. mei chen', { prop: 'Provider', label: 'Dr. Mei Chen' }]]), pages: new Map([['fatigue', { uuid: 'u', title: 'Fatigue' }]]) };

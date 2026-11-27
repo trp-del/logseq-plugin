@@ -17,9 +17,9 @@ G.part({
   settings: [{ key: 'cornerTakesCommandKey', type: 'boolean', default: true, title: 'The corner opens on Cmd-Shift-P', description: 'Off: Cmd-Shift-P stays Logseq’s own command palette.' }],
   start(base) {
     base.style('corner', `
-.lk-corner { position: fixed; right: 0; bottom: 0; z-index: 9997; width: 64px; height: 64px; display: grid; place-items: center; pointer-events: auto; }
-.lk-corner > button { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--lk-corner-round); background: none; color: var(--lk-quiet); cursor: pointer; opacity: 0; transition: opacity .12s ease; }
-.lk-corner:hover > button, .lk-corner > button:focus-visible, .lk-corner > button[aria-expanded="true"] { opacity: 1; outline: none; }
+.lk-corner { position: fixed; right: 0; bottom: 0; z-index: 9997; width: 64px; height: 64px; display: grid; place-items: center; pointer-events: none; }   /* only the ··· takes a press: what lies under the rest of the square stays the page's */
+.lk-corner > button { pointer-events: auto; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--lk-corner-round); background: none; color: var(--lk-quiet); cursor: pointer; opacity: 0; transition: opacity .12s ease; }
+.lk-corner.lk-near > button, .lk-corner > button:focus-visible, .lk-corner > button[aria-expanded="true"] { opacity: 1; outline: none; }
 .lk-corner > button:hover, .lk-corner > button:focus-visible, .lk-corner > button[aria-expanded="true"] { background: var(--lk-wash); color: var(--lk-text); }
 .lk-corner > button svg { width: 18px; height: 18px; }
 .lk-topitem:hover { background: var(--lk-lit); }`);
@@ -28,6 +28,11 @@ G.part({
     doc.body.appendChild(box);
     base.onStop(() => box.remove());
     const press = box.firstElementChild;
+    // The pointer near: inside the corner's square, which itself takes no press, so nearness is read from where the pointer is.
+    let near = false;
+    const nearNow = on => { if (on !== near) { near = on; box.classList.toggle('lk-near', on); } };
+    base.listen(doc, 'pointermove', event => { const win = doc.defaultView; nearNow(event.clientX >= win.innerWidth - 64 && event.clientY >= win.innerHeight - 64); }, { passive: true });
+    base.listen(doc.documentElement, 'pointerleave', () => nearNow(false));
     const run = name => () => G.touch.commands().find(one => one.name === name)?.run();
     const make = words => G.write.newPage(words).then(uuid => G.touch.open(uuid)).catch(error => G.say(`The page could not be made: ${error?.message || 'Logseq refused'}`, 'warning'));
     // The words typed in the list, as a new bullet at the end of today's journal; you stay where you were, and Cmd-Z takes it back.

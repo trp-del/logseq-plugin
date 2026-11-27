@@ -237,7 +237,9 @@ again: a sidebar the key had opened is shut, and the keys go back to the bullet 
 - One line does it all; there are no ways of searching to switch between. "Consultation with Mei Chen around Aug 2026" typed
   there is read as a kind, a value and a time, each said under the line with what it was read as; the time is a strip of months,
   and the nodes just outside it follow under **Near**. Words that name no time, and no kind with something else, are plain
-  words, and so is a sentence that finds nothing. Tab puts the lit choice's name in place of the letters that lit it.
+  words, and so is a sentence that finds nothing. With a kind, letters that could be a month are read as one only while that
+  month holds nodes of the kind or has some near it: "may" with Person taken still finds Maya. Tab puts the lit choice's name
+  in place of the letters that lit it.
 
 | Do | Result |
 |---|---|
@@ -254,7 +256,8 @@ again: a sidebar the key had opened is shut, and the keys go back to the bullet 
 
 The bottom right corner holds commands, out of the way of what you read and write. **Cmd-Shift-P** opens them, in place of
 Logseq's palette (a setting gives the key back), and the same key or Escape lets go. Nothing shows in the corner until the
-pointer comes near; then a quiet ···, and a press opens the same list. The list stands in the corner at one size, which does
+pointer comes near; then a quiet ···, and a press opens the same list. Only the ··· takes a press: what lies beside it in the
+corner stays the page's. The list stands in the corner at one size, which does
 not change while the words narrow it. Ontology and Todo stand in Logseq's own top right menu too, over Settings (pressed with the pointer). It
 is a list to type into, as Logseq's own command palette, and a quick search of everything: under the commands, **In your
 notes** lists up to eight pages, bullets, files, tags and properties the words find, each going there. A found line's icon
