@@ -2,6 +2,7 @@
    An opened node is Logseq's own editor for it (its words, its bullets, its properties, its menus, its Undo) with the lists of
    what points at it underneath, each row a line that opens in turn. Nothing of the node is drawn by the plugin.
      G.node.toggle(row), open(row), close(row)   a row of a list opened and closed in place
+     G.node.peek(holder, uuid, shut)             the opened node without its Relations, in a holder of the caller's (the corner's look)
      G.node.listing(el, read, opts)              lists of nodes drawn into el and kept true while the graph changes. read() answers
                                                  [{ key, kind, name, tag, rows, face }] (a list with no name has no head; face 'tag' or
                                                  'prop' draws its rows' words as tags or properties are drawn); opts: press(row,
@@ -31,13 +32,14 @@ let within = null, offKeys = null, count = 0;   // the opened node the person is
    rows, the nodes dug into from it, its Relations. The dug node is the plugin's own element. It is never put inside Logseq's
    rows (Logseq throws away what it did not draw there): room is opened under the value's row by a style rule, and the node is
    laid into that room. Where the value has no row of its own, the node stands under the rows. */
-function mount(holder, uuid, from = '') {
+function mount(holder, uuid, from = '', bare = false) {   // bare: without what points at the node
   const doc = holder.ownerDocument, view = doc.defaultView, k = String(++count);
   holder.dataset.k = k; holder.dataset.node = uuid;
   const rule = doc.createElement('style'), page = doc.createElement('div'), head = doc.createElement('div'), rel = doc.createElement('div');
   page.className = 'lk-editor'; head.className = 'lk-relhead'; head.textContent = 'Relations'; rel.className = 'lk-rel';
   const tagRule = doc.createElement('style');
-  holder.append(rule, tagRule, page, head, rel);
+  holder.append(rule, tagRule, page);
+  if (!bare) holder.append(head, rel);
   // After a value that is a node, what that node is: its tag, as a line says it (before 0.9; the owner, 25 November 2026). Said
   // by a rule of this holder's own, so nothing is put into Logseq's rows.
   let saidFor = '';
@@ -70,13 +72,13 @@ function mount(holder, uuid, from = '') {
   sized?.observe(page);
   holder.lkPlace = place;
   const whole = G.touch.editor.whole(page, () => { holder.dataset.whole = '1'; place(); holder.parentElement?.closest('.lk-open')?.lkPlace?.(); });
-  const offEditor = G.touch.editor.show(page, uuid), offLists = lists(rel, uuid, from);
+  const offEditor = G.touch.editor.show(page, uuid), offLists = bare ? () => {} : lists(rel, uuid, from);
   const undig = value => { const dug = dugs.get(value); if (!dug) return; dugs.delete(value); sized?.unobserve(dug); dug.lkOff?.(); dug.remove(); place(); };
   holder.lkDig = value => {
     if (dugs.has(value)) { undig(value); return; }
     const dug = doc.createElement('div'); dug.className = 'lk-open lk-dugopen';
-    holder.insertBefore(dug, head); dugs.set(value, dug);
-    mount(dug, value, uuid); dug.lkClose = () => undig(value);
+    holder.insertBefore(dug, bare ? null : head); dugs.set(value, dug);
+    mount(dug, value, uuid, bare); dug.lkClose = () => undig(value);
     sized?.observe(dug); place(); within = dug;
     view.setTimeout(() => { if (dug.isConnected && !dug.dataset.whole) { dug.dataset.whole = '1'; place(); } }, 800);
   };
@@ -118,6 +120,15 @@ function open(row) {
   holder.lkClose = () => close(row, true);
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
   within = holder;
+}
+/* A node looked at without opening it in a list: the same opened node without its Relations (the owner, 27 November 2026), in a
+   holder of the caller's. shut closes the look, which
+   Escape does as it does an opened row. Gives back what takes it away; null while Logseq's editor cannot be lent. */
+function peek(holder, uuid, shut) {
+  if (!G.touch.editor.can()) return null;
+  mount(holder, uuid, '', true); holder.lkClose = shut;
+  watchKeys(holder.ownerDocument);
+  return () => holder.lkOff?.();
 }
 function close(row, focus = false) {
   const holder = row.querySelector(':scope > .lk-open');
@@ -422,7 +433,7 @@ function once(base) {
   base.onStop(G.touch.changed(() => load().catch(() => {})));
   base.onStop(G.touch.watch(() => G.touch.once(placed)));
 }
-G.node = { toggle, open, close, roll, rollUp, back, listing, lists, related, adder, folded, hit, once, ARROW, CHEV };
+G.node = { peek, toggle, open, close, roll, rollUp, back, listing, lists, related, adder, folded, hit, once, ARROW, CHEV };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }

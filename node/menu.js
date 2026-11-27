@@ -16,6 +16,11 @@
    opts.make(words) -> { word, take } offers a line for words no line has, and opts.enter(words) takes the words themselves.
    opts.rank: with opts.find, the lines closest to the words typed come first (a list of commands).
    opts.search(words) -> items: with opts.find, what the words find elsewhere, listed under the lines under "In your notes".
+   A line found may carry item.under { tag, page }, each { name, to }: its tag at the right end of its words, as tags are
+   drawn, and under them the page it is on. A click on either goes there (Shift: in the sidebar), not to the line.
+   opts.peek(holder, item, shut) -> what takes it away, or null for a line with nothing to look at: a tap on Shift, alone, shows
+   the lit line in a box beside the menu (the owner, 27 November 2026). The arrows move it along; Shift or Escape closes it.
+   While it is closed the pointer lights the found line it moves over, so a tap looks at the line pointed at.
    item.also: other words a line is found by.
    opts.height: the most the menu stands tall, its lines scrolling under the line to type in.
    opts.dock: the menu stands in the window's bottom right corner at one size, which the words narrowing it do not change.
@@ -87,7 +92,34 @@ function make(at, items, opts, parent) {
     if (fresh) { void glow.offsetWidth; glow.style.transition = ''; }
   };
   let child = null, gone = false;
-  const shut = () => { if (gone) return; gone = true; child?.shut(); child = null; for (const off of offs) off(); menu.remove(); };
+  const shut = () => { if (gone) return; gone = true; peeks.close(); child?.shut(); child = null; for (const off of offs) off(); menu.remove(); };
+  /* The look beside the menu. What is drawn in it comes from opts.peek; it is shown once it has come to rest, and the one
+     before it stays until then, so arrowing along does not flash. */
+  const peeks = (() => {
+    let box = null, shown = null, coming = null, wait = 0;
+    const drop = one => { if (one) { win.clearInterval(one.watch); one.off?.(); one.el.remove(); } };
+    const close = () => { win.clearTimeout(wait); drop(coming); drop(shown); coming = shown = null; box?.remove(); box = null; };
+    const place = () => { const at = menu.getBoundingClientRect(), width = Math.max(260, Math.min(420, at.left - 16)); Object.assign(box.style, { left: Math.max(8, at.left - 8 - width) + 'px', top: at.top + 'px', width: width + 'px', height: at.height + 'px' }); };
+    const show = item => {
+      if (!box) return;
+      if (coming) { drop(coming); coming = null; }
+      if (item && shown?.item === item) { box.hidden = false; return; }
+      const el = doc.createElement('div'); el.className = 'lk-open lk-peeked';
+      box.appendChild(el);
+      const off = item && opts.peek(el, item, () => { close(); menu.querySelector('.lk-menu-find')?.focus({ preventScroll: true }); });
+      if (!off) { el.remove(); drop(shown); shown = null; box.hidden = true; return; }
+      const next = coming = { item, el, off }, from = win.performance.now();
+      next.watch = win.setInterval(() => {
+        if (!el.dataset.whole && win.performance.now() - from < 900) return;
+        win.clearInterval(next.watch); drop(shown); shown = next; coming = null; el.classList.add('whole'); box.hidden = false; box.scrollTop = 0;
+      }, 30);
+    };
+    return {
+      close, get open() { return !!box; }, has: target => !!box && (box.contains(target) || G.touch.floating(target)),
+      toggle(item) { if (box) return close(); if (!item) return; box = doc.createElement('div'); box.className = 'lk-peek'; box.hidden = true; doc.body.appendChild(box); place(); show(item); if (!coming) close(); },
+      follow(item) { if (!box) return; win.clearTimeout(wait); wait = win.setTimeout(() => show(item), 120); },
+    };
+  })();
   const done = (refocus = true) => {
     if (parent) { shut(); parent.child = null; if (refocus) from.focus?.({ preventScroll: true }); return; }
     if (close !== done) return; close = null; shut(); if (refocus && !opts.quiet) from.focus?.({ preventScroll: true });
@@ -114,7 +146,7 @@ function make(at, items, opts, parent) {
     else return;
     event.preventDefault(); event.stopPropagation();
   };
-  const inside = target => { for (let at = self; at; at = at.child) if (at.menu.contains(target)) return true; return false; };
+  const inside = target => { for (let at = self; at; at = at.child) if (at.menu.contains(target)) return true; return peeks.has(target); };
   const outside = event => { if (parent) return; if (!inside(event.target)) done(false); };   // the first menu watches for a press outside every one open
   const hover = event => { const row = event.target.closest('.lk-item'); if (!row || !menu.contains(row)) return; if (row.classList.contains('lk-has-sub')) openSub(row, false); else if (child) { child.shut(); child = null; } };
   const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); return () => target.removeEventListener(type, fn, opts); };
@@ -128,7 +160,7 @@ function make(at, items, opts, parent) {
     else { if (!/^(Shift|Control|Alt|Meta|CapsLock)$/.test(event.key)) done(false); return; }   // writing on: let go, and the key goes on into the bullet
     event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation?.();
   };
-  const offs = [opts.quiet ? on(doc, 'keydown', onQuietKey, true) : on(menu, 'keydown', onKey), on(menu, 'click', event => { const row = event.target.closest('.lk-item'); if (!row) return; if (event.target.closest('.lk-item-fold') && fold(row)) return; take(row); }), on(menu, 'pointerover', hover),
+  const offs = [opts.quiet ? on(doc, 'keydown', onQuietKey, true) : on(menu, 'keydown', onKey), on(menu, 'click', event => { const row = event.target.closest('.lk-item'); if (!row) return; const link = event.target.closest('a[data-to]'); if (link) { event.preventDefault(); all(); G.touch.open(link.dataset.to, event.shiftKey); return; } if (event.target.closest('.lk-item-fold') && fold(row)) return; take(row); }), on(menu, 'pointerover', hover),
     ...(opts.quiet ? [on(menu, 'mousedown', event => event.preventDefault())] : []),
     ...(parent ? [] : [on(doc, 'pointerdown', outside, true), on(doc, 'wheel', event => { if (!inside(event.target)) done(false); }, { capture: true, passive: true }), on(win, 'blur', () => done(false)), on(win, 'resize', () => done(false))])];
   if (!parent) close = done;
@@ -156,7 +188,9 @@ function make(at, items, opts, parent) {
     if (opts.rank) { rest.at = new Map(rest.map(el => { let next = el.nextElementSibling; while (next && !next.classList.contains('lk-item')) next = next.nextElementSibling; return [el, first.indexOf(next)]; })); }
     const seen = () => [...menu.querySelectorAll('.lk-item')].filter(row => !row.hidden && !row.classList.contains('lk-path'));   // the lines an arrow lights
     // One lit line: the light is taken off every line, also off one the words have since narrowed away.
-    const lightIn = to => { const all = seen(); for (const row of menu.querySelectorAll('.lk-item.lit')) row.classList.remove('lit'); if (!all.length) { lit = -1; lightUnder(menu.querySelector('.lk-item-make:not([hidden])')); return; } lit = (to + all.length) % all.length; all[lit].classList.add('lit'); all[lit].scrollIntoView({ block: 'nearest' }); lightUnder(all[lit]); };
+    const lightIn = to => { const all = seen(); for (const row of menu.querySelectorAll('.lk-item.lit')) row.classList.remove('lit'); if (!all.length) { lit = -1; lightUnder(menu.querySelector('.lk-item-make:not([hidden])')); peeks.follow(null); return; } lit = (to + all.length) % all.length; all[lit].classList.add('lit'); all[lit].scrollIntoView({ block: 'nearest' }); lightUnder(all[lit]); peeks.follow(items[Number(all[lit].dataset.i)]); };
+    // Whether the person has moved the light since the last letter, and whether Enter came before the notes had answered.
+    let walked = false, looking = false, entered = false;
     const narrow = () => {
       const want = field.value.trim().toLowerCase().split(/\s+/).filter(Boolean); let exact = false;
       for (const el of menu.querySelectorAll('.lk-group, .lk-gap')) el.hidden = want.length > 0;
@@ -175,35 +209,56 @@ function make(at, items, opts, parent) {
       }
       made = opts.make && field.value.trim() && !exact ? opts.make(field.value.trim()) : null;
       extra.hidden = !made; if (made) extra.innerHTML = `<span class="lk-item-icon">${G.touch.icon('plus', 14)}</span><span>${G.esc(made.word)}</span>`;
+      walked = entered = false;
+      if (opts.search) find(field.value.trim());   // first: it takes away the lines found for the letters before
       lightIn(0);
-      if (opts.search) find(field.value.trim());
     };
     // What the words find elsewhere comes under the lines, a moment later; an answer overtaken by a later letter is dropped.
     let asked = 0, wait = 0;
     const find = words => {
       for (const el of menu.querySelectorAll('.lk-found-line')) el.remove();
       win.clearTimeout(wait); const mine = ++asked;
+      looking = !!words;
       if (!words) return;
       wait = win.setTimeout(async () => {
         let found = [];
         try { found = await opts.search(words); } catch (error) { console.error('Logseq Plugin: the search did not answer', error); }
-        if (mine !== asked || !menu.isConnected || !found.length) return;
+        if (mine !== asked || !menu.isConnected) return;
+        looking = false;
+        if (!found.length) { if (entered) press(); return; }
         for (const el of menu.querySelectorAll('.lk-found-line')) el.remove();
         const head = doc.createElement('div'); head.className = 'lk-group lk-found-line'; head.textContent = 'In your notes'; menu.insertBefore(head, extra);
         for (const item of found) {
           const row = doc.createElement('button'); row.type = 'button'; row.className = 'lk-item lk-found-line'; row.setAttribute('role', 'menuitem'); row.dataset.i = items.length; items.push(item);
-          row.innerHTML = `<span class="lk-item-icon">${item.icon || ''}</span><span class="lk-found-words">${G.esc(item.word)}</span>${item.value ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}`;
+          const { tag, page } = item.under || {};
+          row.innerHTML = `<span class="lk-item-icon">${item.icon || ''}</span><span class="lk-found-text"><span class="lk-found-first"><span class="lk-found-words">${G.esc(item.word)}</span>${tag ? `<a class="lk-tag" data-to="${G.esc(tag.to)}">${G.esc(tag.name)}</a>` : ''}</span>${page ? `<span class="lk-sits"><a class="lk-step" data-to="${G.esc(page.to)}">${G.esc(page.name)}</a></span>` : ''}</span>`;
           menu.insertBefore(row, extra);
         }
-        const typed = seen()[lit]; if (!typed || typed === extra) lightIn(0);
+        if (!walked) lightIn(0);   // the first line, which is the first note found where no command has the words
+        if (entered) press();
       }, 140);
     };
+    const press = () => { entered = false; const row = menu.querySelector('.lk-item.lit:not([hidden])') || seen()[lit]; const words = field.value.trim(); if (row === extra && made) { done(); made.take(); } else if (row) take(row); else if (opts.enter && words) { done(); opts.enter(words); } };
     offs.push(() => win.clearTimeout(wait));
+    if (opts.peek) {
+      menu.classList.add('lk-peeks');   // one highlight: the pointer moves the light, so a line merely under it is not lit too
+      // A tap: Shift down and up again with nothing between, so typing a capital never opens it.
+      let tap = 0, spot = '';
+      const lookAt = () => { const row = menu.querySelector('.lk-item.lit:not([hidden])'); return row && items[Number(row.dataset.i)]; };
+      offs.push(on(doc, 'keydown', event => { tap = event.key === 'Shift' && !event.repeat && !event.metaKey && !event.ctrlKey && !event.altKey && menu.contains(event.target) ? win.performance.now() : 0; }, true),
+        on(doc, 'keyup', event => { if (event.key !== 'Shift' || !tap) return; const quick = win.performance.now() - tap < 600; tap = 0; if (quick && menu.contains(event.target)) peeks.toggle(lookAt()); }, true),
+        on(doc, 'pointerdown', () => { tap = 0; }, true),
+        on(menu, 'pointermove', event => {
+          const here = `${event.clientX},${event.clientY}`, row = event.target.closest('.lk-item'); if (here === spot) return; const first = !spot; spot = here;
+          if (!first && row && !peeks.open && !row.classList.contains('lit')) { walked = true; lightIn(seen().indexOf(row)); }
+        }));
+    }
     offs.push(on(field, 'input', narrow), on(field, 'keydown', event => {
       if (foldKey(event, seen()[lit], !field.value)) { /* folded */ }
-      else if (event.key === 'ArrowDown') lightIn(lit + 1);
-      else if (event.key === 'ArrowUp') lightIn(lit - 1);
-      else if (event.key === 'Enter') { const row = menu.querySelector('.lk-item.lit:not([hidden])') || seen()[lit]; const words = field.value.trim(); if (row === extra && made) { done(); made.take(); } else if (row) take(row); else if (opts.enter && words) { done(); opts.enter(words); } }
+      else if (event.key === 'ArrowDown') { walked = true; lightIn(lit + 1); }
+      else if (event.key === 'ArrowUp') { walked = true; lightIn(lit - 1); }
+      else if (event.key === 'Enter') { if (looking && !walked && seen()[lit] === extra) entered = true; else press(); }
+      else if (event.key === 'Escape' && peeks.open) peeks.close();
       else if (event.key === 'Escape') done();
       else return;
       event.preventDefault(); event.stopPropagation();
@@ -229,7 +284,22 @@ G.menu.CSS = `
 .lk-menu .lk-item-on { margin-left: auto; display: inline-flex; color: var(--lk-quiet); }
 .lk-menu .lk-item-sub { margin-left: auto; display: inline-flex; color: var(--lk-quiet); }
 .lk-menu .lk-item-on + .lk-item-sub { margin-left: 4px; }
-.lk-menu .lk-found-words { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-menu.lk-peeks .lk-item:hover:not(.lit) { background: none; }
+.lk-menu .lk-found-line.lk-item { align-items: flex-start; }
+.lk-menu .lk-found-line .lk-item-icon { height: var(--lk-line-lead); align-items: center; }
+.lk-menu .lk-found-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.lk-menu .lk-found-first { display: flex; align-items: baseline; gap: 12px; }
+.lk-menu .lk-found-first > .lk-tag { flex: none; margin-left: auto; cursor: pointer; }
+.lk-menu .lk-found-words { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-menu .lk-sits { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-menu .lk-sits a.lk-step { color: var(--lk-quiet); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-hair); text-underline-offset: 3px; }
+.lk-menu .lk-sits a.lk-step:hover { color: var(--lk-text); text-decoration-color: var(--lk-line); }
+.lk-menu .lk-found-first > a.lk-tag:hover { color: var(--lk-text); }
+/* The look beside the menu: the menu's glass and corner, under Logseq's own lists so a value pressed in it opens over it. */
+.lk-peek { position: fixed; z-index: 40; box-sizing: border-box; overflow: auto; padding: 8px 12px 12px 22px; border-radius: var(--lk-corner-float); background: var(--lk-paper); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); color: var(--lk-text); }
+.lk-peek[hidden] { display: none; }
+.lk-peek > .lk-peeked { position: absolute; left: 22px; right: 12px; visibility: hidden; }
+.lk-peek > .lk-peeked.whole { position: static; visibility: visible; }
 .lk-menu .lk-group { padding: 4px 8px 2px; font-size: var(--lk-label); color: var(--lk-quiet); }
 .lk-menu .lk-gap { height: 1px; margin: 4px 8px; background: var(--lk-hair); }
 .lk-menu [hidden] { display: none !important; }

@@ -234,10 +234,21 @@ Logseq's palette (a setting gives the key back), and the same key or Escape lets
 pointer comes near; then a quiet ···, and a press opens the same list. The list stands in the corner at one size, which does
 not change while the words narrow it. Ontology and Todo stand in Logseq's own top right menu too, over Settings (pressed with the pointer). It
 is a list to type into, as Logseq's own command palette, and a quick search of everything: under the commands, **In your
-notes** lists up to eight pages, bullets, tags and properties the words find, each going there. The commands: the plugin's commands
+notes** lists up to eight pages, bullets, files, tags and properties the words find, each going there. A found line's icon
+says what it is (a page, a bullet, a task's status, a tag, a property, a picture, a PDF, another file); its tag stands at the
+right end, and under its words, for what is not a page, the page it is on. A click on the tag or the page goes there. **A tap on Shift** looks at the lit line, or the one the pointer was
+last moved over: the node stands beside the list as an opened node does (its words, bullets and properties, all Logseq's
+own, so it can be written in; no Relations). The arrows move the look along; Shift or Escape closes it. Shift held for a
+capital does nothing. The commands: the plugin's commands
 first (Search, Todo, Ontology, New page…, Recycle, Update plugins and the rest), then every command of Logseq's own with its
 key. Letters narrow it, the closest line first; Enter does the lit line; words no command has offer a new page of that name.
 What is done to a node stays on its right-click.
+
+**Keys of your own.** Every command of the plugin has a line in Logseq's **Settings → Keymap** (g then s outside a bullet),
+marked with the plugin's name, where a key can be given to it or changed: Search, Todo, Todo in the sidebar, Ontology, the
+corner, Show the keys, the exports and the rest. Those that come with no key read **Unset**. Cmd-K for Search and
+Cmd-Shift-P for the corner are not those lines: they are ticks in Plugin settings, and a key given in the Keymap comes on
+top of them. A key given there shows beside the command in the corner's list.
 
 ### Hidden menu items and Plugin settings (`beside/hidden.js`, `beside/settings.js`)
 

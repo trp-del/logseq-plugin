@@ -220,6 +220,25 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Meta+Shift+p'); await wait(400);
       return is([open?.slice(0, 2), open?.[3], narrowed, await box()], [[12, 12], false, open, null]);
     });
+    await step('every command of the plugin has a line in Logseq\'s keyboard settings, those without a key too', async () => {   // 27 November 2026: "add plugin features to that keyboard shortcuts"
+      const want = await box.frame().evaluate(() => window.PluginDoor.touch.commands().map(one => one.name).sort());
+      const got = await page.evaluate(() => (window.logseq.api.get_state_from_store('command-palette/commands') || []).filter(one => /\/lk-/.test(one.id) && one.shortcut != null).map(one => String(one.id).split('/').pop()).sort());
+      return is([want.length > 10, got], [true, want]);
+    });
+    await step('words no command has light the first note found, said with its icon, its tag at the right and the page it is on underneath, each to be pressed', async () => {   // 27 November 2026: Enter offered a new page though notes were found
+      await page.keyboard.press('Meta+Shift+p'); await wait(600); await page.keyboard.type('chen', { delay: 60 }); await wait(1200);
+      return is(await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-menu .lk-found-line.lk-item')], bullet = rows.find(r => r.querySelector('.lk-bul') && r.querySelector('.lk-sits'));
+        return [rows[0].classList.contains('lit'), document.querySelectorAll('.lk-menu .lk-item.lit').length, rows.some(r => r.querySelector('.lk-found-first > a.lk-tag[data-to]')?.textContent === 'Doctor' && !r.querySelector('.lk-sits')), !!bullet?.querySelector('.lk-sits a.lk-step[data-to]') && !/^on /.test(bullet.querySelector('.lk-sits').textContent)]; }), [true, 1, true, true]);
+    });
+    await step('a tap on Shift looks at the lit line beside the list, the arrows move the look, a capital does not open it, Escape closes it first', async () => {   // 27 November 2026: "hit shift when something is highlighted ... like a quicklooks"
+      const look = () => page.evaluate(() => { const p = document.querySelector('.lk-peek'), m = document.querySelector('.lk-menu'); if (!p || p.hidden) return null; const node = p.querySelector('.lk-peeked.whole'); return [node?.dataset.node, !!node?.querySelector('.ls-block') && !p.querySelector('.lk-relhead, .lk-rel'), p.getBoundingClientRect().right <= m.getBoundingClientRect().left]; });
+      await page.keyboard.press('Shift'); await wait(1800); const one = await look();
+      await page.keyboard.press('ArrowDown'); await wait(1800); const two = await look();
+      await page.keyboard.press('Escape'); await wait(400); const shut = [await look(), await count('.lk-menu')];
+      await page.keyboard.type('X', { delay: 30 }); await wait(900); const capital = await look();
+      await page.keyboard.press('Escape'); await wait(400);
+      return is([one?.slice(1), two?.slice(1), !!one && one[0] !== two?.[0], shut, capital, await count('.lk-menu')], [[true, true], [true, true], true, [null, 1], null, 0]);
+    });
     await step('a right-click on a line of Logseq\'s menu offers Hide and takes nothing; Plugin settings brings the line back', async () => {   // the owner, 26 November 2026: "bring back a simple settings and a hide menu items"
       const dots = async () => { await page.locator('.toolbar-dots-btn').first().click(); await wait(800); }, line = () => page.locator('.ui__dropdown-menu-content [role=menuitem]', { hasText: 'Import' });
       await dots(); await line().click({ button: 'right' }); await wait(500); await page.locator('.lk-menu .lk-item', { hasText: 'Hide' }).click(); await wait(700);

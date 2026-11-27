@@ -24,6 +24,7 @@
      read.newPages(since)     the plain, untagged pages made since a time in milliseconds (never kept): [{ id, uuid, title }]
      read.search(words)       Logseq's own search for the words, its order kept: [node]; before them, every node named exactly the
                               words (in any case), read from the graph itself, so one Logseq's search misses is still found
+     read.files(ids)          id -> the type of the file a node is ('pdf', 'png'), for those that are files
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
      read.held(ids)           id -> { name: [words] }   the same, told apart by the property's name
@@ -268,6 +269,10 @@ async function search(words, limit = 40) {
   const value = new Set(values.map(([b]) => b)), kind = new Map();
   for (const [b, k] of kinds) { const name = bare(k) === 'logseq.class/Tag' ? 'Tag' : bare(k) === 'logseq.class/Property' ? 'Property' : ''; if (name) kind.set(b, name); }
   return ids.filter(id => !value.has(id)).map(id => { const node = nodes.get(id); return node && !node.tag && kind.has(id) ? { ...node, tag: kind.get(id) } : node; }).filter(Boolean);
+}
+async function files(ids) {
+  const list = [...new Set(ids)].filter(isId);
+  return new Map(list.length ? (await q(`[:find ?b ?type :where ${among('?b', list)} [?b :logseq.property.asset/type ?type]]`)).map(([b, type]) => [b, bare(type).toLowerCase()]) : []);
 }
 async function tagged(tagIds) {
   const list = [...new Set(tagIds)].filter(isId);
@@ -691,5 +696,5 @@ async function folded(uuids) {
   return out;
 }
 
-G.read = { chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
+G.read = { files, chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
 })();

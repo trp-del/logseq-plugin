@@ -22,6 +22,7 @@
                               start(), can(), show(el, uuid) -> what takes it out again
      touch.open(uuid, side)   go to a node's page, or open it in the sidebar
      touch.openUrl(url)       a web address, in the browser
+     touch.floating(el)       whether an element lies in one of Logseq's own menus, lists or windows
      touch.busy()             whether one of Logseq's own menus, lists or windows is open
      touch.left(fn)           fn(uuid) runs a moment after a bullet whose words changed stops being written in; gives back what
                               stops it. Only looks on: nothing of Logseq's editor is touched while it is written in
@@ -506,6 +507,7 @@ ${STEPS} > a.lk-out:focus-visible { background: var(--lk-wash); }`,
 
 // Whether one of Logseq's own floats is open (a menu, a list to pick from, a window): a key pressed then is Logseq's.
 const busy = () => !!host().querySelector('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac');
+const floating = el => !!el?.closest?.('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac, [data-radix-popper-content-wrapper]');
 // The bullet being written in is the one whose text box has the keys. It is "left" when another one has them, or none.
 function left(fn) {
   const doc = host();
@@ -623,9 +625,10 @@ function tableBar(word, run) {
   });
   return () => { off(); for (const button of doc.querySelectorAll('.lk-table-word')) button.remove(); };
 }
-// A command in Logseq's palette; with keys ('u p'), also a shortcut of Logseq's own kind, listed and changed in its settings.
+// A command in Logseq's palette and a line of Logseq's keyboard settings (Keymap), where its key is given or changed. Logseq
+// lists there only a command that names its keys, so one without any names none: it reads "Unset".
 const said = new Map();   // the plugin's own commands, for a place that lists them (the corner)
-const command = (name, label, run, keys) => { said.set(name, { name, label, run }); return logseq.App.registerCommandPalette(keys ? { key: name, label, keybinding: { binding: keys } } : { key: name, label }, run); };
+const command = (name, label, run, keys) => { said.set(name, { name, label, run }); return logseq.App.registerCommandPalette({ key: name, label, keybinding: { binding: keys || [] } }, run); };
 const commands = () => { const keys = new Map(palette().map(one => [one.id.split('/').pop(), one.key])); return [...said.values()].map(one => ({ ...one, key: keys.get(one.name) || '' })); };
 /* Logseq's own commands, as its palette lists them, each { id, label, key, run }: the key it has (as the Mac's marks, "⌘⇧K",
    or two letters one after another, "g j"); run as its palette runs it, by its id (a plugin's own by its action). The plugin's
@@ -1927,5 +1930,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();
