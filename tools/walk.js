@@ -609,14 +609,16 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await step('u p has Logseq load the plugin again from its folder and says in one line what that brought; typed in a bullet it is letters', async () => {   // the owner, 25 November 2026: "can you add update plugins with `u p`?"
       const run = () => box.frame().evaluate(() => (window.lkRun = (window.lkRun || 0) + 1));   // 1 in a plugin just loaded
       const toast = async () => { for (let i = 0; i < 40; i++) { const text = await page.evaluate(() => [...document.querySelectorAll('.ui__toast-description')].map(el => el.innerText.trim()).find(t => /^Plugins /.test(t)) || ''); if (text) return text; await wait(250); } return ''; };
+      // It says at once that it has begun (the rundown of 27 November 2026: nothing was said until the end, up to a minute a plugin).
+      const begun = async () => { for (let i = 0; i < 30; i++) { if (await page.evaluate(() => [...document.querySelectorAll('.ui__toast-description')].some(el => el.innerText.trim() === 'Updating plugins…'))) return true; await wait(100); } return false; };
       await goto(CHEN); await run();
       await page.locator('#main-content-container .block-add-button').first().click(); await wait(900);
       await page.keyboard.type('up', { delay: 150 }); await wait(2500);
       const typed = [await page.evaluate(() => document.activeElement?.value), await run()];
       await page.keyboard.press('Meta+z'); await page.keyboard.press('Escape'); await wait(700);
       await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('u'); await wait(150); await page.keyboard.press('p');
-      const said = await toast(); await wait(4500);
-      return is([typed, /^Plugins up to date: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, 1]);
+      const first = await begun(), said = await toast(); await wait(4500);
+      return is([typed, first, /^Plugins up to date: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, true, 1]);
     });
     // ---- Relations as it was: kinds, View, picking, the find line, the timeline
     await step('a list of several kinds names them with their counts; a kind pressed narrows the list, All gives it back', async () => {   // the owner, 25 November 2026: "relations from original was quite developed. take all the features from it"

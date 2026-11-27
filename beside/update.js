@@ -1,5 +1,5 @@
 /* BESIDE: update plugins. "u p", in the way of Logseq's own "t p" for its plugins page, or Update plugins in the command palette,
-   brings every plugin Logseq runs to its newest, and one line then says what that brought.
+   brings every plugin Logseq runs to its newest: a notice says at once that it has begun, and one line then says what that brought.
    - The plugins Logseq installed from its marketplace or from a GitHub release (its own list of them): each is handed to Logseq's
      own updater, the one behind "Check update" on a plugin's card, which fetches a newer release when there is one, as 0.5.17 did
      (the owner, 26 November 2026: "u p is still not working. look to pre 0.6.0 to find it correctly used").
@@ -19,6 +19,7 @@ G.part({
     }
     let running = false;
     G.touch.command('lk-update-plugins', 'Update plugins', async () => {
+      G.say('Updating plugins…');   // at once: Logseq's updater may take a minute a plugin. A press while it runs is told the same, and starts nothing
       if (running) return;
       running = true;
       try {
