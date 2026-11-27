@@ -455,15 +455,19 @@ matter), **Title** (today's date, a line above, a subtitle, "Prepared by"; the t
 one of several opens the plugin's menu; Up and Down walk the rows. Every choice is remembered; a property left out stays left
 out on later exports.
 
-**What is written** is the page as a report: its title, its properties (names beside values) and tags, then its words as
-paragraphs. A short line with lines under it reads as a heading, bullets begin one level further in, a numbered list stays
-numbered. Headings, bold, italics, code, highlights, links, tags, tasks (Logseq's four states as a circle, `- [ ]` in
-Markdown) with their deadline, scheduled day and priority, code blocks, quotations, mathematics, pictures, files, PDF
-highlights as quotations, embedded nodes in place, references as the words they point at, and a query with the rows it
-showed (a table where its table is on screen). On a tag's page the nodes carrying the tag follow. A property's words kept as
-a bullet of their own, and templates, are left out.
+**What is written:** the title, the page's properties and tags, then its words: headings, bold, italics, code, highlights,
+links, tags, tasks (Logseq's four states as a circle, `- [ ]` in Markdown) with their deadline, scheduled day and priority,
+code blocks, quotations, mathematics, pictures, files, PDF highlights as quotations, embedded nodes in place, references as the
+words they point at, and a query with the rows it showed (a table where its table is on screen). On a tag's page the nodes
+carrying the tag follow. A property's words kept as a bullet of their own, and templates, are left out. Markdown keeps the
+page's shape: a short line with lines under it reads as a heading, and bullets begin one level further in.
 
-There is one paper template: black on white with greys and hairlines, Helvetica Neue, a tag in a serif. **Save PDF…** opens
+There is one paper template, the old **Paper**: black on white with greys and hairlines, a serif, a centred title, the page's
+properties on one line, wide margins unless another is chosen. It writes the page as running text: only a bullet started with
+`#`, `##` or `###` is a heading; every other line is a paragraph, and the lines under it become its further sentences (a full
+stop added where one is missing); numbered lines, tasks, pictures, code, quotations and tables stand by themselves. A citation
+in the words, `([[Page]], p. 3)`, `([title](address))` or `(*words*, p. 2)`, becomes a raised number with its note at the end
+under **Notes**. Markdown keeps the words and bullets as they are. **Save PDF…** opens
 the Mac's print window (choose *Save as PDF* there; the page's name is the file's name), and the export window comes back
 afterwards. **Save as file…** asks for a folder, names the file after the page, leaves a file of that name alone ("Notes
 2.md") and shows it in the Finder. In Markdown, pictures and files are named by their path in the graph's `assets` folder and

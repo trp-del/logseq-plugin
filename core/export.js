@@ -11,6 +11,11 @@
                                 { under } nothing: a paragraph's own lines follow it) and { list, numbered, items:
                                 [{ node, under }] }. A short top line with lines under it reads as a heading, and bullets
                                 begin one level further in.
+     prose(sheet, options)      what the printed page writes, as running text, in the same shapes and { para: [node] }: only
+                                a bullet started with # is a heading (level 2 to 4 by the headings it sits under); every
+                                other line of words is a paragraph, and the lines under it are its further sentences; a line
+                                that shows properties starts a paragraph of its own; a task, a picture, code, a quotation, a
+                                query and numbered lines stand by themselves
      head(sheet, options)       { kicker, title, subtitle, byline: [words], tags, properties: [{ name, value }] }
      meta(sheet, node, options) what is said under a node's words: its shown properties, its task's days and priority
      tags(node, options, all)   the tags written after its words (all: every tag, for a table's column)
@@ -109,6 +114,45 @@ function blocks(sheet, nodes, depth, options) {
   return out;
 }
 const layout = (sheet, options) => ({ blocks: blocks(sheet, sheet.nodes, 0, options), tagged: blocks(sheet, sheet.tagged, 0, options) });
+// Bullets kept as bullets, those of one kind that stand together in one list: numbered, or not.
+function listed(nodes) {
+  const out = [];
+  for (const n of flat(nodes)) {
+    if (!out.length || out[out.length - 1].numbered !== n.numbered) out.push({ list: true, numbered: n.numbered, items: [] });
+    out[out.length - 1].items.push({ node: n, under: listed(n.children) });
+  }
+  return out;
+}
+function running(sheet, nodes, options) {
+  const out = [], headings = [];
+  let para = null;
+  const walk = (list, under) => {
+    const items = flat(list);
+    for (let i = 0; i < items.length; i++) {
+      const n = items[i];
+      if (n.numbered) {
+        const group = [n];
+        while (i + 1 < items.length && items[i + 1].numbered) group.push(items[++i]);
+        out.push(...listed(group)); para = null;
+        continue;
+      }
+      if (!plainBlock(n) || n.task) { out.push({ node: n, level: 0 }, ...listed(n.children)); para = null; continue; }
+      if (n.heading) {
+        while (headings.length && headings[headings.length - 1] >= n.heading) headings.pop();
+        headings.push(n.heading);
+        out.push({ node: n, level: Math.min(headings.length + 1, 4) }); para = null; walk(n.children, false); para = null;
+        continue;
+      }
+      if (under && para && !meta(sheet, n, options).length) para.para.push(n);
+      else { para = { para: [n] }; out.push(para); }
+      if (kids(n).length) walk(n.children, true);
+      if (!under) para = null;
+    }
+  };
+  walk(nodes, false);
+  return out;
+}
+const prose = (sheet, options) => ({ blocks: running(sheet, sheet.nodes, options), tagged: running(sheet, sheet.tagged, options) });
 
 function head(sheet, options) {
   const lines = options.title || {};
@@ -150,7 +194,7 @@ const OFFERED = {
   links: [['plain', 'Links as words'], ['wiki', '[[Wikilinks]]'], ['file', 'Links to .md files']],
   zoom: [['fit', 'Fit the window'], ['75', '75%'], ['100', '100%'], ['125', '125%'], ['150', '150%']],
 };
-const DEFAULTS = { target: 'pdf', paper: 'A4', margins: 'normal', size: 'normal', links: 'plain', zoom: 'fit', footer: '', preparedBy: '', folder: '',
+const DEFAULTS = { target: 'pdf', paper: 'A4', margins: 'wide', size: 'normal', links: 'plain', zoom: 'fit', footer: '', preparedBy: '', folder: '',
   pageNumbers: true, tags: true, tasks: true, titleDate: true, frontMatter: false, side: false, hiddenHead: [], hiddenNodes: [], titles: {} };
 function choices(saved) {
   let kept = saved;
@@ -191,7 +235,7 @@ async function freeName(name, taken) {
   return next;
 }
 
-const api = { node, written, kids, empty, all, everything, said, meta, tags, state, layout, head, inline, propertiesIn, OFFERED, choices, lines, withLines, options, fileName, freeName };
+const api = { node, written, kids, empty, all, everything, said, meta, tags, state, layout, prose, head, inline, propertiesIn, OFFERED, choices, lines, withLines, options, fileName, freeName };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).export = api;
 })(typeof window !== 'undefined' ? window : globalThis);

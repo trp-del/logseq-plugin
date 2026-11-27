@@ -452,9 +452,19 @@ test('a bullet\'s kind is told from its facts; an embedded node stands for what 
   const sheet = { kind: 'blocks', title: '', tags: [], properties: [], tagged: [], names, nodes: [nodeOf('', { embed: true }, [nodeOf('inside')]), nodeOf('')] };
   assert.equal(MD.sheet(sheet), 'inside\n');
 });
-test('the paper: names beside values, a tag, a heading, task circles, numbered lines, nothing unescaped', () => {
+test('the paper writes running text: lines under a line join its paragraph, a # makes the heading, a citation is a numbered note', () => {
+  const sheet = { kind: 'page', title: 'Care', tags: [], properties: [], tagged: [], names, nodes: [
+    nodeOf('## Side effects', {}, [
+      nodeOf(`Tingling began after cycle 2 ([[${A}]], p. 2).`, {}, [nodeOf('The dose was cut ([Letter](https://example.org/l))')]),
+      nodeOf(`Again later ([[${A}]], p. 2)`),
+      nodeOf('A short line', {}, [nodeOf('and its detail')])])] };
+  const got = paper.html(sheet, X.options(sheet, chosen(), 20261126, 'en-GB'));
+  for (const piece of ['<h2 class="x-h2">Side effects</h2>', 'cycle 2.<sup class="x-ref">1</sup> The dose was cut.<sup class="x-ref">2</sup></p>', '<p class="x-p">Again later<sup class="x-ref">1</sup></p>', '<p class="x-p">A short line. and its detail.</p>',
+    '<h2 class="x-notes-head">Notes</h2>', '<span class="x-note-n">1</span>Dr. Mei Chen, p. 2.</p>', 'https://example.org/l.</p>']) assert.ok(got.includes(piece), `${piece} not in\n${got}`);
+});
+test('the paper: properties on one line, a tag, a heading, task circles, numbered lines, nothing unescaped', () => {
   const sheet = sheetOf(), got = paper.html(sheet, X.options(sheet, chosen({ kicker: '' }), 20261126, 'en-GB'));
-  for (const piece of ['<h1 class="x-title">Fatigue</h1>', '<dt>Provider</dt><dd>Dr. Mei Chen</dd>', '<dt>Tag</dt><dd><span class="x-tag">Symptom</span></dd>', '<h2 class="x-h2">How it went</h2>', 'x-task x-todo', 'x-task x-off', '<ol class="x-ol">', 'a &lt; b']) assert.ok(got.includes(piece), `${piece} not in\n${got}`);
+  for (const piece of ['<h1 class="x-title">Fatigue</h1>', '<span class="x-prop">Provider: Dr. Mei Chen</span>', '<span class="x-prop"><span class="x-tag">Symptom</span></span>', '<p class="x-p">How it went. Worse after Dr. Mei Chen,', 'x-task x-todo', 'x-task x-off', '<ol class="x-ol">', 'a &lt; b']) assert.ok(got.includes(piece), `${piece} not in\n${got}`);
   const look = { paper: 'Letter', margins: 'wide', footer: 'My "notes"', pageNumbers: false };
   assert.ok(paper.css(look).includes('size: Letter; margin: 26mm 30mm 28mm; @bottom-left { content: "My \\"notes\\""'));
   assert.ok(!paper.css(look).includes('counter(page)'));
