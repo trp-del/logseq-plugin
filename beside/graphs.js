@@ -20,8 +20,9 @@ G.part({
     const doc = G.host(), win = doc.defaultView, R = G.graphs;
     // up: the list asked for and not yet taken or let go. held: it was asked for by Control, so letting Control go takes it.
     let up = false, held = false, list = [], at = 0, box = null, timer = 0, back = null, opening = false;
-    const recent = () => { try { return JSON.parse(win.localStorage.getItem(RECENT) || '[]'); } catch (error) { return []; } };
-    const remember = url => { try { win.localStorage.setItem(RECENT, JSON.stringify(R.opened(recent(), url))); } catch (error) { /* then the order is by name */ } };
+    const kept = G.touch.kept(RECENT, []);   // the order the graphs were opened in, kept on this Mac; where nothing is kept the order is by name
+    const recent = () => { const list = kept.get(); return Array.isArray(list) ? list : []; };
+    const remember = url => kept.set(R.opened(recent(), url));
     let here = '';
     const note = async () => { const url = await G.touch.graphs.current(); if (url) { here = url; remember(url); } };
     note();

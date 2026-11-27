@@ -282,6 +282,14 @@ test('Update plugins says which plugin now runs another version, which are up to
   assert.equal(update.said([was[0]], [was[0]], market), 'Plugins updated: Calendar 1.0.0 to 1.2.0. Up to date: Logseq Plugin 0.9.0, Tabs 2.0.0. Could not be updated: Heatmap (GitHub did not answer)');
   assert.equal(update.said([], [], { same: [{ title: 'Tabs', version: '2.0.0' }] }), 'Plugins up to date: Tabs 2.0.0');
 });
+test('a plugin that could not be updated is said in plain words, never in Logseq\'s own error words', () => {   // the owner, 24 November 2026, of Logseq's own words in a notice: "what is this"
+  const failed = why => update.said([], [], { failed: [{ title: 'Tabs', why }] });
+  assert.equal(failed('release-asset-not-found {"url":"https://api.github.com/repos/someone/tabs/releases/latest","assets":[]}'), 'Could not be updated: Tabs (its newest release holds no file to install)');
+  assert.equal(failed('getaddrinfo ENOTFOUND api.github.com'), 'Could not be updated: Tabs (GitHub did not answer)');
+  assert.equal(failed('Cannot read properties of undefined (reading \'tag_name\')'), 'Could not be updated: Tabs (Logseq could not update it)');
+  for (const plain of ['no answer from Logseq', 'it names no GitHub repository to update from', 'this Logseq lends plugins no updater', 'GitHub did not answer']) assert.equal(failed(plain), `Could not be updated: Tabs (${plain})`);
+  assert.equal(failed(''), 'Could not be updated: Tabs');
+});
 test('a release is newer only when its version is higher', () => {
   assert.equal(update.newer('v1.2.0', '1.1.9'), true);
   assert.equal(update.newer('1.2.0', '1.2.0'), false);

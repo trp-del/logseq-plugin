@@ -1007,6 +1007,32 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1200);
       return is([...kept, ...gone], [true, '856px', false, true]);
     });
+    await step('a table row and a picture higher than a sheet go on over the next sheets as they print, and a heading that begins a sheet stands at its top', async () => {   // the rundown of 27 November 2026: both were cut at the sheet's foot, and the heading kept a gap the print drops
+      const got = await box.frame().evaluate(async () => {
+        const G = window.PluginDoor, doc = G.host(), look = { paper: 'A4', margins: 'wide', size: 'normal', footer: '', pageNumbers: true };
+        const dealt = async (body, read) => {
+          const frame = doc.createElement('iframe'); frame.style.cssText = 'position:absolute;left:-10000px;top:0;width:834px;height:600px;border:0;visibility:hidden';
+          const loaded = new Promise(done => { frame.onload = () => { if (frame.contentDocument.querySelector('.x-doc')) done(); }; });
+          frame.srcdoc = G.paper.page(body, look, 'A long page'); doc.body.appendChild(frame); await loaded;
+          const inner = frame.contentDocument; await Promise.all([...inner.images].map(img => img.decode().catch(() => {})));
+          const sheets = G.sheets.paginate(inner, look), range = inner.createRange(), bodies = [...inner.querySelectorAll('.sheet-body')];
+          let under = 0;   // lines of words that end under their sheet's foot
+          for (const one of bodies) { const foot = one.getBoundingClientRect().bottom, texts = inner.createTreeWalker(one, 4); for (let text; (text = texts.nextNode());) { range.selectNodeContents(text); for (const line of range.getClientRects()) if (line.height && line.bottom > foot + 1) under += 1; } }
+          const answer = [sheets, under, ...read(inner, bodies)]; frame.remove(); return answer;
+        };
+        const stripes = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="2400"><rect width="300" height="2400" fill="#ccc"/></svg>');
+        const row = await dealt(`<p class="x-p">Before the table.</p><table class="x-table"><thead><tr><th>Name</th><th>Value</th></tr></thead><tbody><tr><td class="x-name">Short row</td><td>one</td></tr><tr><td class="x-name">${Array.from({ length: 150 }, (_, i) => `Cell line ${i + 1}`).join('<br>')}</td><td>beside it</td></tr><tr><td class="x-name">Last row</td><td>three</td></tr></tbody></table><p class="x-p">After the table.</p>`,
+          (inner, bodies) => { const whole = G.sheets.gather(inner); return [bodies.map(one => one.querySelectorAll('thead').length).join(''), whole.querySelectorAll('tbody > tr').length, (whole.textContent.match(/Cell line \d+/g) || []).length, (whole.textContent.match(/beside it/g) || []).length]; });
+        const picture = await dealt(`<p class="x-p">Before the picture.</p><figure class="x-figure"><img class="x-img" src="${stripes}" width="300"><figcaption class="x-caption">The caption</figcaption></figure><p class="x-p">After the picture.</p>`,
+          (inner, bodies) => { const shown = bodies.map(one => { const box = one.getBoundingClientRect(); return [...one.querySelectorAll('img')].reduce((sum, img) => { const r = img.getBoundingClientRect(); return sum + Math.max(0, Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top)); }, 0); });
+            const whole = G.sheets.gather(inner); return [Math.round(shown.reduce((a, b) => a + b, 0)), bodies.findIndex(one => /The caption/.test(one.textContent)) + 1, whole.querySelectorAll('img').length]; });
+        const heading = await dealt('<p class="x-p" style="height:880px">A first paragraph, as high as most of a sheet.</p><h2 class="x-h2">A heading</h2><p class="x-p">The paragraph under it.</p>',
+          (inner, bodies) => { const head = inner.querySelector('h2'), on = bodies.findIndex(one => one.contains(head)); return [on + 1, Math.round(head.getBoundingClientRect().top - bodies[on].getBoundingClientRect().top)]; });
+        return { row, picture, heading };
+      });
+      // As Chromium prints them: the row over 5 pages with the table's head on each of its four, the picture over 4 pages in slices that add up to its 2400, the heading at the second page's top.
+      return is(got, { row: [5, 0, '11111', 3, 150, 1], picture: [4, 0, 2400, 4, 1], heading: [2, 0, 2, 0] });
+    });
     await step('a key typed in the preview does not write the whole page out; the changed words are read when the preview is drawn again', async () => {   // the rundown of 27 November 2026: at every key the page was copied and written out as text, pictures and all
       await box.frame().evaluate(() => { const S = window.PluginDoor.sheets, own = S.gather; window.lkWrittenOut = 0; S.gather = (...given) => { window.lkWrittenOut += 1; return own(...given); }; window.lkGatherBack = () => { S.gather = own; }; });
       await pressWords('Consultant'); await page.keyboard.type('Typed ', { delay: 20 }); await wait(1000);
