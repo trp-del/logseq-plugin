@@ -1,0 +1,3 @@
+#!/bin/zsh
+# The Add panel as it opens: the window takes the height of what it shows. Nothing is asked of Logseq.
+print -r -- '{"update":{"relayout":true},"window":{"resize":{"height":"auto"}}}'

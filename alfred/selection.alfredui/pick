@@ -1,3 +1,0 @@
-#!/bin/zsh
-# The Add panel's pick: answered by logseq.js (panel-pick), in Alfred UI's JSON.
-exec /usr/bin/osascript -l JavaScript "${0:A:h:h}/logseq.js" panel-pick "$@"

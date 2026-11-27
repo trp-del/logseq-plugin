@@ -7,6 +7,9 @@ plutil -lint info.plist >/dev/null
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
 cp info.plist logseq.js toast.swift optionheld.swift README.md "$stage/"
+# The installer holds what builds it too, so the installed workflow can be built again as its README says
+# (the owner, 25 November 2026: "there is no build.sh in zip").
+cp build.sh runner.zsh toast-runner.zsh "$stage/"
 # The panels (Alfred 6's Alfred UI): each a folder with its ui.json and the small scripts it runs.
 for panel in *.alfredui; do cp -R "$panel" "$stage/"; done
 [ -f icon.png ] && cp icon.png "$stage/" || echo "note: no icon.png here, so the workflow has no icon"

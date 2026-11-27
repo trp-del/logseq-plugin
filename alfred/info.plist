@@ -439,23 +439,51 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>argumenttype</key>
+				<key>alfredfiltersresults</key>
+				<false/>
+				<key>alfredfiltersresultsmatchmode</key>
 				<integer>0</integer>
+				<key>argumenttreatemptyqueryasnil</key>
+				<false/>
+				<key>argumenttrimmode</key>
+				<integer>0</integer>
+				<key>argumenttype</key>
+				<integer>1</integer>
+				<key>escaping</key>
+				<integer>102</integer>
 				<key>keyword</key>
 				<string>{var:page_keyword}</string>
+				<key>queuedelaycustom</key>
+				<integer>1</integer>
+				<key>queuedelayimmediatelyinitially</key>
+				<true/>
+				<key>queuedelaymode</key>
+				<integer>0</integer>
+				<key>queuemode</key>
+				<integer>1</integer>
+				<key>runningsubtext</key>
+				<string></string>
+				<key>script</key>
+				<string>/usr/bin/osascript -l JavaScript ./logseq.js filter-page "$1"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
 				<key>subtext</key>
-				<string>A page named so, made if there is none; end with #Tag to tag it</string>
-				<key>text</key>
+				<string>A page by its name, found as you type; made if there is none; end with #Tag to tag it</string>
+				<key>title</key>
 				<string>Logseq page</string>
+				<key>type</key>
+				<integer>0</integer>
 				<key>withspace</key>
 				<true/>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.input.keyword</string>
+			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
 			<string>C0000000-0000-4000-8000-000000000001</string>
 			<key>version</key>
-			<integer>1</integer>
+			<integer>3</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -1052,13 +1080,13 @@ exec /usr/bin/osascript -l JavaScript ./logseq.js panel-route "$1"</string>
 	<key>readme</key>
 	<string>## Setup
 
-Enable Logseq's HTTP API server (Settings → Features), paste its token into Configure Workflow, and keep the DB graph open. For files and pictures, install the Logseq Plugin (0.3.25 or newer) in Logseq.
+Enable Logseq's HTTP API server (Settings → Features), paste its token into Configure Workflow, and keep the DB graph open. For files, pictures and the panels, install the Logseq Plugin in Logseq.
 
 ## Ways in
 
 - `{var:today_keyword} words` — a bullet on today's journal.
 - `{var:active_keyword} words` — a bullet on the page open in Logseq.
-- `{var:page_keyword} Name` — a page named so, made if there is none; end with `#Tag` to tag it with an existing tag.
+- `{var:page_keyword} Name` — the pages with that name are listed as you type; ↩ shows the lit one in Logseq, or makes a page named so if there is none; end with `#Tag` to tag it with an existing tag.
 - `{var:picture_keyword}` — the picture on the clipboard, into the graph on today's journal; `{var:picture_keyword} Name` puts it on a page named so.
 - **Add to Logseq Today** (Universal Action, or the hotkey) — files into the graph on today's journal; selected words as a quote with a citation to where they came from; a web page as its link.
 - **Add to Logseq as a page** (Universal Action) — the same, each on a page of its own: a file on a page named after it, words on a page named after the page they came from.
@@ -1556,7 +1584,7 @@ A file put into the graph is a node of its own, as when it is dropped into Logse
 		<string>LOGSEQ_TOKEN</string>
 	</array>
 	<key>version</key>
-	<string>4.1.0</string>
+	<string>4.1.2</string>
 	<key>webaddress</key>
 	<string>https://github.com/trp-del/logseq-plugin</string>
 </dict>
