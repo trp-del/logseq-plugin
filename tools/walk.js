@@ -1229,6 +1229,133 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       }
       return is(got, []);
     });
+    /* The ground's writes, each asked of the plugin as a part asks it (27 November 2026: six faults found by reading, mended
+       in ground/, each a step here that fails on the plugin as it was). What a step makes is named Zzg… and taken away at
+       the end. A refusal is asked for on purpose in three of them: what Logseq itself says of it then is not counted
+       against the plugin (quiet), what the plugin says still is. */
+    await page.keyboard.press('Escape'); await wait(600);
+    const quiet = async run => { const seen = errors.length; try { return await run(); } finally { await wait(700); errors.splice(seen, errors.length - seen, ...errors.slice(seen).filter(text => /Logseq Plugin|PluginDoor/.test(text))); } };
+    await step('several values under a property are written in one step of Undo, and a write Logseq refuses leaves the node what it held', async () => {   // F23
+      const got = await quiet(() => box.frame().evaluate(async () => {
+        const G = window.PluginDoor, pause = ms => new Promise(done => setTimeout(done, ms)), q = text => logseq.DB.datascriptQuery(text);
+        const prop = await G.write.newProperty('Zzg seen by', 'node', true), pg = await logseq.Editor.createPage('Zzg values', {}, { redirect: false });
+        const made = {}; for (const name of ['P', 'Q', 'A', 'B']) made[name] = await logseq.Editor.appendBlockInPage(pg.uuid, `Zzg ${name}`);
+        const id = async one => (await q(`[:find ?b :where [?b :block/uuid #uuid "${one.uuid}"]]`))[0][0];
+        const holds = async one => (await q(`[:find ?vt :where [?b :block/uuid #uuid "${one.uuid}"] [?b ?a ?v] [?p :db/ident ?a] [?p :block/title "Zzg seen by"] [?v :block/title ?vt]]`)).flat().sort().join(', ');
+        const [p, qq, b] = [await id(made.P), await id(made.Q), await id(made.B)];
+        await pause(900); G.read.forget();
+        for (const one of [made.A, made.B]) await G.write.setValues(one.uuid, prop.ident, [p, qq], { ref: true, many: true, fresh: true });
+        await pause(700);
+        const first = await holds(made.A);
+        // One value fewer: one write, so one Undo puts back both.
+        const steps = await G.write.setValues(made.A.uuid, prop.ident, [qq], { ref: true, many: true });
+        await pause(700); const fewer = await holds(made.A);
+        await G.write.undo(); await pause(1000); const undone = await holds(made.A);
+        // A node cannot be a value of its own: Logseq refuses the list, and B must still hold what it held.
+        let said = 'written';
+        try { await G.write.setValues(made.B.uuid, prop.ident, [qq, b], { ref: true, many: true }); } catch (error) { said = 'refused'; }
+        await pause(700);
+        return [first, steps, fewer, undone, said, await holds(made.B)];
+      }));
+      return is(got, ['Zzg P, Zzg Q', 1, 'Zzg Q', 'Zzg P, Zzg Q', 'refused', 'Zzg P, Zzg Q']);
+    });
+    await step('a value in words keeps the bullets written under it: words written over it change its own words, and taking it away is refused', async () => {   // F28
+      const got = await quiet(() => box.frame().evaluate(async () => {
+        const G = window.PluginDoor, pause = ms => new Promise(done => setTimeout(done, ms)), q = text => logseq.DB.datascriptQuery(text);
+        const prop = await G.write.newProperty('Zzg notes', 'default', false), pg = await logseq.Editor.createPage('Zzg words', {}, { redirect: false });
+        const x = await logseq.Editor.appendBlockInPage(pg.uuid, 'Zzg X');
+        await pause(900); G.read.forget();
+        await G.write.setText(x.uuid, prop.ident, 'Zzg first line'); await pause(700);
+        const value = String(((await q(`[:find ?u :where [?b :block/uuid #uuid "${x.uuid}"] [?b ?a ?v] [?p :db/ident ?a] [?p :block/title "Zzg notes"] [?v :block/uuid ?u]]`))[0] || [])[0] || '');
+        if (!value) return 'the value in words was not found to write under';
+        for (const words of ['Zzg under one', 'Zzg under two']) await logseq.Editor.insertBlock(value, words, { sibling: false });
+        await pause(700);
+        // What X holds under the property, and the bullets under that value: read through the property, so a value left behind and out of reach does not count.
+        const holds = async () => [(await q(`[:find ?vt :where [?b :block/uuid #uuid "${x.uuid}"] [?b ?a ?v] [?p :db/ident ?a] [?p :block/title "Zzg notes"] [?v :block/title ?vt]]`)).flat().join(', '),
+          (await q(`[:find ?ct :where [?b :block/uuid #uuid "${x.uuid}"] [?b ?a ?v] [?p :db/ident ?a] [?p :block/title "Zzg notes"] [?c :block/parent ?v] [?c :block/title ?ct]]`)).flat().sort().join(', ')].join(' > ');
+        const before = await holds();
+        await G.write.setText(x.uuid, prop.ident, 'Zzg second line'); await pause(700);
+        const over = await holds();
+        let said = 'taken away';
+        try { await G.write.setValues(x.uuid, prop.ident, [], {}); } catch (error) { said = 'refused'; }
+        await pause(700);
+        return [before, over, said, await holds()];
+      }));
+      return is(got, ['Zzg first line > Zzg under one, Zzg under two', 'Zzg second line > Zzg under one, Zzg under two', 'refused', 'Zzg second line > Zzg under one, Zzg under two']);
+    });
+    await step('a property taken off a tag is no longer among the properties the tag gives, in one step of Undo', async () => {   // F39
+      const got = await box.frame().evaluate(async () => {
+        const G = window.PluginDoor, pause = ms => new Promise(done => setTimeout(done, ms)), q = text => logseq.DB.datascriptQuery(text);
+        const tag = await G.write.newTag('Zzg gives'), one = await G.write.newProperty('Zzg given one', 'default', false), two = await G.write.newProperty('Zzg given two', 'default', false);
+        const id = async uuid => (await q(`[:find ?b :where [?b :block/uuid #uuid "${uuid}"]]`))[0][0];
+        const gives = async () => (await q(`[:find ?pt :where [?t :block/uuid #uuid "${tag}"] [?t :logseq.property.class/properties ?p] [?p :block/title ?pt]]`)).flat().sort().join(', ');
+        const [a, b] = [await id(one.uuid), await id(two.uuid)];
+        await pause(900);
+        await G.write.tagProperties(tag, [a, b]); await pause(700); const both = await gives();
+        await G.write.tagProperties(tag, [a]); await pause(700); const off = await gives();
+        await G.write.undo(); await pause(1000);
+        return [both, off, await gives()];
+      });
+      return is(got, ['Zzg given one, Zzg given two', 'Zzg given one', 'Zzg given one, Zzg given two']);
+    });
+    await step('a new node whose tag Logseq refuses is taken away again, twice over, and the change made just before it stands', async () => {   // F102
+      const got = await quiet(() => box.frame().evaluate(async () => {
+        const G = window.PluginDoor, pause = ms => new Promise(done => setTimeout(done, ms)), q = text => logseq.DB.datascriptQuery(text);
+        const prop = await G.write.newProperty('Zzg points at', 'node', false), pg = await logseq.Editor.createPage('Zzg half', {}, { redirect: false });
+        const plain = await logseq.Editor.appendBlockInPage(pg.uuid, 'Zzg no tag'), target = (await q(`[:find ?b :where [?b :block/uuid #uuid "${plain.uuid}"]]`))[0][0];
+        await pause(900); G.read.forget();
+        await logseq.Editor.appendBlockInPage(pg.uuid, 'Zzg stands before'); await pause(900);
+        // The bullet "Zzg no tag" is given as the tag: Logseq makes the new bullet, then refuses the tag ("Not a tag").
+        const said = [];
+        for (let i = 0; i < 2; i++) { try { await G.write.addNode(plain.uuid, prop.ident, target, { words: 'Zzg half made', page: pg.uuid }); said.push('made'); } catch (error) { said.push('refused'); } await pause(1200); }
+        const count = async words => (await q(`[:find ?b :where [?b :block/title "${words}"]]`)).length;
+        return [said.join(', '), await count('Zzg half made'), await count('Zzg stands before')];
+      }));
+      return is(got, ['refused, refused', 0, 1]);
+    });
+    await step('a bullet\'s words read and written back keep a link to a bullet as that link, and no page is made of its name', async () => {   // F117
+      const got = await box.frame().evaluate(async () => {
+        const G = window.PluginDoor, pause = ms => new Promise(done => setTimeout(done, ms)), q = text => logseq.DB.datascriptQuery(text);
+        const pg = await logseq.Editor.createPage('Zzg links', {}, { redirect: false });
+        const linked = await logseq.Editor.appendBlockInPage(pg.uuid, 'Zzg the linked bullet'), line = await logseq.Editor.appendBlockInPage(pg.uuid, `Zzg see [[${linked.uuid}]]`);
+        await pause(900);
+        const points = async () => (await q(`[:find ?u :where [?l :block/uuid #uuid "${line.uuid}"] [?l :block/refs ?r] [?r :block/uuid ?u]]`)).flat().map(u => String(u).toLowerCase()).includes(String(linked.uuid).toLowerCase());
+        if (!(await points())) return 'the bullet was not made with its link to the other bullet';
+        // As a person reads the bullet and changes it: the link by the name of what it points at, one word added.
+        await G.write.setWords(line.uuid, 'Zzg see [[Zzg the linked bullet]] again', { asRead: true }); await pause(900);
+        const kept = String(((await q(`[:find ?w :where [?b :block/uuid #uuid "${line.uuid}"] [?b :block/title ?w]]`))[0] || [])[0] || '');
+        return [await points(), kept.endsWith(' again'), (await q('[:find ?b :where [?b :block/title "Zzg the linked bullet"]]')).length];
+      });
+      return is(got, [true, true, 1]);
+    });
+    await step('told that another graph is open, the plugin asks the graph afresh and the Undo arrow goes', async () => {   // F76
+      /* The walk has one graph. Logseq does not load a plugin again when another graph opens, it only tells it; that telling is
+         sent here as Logseq sends it, to the plugin's own side. Two graphs in one Logseq are tried by hand. */
+      await wait(1500);
+      const got = await box.frame().evaluate(async () => {
+        const G = window.PluginDoor, pause = ms => new Promise(done => setTimeout(done, ms)), arrows = () => G.host().querySelectorAll('.lk-undo').length;
+        if (typeof logseq.caller?.emit !== 'function') return 'the plugin\'s side has no way to be told';
+        const first = await G.read.tags(), again = await G.read.tags();
+        if (first !== again) return 'the plugin keeps nothing of the graph to begin with';
+        G.undo.mark('00000000-0000-4000-8000-000000000000');   // no line shows this node: the arrow waits at the window's bottom right
+        await pause(2300);
+        const stood = arrows();
+        logseq.caller.emit('hook:app:current_graph_changed', {});
+        await pause(300);
+        const got = [stood, (await G.read.tags()) !== first, arrows()];
+        G.undo.clear();
+        return got;
+      });
+      return is(got, [1, true, 0]);
+    });
+    // What these steps made is taken away: the pages to Logseq's Recycle, the properties and the tag deleted.
+    await box.frame().evaluate(async () => {
+      for (const name of ['Zzg values', 'Zzg words', 'Zzg half', 'Zzg links']) { try { await logseq.Editor.deletePage(name); } catch (error) { /* it stays in the throwaway copy */ } }
+      for (const title of ['Zzg seen by', 'Zzg notes', 'Zzg given one', 'Zzg given two', 'Zzg points at', 'Zzg gives']) {
+        try { for (const [uuid] of await logseq.DB.datascriptQuery(`[:find ?u :where [?b :block/title "${title}"] [?b :db/ident _] [?b :block/uuid ?u]]`)) await logseq.Editor.deletePage(String(uuid)); } catch (error) { /* it stays in the throwaway copy */ }
+      }
+    }).catch(() => {});
+    await wait(800);
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }
