@@ -1350,12 +1350,42 @@ function panel(command, items) {
   return "";
 }
 
+/* lp as you type (the owner, 25 November 2026: "what the point of using the lp if you cannot search with that unless you press
+   enter"): the pages whose name holds the words, in Alfred's own list, before any key is pressed to ask. ↩ on one shows it in
+   Logseq, as lp always did for a page that exists; the last row makes a page by the words typed, when no page has that very
+   name. Words ended with #Tag tag the page taken, as before. Answered as Alfred's Script Filter JSON.   filter-page <words> */
+function pageFilter(words) {
+  const typed = String(words || "").trim(), tagged = /^(.*?)((?:\s+#[^\s#]+)+)\s*$/.exec(typed);
+  const name = (tagged ? tagged[1] : typed).trim(), tags = tagged ? tagged[2].trim() : "";
+  const row = (title, subtitle, arg) => ({ title: title, subtitle: subtitle, arg: arg, valid: !!arg });
+  if (!name) return JSON.stringify({ items: [row("Logseq page", "A page's name: ↩ shows it in Logseq, or makes it; end with #Tag to tag it", "")] });
+  let pages = [];
+  // By its name: Logseq's search also finds a page by the words on it, and lp is asked for a page's name.
+  const parts = name.toLowerCase().split(/\s+/), named = n => { const title = String(n.title || "").toLowerCase(); return parts.every(part => title.indexOf(part) >= 0); };
+  try { pages = (ask("find", { words: name, limit: 30 }).nodes || []).filter(n => n.isPage && named(n)); }
+  catch (error) { return JSON.stringify({ items: [row(messageFrom(error), "", "")] }); }
+  const seen = {}, items = [];
+  let exact = false;
+  pages.forEach(function (p) {
+    const key = p.title.toLowerCase();
+    if (seen[key]) return;   // lp reaches a page by its name, so two pages of one name are one row
+    seen[key] = true;
+    if (key === name.toLowerCase()) exact = true;
+    items.push(row(p.title, [p.kind, tags ? "↩ shows it in Logseq and tags it " + tags : ""].filter(Boolean).join(" · "), p.title + (tags ? " " + tags : "")));
+  });
+  // The page of that very name stands first; Logseq's search orders the rest.
+  items.sort((x, y) => (y.title.toLowerCase() === name.toLowerCase()) - (x.title.toLowerCase() === name.toLowerCase()));
+  if (!exact) items.push(row("New page “" + name + "”", tags ? "Tagged " + tags : "No page has this name yet", typed));
+  return JSON.stringify({ items: items });
+}
+
 function main(argv) {
   const command = argv.length ? String(argv[0]) : "";
   const items = argv.slice(1).map(String).filter(function (s) { return s.trim(); });
   const words = items.join(" ").trim();
   // The panel's commands keep their arguments apart (an empty one counts), and answer in Alfred UI's JSON.
   if (command.indexOf("panel-") === 0) return panel(command, argv.slice(1).map(String));
+  if (command === "filter-page") return pageFilter(argv.length > 1 ? String(argv[1]) : "");
   if (command === "selection-prepare") return selectionPrepare(items);
   try {
     requireDbGraph();
