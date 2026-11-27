@@ -346,6 +346,36 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await open(); const again = await seen(); await row().locator('.lk-item-fold').click(); await wait(300); const back = await seen(); await page.keyboard.press('Escape'); await wait(300);
       return is([before, folded, again, back], [1, [0, 'false'], 0, 1]);
     });
+    await step('a node named exactly the words typed is found even when Logseq\'s own search misses it', async () => {   // the owner, 27 November 2026: "quick search could not even find a page with exact same name"
+      const got = await box.frame().evaluate(async () => {
+        const was = logseq.App.search; logseq.App.search = async () => ({ blocks: [] });
+        try { return (await window.PluginDoor.read.search('HOSPITAL', 12)).map(node => node.words); } finally { logseq.App.search = was; }
+      });
+      return is([...new Set(got)], ['Hospital']);
+    });
+    await step('words typed in a list of tags keep each match under the tags it sits under, with the typed letters marked', async () => {   // the owner, 27 November 2026: "results in context and why results are even appearing"
+      await box.frame().evaluate(async u => window.PluginDoor.line.pickTags({ x: 200, y: 120, from: window.PluginDoor.host().body }, u, true), typed); await wait(700);
+      await page.keyboard.type('hosp', { delay: 60 }); await wait(500);
+      const got = await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-menu .lk-item:not(.lk-item-make)')].filter(r => r.offsetParent);
+        const row = name => rows.find(r => r.textContent.trim() === name);
+        return [!!row('Organization'), row('Organization')?.classList.contains('lk-path'), [...(row('Hospital')?.querySelectorAll('mark.lk-hit') || [])].map(m => m.textContent), [...document.querySelectorAll('.lk-menu .lk-item.lit')].map(r => r.textContent.trim())]; });
+      await page.keyboard.press('Escape'); await wait(300);
+      return is(got, [true, true, ['Hosp'], ['Hospital']]);
+    });
+    await step('in a list of tags one highlight starts at the line a tag hangs from, and glides with the pointer to the next', async () => {   // the owner, 27 November 2026: "only extend to its vertical line"
+      await box.frame().evaluate(async u => window.PluginDoor.line.pickTags({ x: 200, y: 120, from: window.PluginDoor.host().body }, u, true), typed); await wait(700);
+      const read = name => page.evaluate(n => { const rows = [...document.querySelectorAll('.lk-menu .lk-item')], row = rows.find(r => r.textContent.trim() === n), glow = document.querySelector('.lk-menu .lk-glow').getBoundingClientRect(), at = row.getBoundingClientRect(), s = getComputedStyle(row);
+        return [Math.round(glow.left - at.left) === Number(row.style.getPropertyValue('--lk-d')) * 29, Math.abs(glow.top - at.top) < 1, s.backgroundColor === 'rgba(0, 0, 0, 0)', document.querySelectorAll('.lk-menu .lk-item.lit').length]; }, name);
+      const got = [];
+      for (const name of ['Hospital', 'Organization']) { await page.locator('.lk-menu .lk-item', { hasText: new RegExp(`^${name}$`) }).hover(); await wait(400); got.push(await read(name)); }
+      await page.keyboard.press('Escape'); await wait(300);
+      // And with the arrows, in a list with no line to type in.
+      await box.frame().evaluate(async u => window.PluginDoor.line.pickTags({ x: 200, y: 120, from: window.PluginDoor.host().body }, u), typed); await wait(700);
+      await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown'); await wait(400);
+      const keyed = await page.evaluate(() => { const glow = document.querySelector('.lk-menu .lk-glow'), at = document.activeElement.getBoundingClientRect(); return [glow.classList.contains('on'), Math.abs(glow.getBoundingClientRect().top - at.top) < 1]; });
+      await page.keyboard.press('Escape'); await wait(300);
+      return is([...got, keyed], [[true, true, true, 1], [true, true, true, 1], [true, true]]);
+    });
     await step('a press under Tags in a table opens the tags as an outline, and a tag taken is on the node', async () => {   // the owner, 26 November 2026: "any table where the tag column is"
       const uuid = await box.frame().evaluate(async () => String((await logseq.DB.datascriptQuery('[:find ?u :where [?g :block/title "Provider"] [?g :block/tags :logseq.class/Property] [?g :block/uuid ?u]]'))[0][0]));
       await goto(uuid); await wait(2500);

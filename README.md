@@ -121,7 +121,9 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   good") filled in blue; a small picture before a press's word where its job has one (Open in sidebar, Set tag, Set property,
   Undo, Restore, Move values).
 - Where tags are chosen from a menu, they stand as an outline as in Logseq: a bullet before each, and a hairline down from
-  each tag through the tags under it (no lines while the words typed narrow the menu).
+  each tag through the tags under it. Words typed keep each tag found under the tags it sits under, those greyed and passed over
+  by the arrows, with the typed letters heavier. One highlight, from the line a tag hangs from to the menu's edge, glides from tag to tag
+  under the pointer and the arrows.
 - What floats (a menu, a list to choose from) stands on the Mac's glass: the page shows through, a 10-point corner, a hair-thin
   edge, one shadow; a window in the middle of the screen is on the page's paper with a hairline.
 - A key is told only where it is not a common one, as the Mac writes it, with no box. The one exception is the key sheet,
@@ -199,6 +201,8 @@ setting gives Cmd-K back to Logseq's own search). It does what Find did (the own
   **more** shows all of them as an outline. Under them the pages opened last.
 - Letters typed light the choice they begin: a kind ("cons" lights Consultation, with its count), or with a kind taken a value
   its nodes hold ("mei" lights Dr. Mei Chen under Provider). Tab takes the lit choice as a piece of the line.
+- A node named exactly the words typed is found even when Logseq's own search misses it (its index can lack older notes;
+  "Rebuild search index" among Logseq's commands mends it). The corner's search finds it the same way.
 - Plain words: Logseq's own search answers: what holds the words first, then what holds them in a value (said after the words),
   then the rest Logseq found; grouped by kind, the kinds among them offered above. The typed letters are marked a step heavier.
 - A kind taken: its nodes (and those of the kinds under it), newest first, and above them what they hold to narrow by, each

@@ -22,7 +22,8 @@
      read.heldUnder(node, value)  the name of the property under which one node holds another (uuids), or ''
      read.graph()             the open graph's name
      read.newPages(since)     the plain, untagged pages made since a time in milliseconds (never kept): [{ id, uuid, title }]
-     read.search(words)       Logseq's own search for the words, its order kept: [node]
+     read.search(words)       Logseq's own search for the words, its order kept: [node]; before them, every node named exactly the
+                              words (in any case), read from the graph itself, so one Logseq's search misses is still found
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
      read.held(ids)           id -> { name: [words] }   the same, told apart by the property's name
@@ -252,9 +253,12 @@ async function names(uuids) {
 }
 
 async function search(words, limit = 40) {
-  let found = null;
-  try { found = await logseq.App.search(String(words), { limit, 'search-limit': limit }); } catch (error) { console.warn('Logseq Plugin: Logseq\'s search did not answer', error); return []; }
-  const ids = [...new Set((found?.blocks || []).map(block => block.id).filter(isId))];
+  const asked = String(words).trim().toLowerCase();
+  // Logseq's search reads an index of its own, which can lack older notes (seen 27 November 2026): the exact name is asked of the graph.
+  const [found, named] = await Promise.all([
+    logseq.App.search(String(words), { limit, 'search-limit': limit }).catch(error => { console.warn('Logseq Plugin: Logseq\'s search did not answer', error); return null; }),
+    asked ? q(`[:find ?b :where [?b :block/title ?t] [(clojure.string/lower-case ?t) ?l] [(= ?l ${JSON.stringify(asked)})] ${LIVE}]`) : []]);
+  const ids = [...new Set([...named.map(([b]) => b), ...(found?.blocks || []).map(block => block.id)].filter(isId))].slice(0, limit);
   if (!ids.length) return [];
   // A property's text value (a tag's description) is a block of its own to Logseq: it is no note, and is left out. A tag and a
   // property found by name say that they are one.

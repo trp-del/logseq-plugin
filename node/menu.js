@@ -7,7 +7,11 @@
    One menu at a time; a second closes the first.
    Tags as an outline fold, as Logseq's outline does: an arrow before a tag that has tags under it (under the pointer, and
    always once folded), Right and Left on its line, Cmd-Up and Cmd-Down. What is folded is kept on this Mac, in every such list
-   (G.folds). Words typed to narrow the list look through the folded tags too. In a quiet list the keys are the bullet's.
+   (G.folds). Words typed to narrow the list look through the folded tags too: each tag found stays under the tags it sits under, those
+   in a quieter ink and passed over by the arrows, and the typed letters are marked as in Search.
+   In an outline there is one highlight. It starts at the line the tag hangs from, never across the lines, and glides from tag
+   to tag, drawing in and out with the depth (not with the Mac's Reduce motion). The pointer and the arrows move the same one,
+   so Enter takes the tag lit; in a quiet list the pointer only borrows it, and Enter still takes what an arrow lit. In a quiet list the keys are the bullet's.
    opts.find: a line to type in at the list's head, which narrows it (true, or the words it shows while empty); with it,
    opts.make(words) -> { word, take } offers a line for words no line has, and opts.enter(words) takes the words themselves.
    opts.rank: with opts.find, the lines closest to the words typed come first (a list of commands).
@@ -36,14 +40,14 @@ function make(at, items, opts, parent) {
   const tree = items.some(item => item.depth != null);   // tags as an outline: each a bullet, a line down from it along the tags under it
   if (tree) menu.classList.add('lk-menu-tree');
   menu.innerHTML = (opts.find ? `<input class="lk-menu-find" type="text" placeholder="${G.esc(opts.find === true ? 'Find' : opts.find)}" aria-label="${G.esc(opts.find === true ? 'Find' : opts.find)}" spellcheck="false" autocomplete="off">` : '') + items.map((item, i) => item.gap ? '<div class="lk-gap"></div>' : item.group ? `<div class="lk-group">${G.esc(item.group)}</div>`
-    : `<button type="button" class="lk-item${item.sub ? ' lk-has-sub' : ''}${item.on ? ' on' : ''}${item.goes ? ' lk-goes' : ''}" role="menuitem" data-i="${i}" data-also="${G.esc(item.also || '')}" data-face="${item.face || ''}" style="${tree ? `padding-left: ${4 + (item.depth || 0) * 29}px; ` : ''}--lk-d: ${item.depth || 0}"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span>${tree ? `<span class="lk-item-fold" aria-hidden="true">${G.touch.icon('chevron-right', 14)}</span><span class="lk-item-bul" aria-hidden="true"></span>` : ''}<span>${G.esc(item.word)}</span>${item.value && !item.sub ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}${item.sub ? `<span class="lk-item-sub">${G.touch.icon('chevron-right', 14)}</span>` : ''}</button>`).join('');
+    : `<button type="button" class="lk-item${item.sub ? ' lk-has-sub' : ''}${item.on ? ' on' : ''}${item.goes ? ' lk-goes' : ''}" role="menuitem" data-i="${i}" data-also="${G.esc(item.also || '')}" data-face="${item.face || ''}" style="${tree ? `padding-left: ${4 + (item.depth || 0) * 29}px; ` : ''}--lk-d: ${item.depth || 0}"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span>${tree ? `<span class="lk-item-fold" aria-hidden="true">${G.touch.icon('chevron-right', 14)}</span><span class="lk-item-bul" aria-hidden="true"></span>` : ''}<span class="lk-item-word">${G.esc(item.word)}</span>${item.value && !item.sub ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}${item.sub ? `<span class="lk-item-sub">${G.touch.icon('chevron-right', 14)}</span>` : ''}</button>`).join('');
   doc.body.appendChild(menu);
   const outline = tree ? [...menu.querySelectorAll('.lk-item')] : [], nameOf = row => items[Number(row.dataset.i)].word;
   const foldUp = () => {
     const state = G.tags.folds(outline.map(row => ({ depth: items[Number(row.dataset.i)].depth, name: nameOf(row) })), G.folds.shut);
     outline.forEach((row, i) => { row.hidden = state[i].hidden; row.classList.toggle('lk-kids', state[i].kids); row.classList.toggle('lk-shut', state[i].shut); if (state[i].kids) row.setAttribute('aria-expanded', String(!state[i].shut)); });
   };
-  const fold = (row, on = !row.classList.contains('lk-shut')) => { if (!row?.classList.contains('lk-kids')) return false; G.folds.set(nameOf(row), on); foldUp(); return true; };
+  const fold = (row, on = !row.classList.contains('lk-shut')) => { if (!row?.classList.contains('lk-kids')) return false; G.folds.set(nameOf(row), on); foldUp(); lightUnder(row); return true; };
   // A key that folds: Cmd-Up and Cmd-Down as in Logseq's outline; Left and Right where the keys are not typing.
   const foldKey = (event, row, plain) => {
     if (!row) return false;
@@ -70,6 +74,18 @@ function make(at, items, opts, parent) {
     menu.style.top = (under ? box.bottom + 4 : Math.max(8, box.top - 4 - Math.min(h, room))) + 'px';
   } else if (!parent && !opts.dock) menu.style.top = (box.bottom + 4 + h > win.innerHeight - 8 ? Math.max(8, box.top - 4 - h) : box.bottom + 4) + 'px';
   const rows = () => [...menu.querySelectorAll('.lk-item')].filter(row => !row.hidden);
+  // An outline's one highlight, laid under the line it is on. It appears where it is wanted and glides from there.
+  let glow = null;
+  if (tree) { glow = doc.createElement('div'); glow.className = 'lk-glow'; glow.setAttribute('aria-hidden', 'true'); menu.insertBefore(glow, outline[0]); }
+  const lightUnder = row => {
+    if (!glow) return;
+    if (!row || row.hidden || !row.isConnected) return void glow.classList.remove('on');
+    const fresh = !glow.classList.contains('on'), depth = items[Number(row.dataset.i)]?.depth || 0;
+    if (fresh) glow.style.transition = 'none';
+    Object.assign(glow.style, { left: row.offsetLeft + depth * 29 + 'px', top: row.offsetTop + 'px', height: row.offsetHeight + 'px' });
+    glow.classList.add('on');
+    if (fresh) { void glow.offsetWidth; glow.style.transition = ''; }
+  };
   let child = null, gone = false;
   const shut = () => { if (gone) return; gone = true; child?.shut(); child = null; for (const off of offs) off(); menu.remove(); };
   const done = (refocus = true) => {
@@ -103,7 +119,7 @@ function make(at, items, opts, parent) {
   const hover = event => { const row = event.target.closest('.lk-item'); if (!row || !menu.contains(row)) return; if (row.classList.contains('lk-has-sub')) openSub(row, false); else if (child) { child.shut(); child = null; } };
   const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); return () => target.removeEventListener(type, fn, opts); };
   let lit = -1;
-  const light = to => { const all = rows(); if (!all.length) return; lit = (to + all.length) % all.length; all.forEach((row, i) => row.classList.toggle('lit', i === lit)); all[lit].scrollIntoView({ block: 'nearest' }); };
+  const light = to => { const all = rows(); if (!all.length) return; lit = (to + all.length) % all.length; all.forEach((row, i) => row.classList.toggle('lit', i === lit)); all[lit].scrollIntoView({ block: 'nearest' }); lightUnder(all[lit]); };
   const onQuietKey = event => {
     if (event.key === 'ArrowDown') light(lit + 1);
     else if (event.key === 'ArrowUp') light(lit < 0 ? -1 : lit - 1);
@@ -116,6 +132,18 @@ function make(at, items, opts, parent) {
     ...(opts.quiet ? [on(menu, 'mousedown', event => event.preventDefault())] : []),
     ...(parent ? [] : [on(doc, 'pointerdown', outside, true), on(doc, 'wheel', event => { if (!inside(event.target)) done(false); }, { capture: true, passive: true }), on(win, 'blur', () => done(false)), on(win, 'resize', () => done(false))])];
   if (!parent) close = done;
+  if (tree) {
+    // A pointer at rest takes nothing from the arrows: only a move to another spot counts.
+    let spot = '';
+    const pointed = event => { const here = `${event.clientX},${event.clientY}`; if (here === spot) return null; spot = here; const row = event.target.closest('.lk-item'); return row && menu.contains(row) ? row : null; };
+    if (opts.quiet) offs.push(on(menu, 'pointermove', event => { const row = pointed(event); if (row) lightUnder(row); }), on(menu, 'pointerleave', () => lightUnder(rows()[lit])));
+    else if (opts.find) offs.push(on(menu, 'pointermove', event => {
+      const row = pointed(event); if (!row || row.classList.contains('lit')) return;
+      for (const one of menu.querySelectorAll('.lk-item.lit')) one.classList.remove('lit');
+      row.classList.add('lit'); lit = rows().filter(one => !one.classList.contains('lk-path')).indexOf(row); lightUnder(row);
+    }));
+    else offs.push(on(menu, 'pointermove', event => pointed(event)?.focus({ preventScroll: true })), on(menu, 'focusin', event => lightUnder(event.target.closest('.lk-item'))));
+  }
   self.first = () => (rows().find(row => row.classList.contains('on')) || rows()[0])?.focus({ preventScroll: true });
   if (opts.find) {
     /* A list with a line to type in: the words narrow it, an arrow lights a line, Enter takes the lit one (the first, when none
@@ -126,14 +154,19 @@ function make(at, items, opts, parent) {
     let made = null;
     const first = opts.rank ? [...menu.querySelectorAll('.lk-item:not(.lk-item-make)')] : [], rest = opts.rank ? [...menu.querySelectorAll('.lk-group, .lk-gap')] : [];
     if (opts.rank) { rest.at = new Map(rest.map(el => { let next = el.nextElementSibling; while (next && !next.classList.contains('lk-item')) next = next.nextElementSibling; return [el, first.indexOf(next)]; })); }
-    const seen = () => [...menu.querySelectorAll('.lk-item')].filter(row => !row.hidden);
-    const lightIn = to => { const all = seen(); all.forEach(row => row.classList.remove('lit')); if (!all.length) { lit = -1; return; } lit = (to + all.length) % all.length; all[lit].classList.add('lit'); all[lit].scrollIntoView({ block: 'nearest' }); };
+    const seen = () => [...menu.querySelectorAll('.lk-item')].filter(row => !row.hidden && !row.classList.contains('lk-path'));   // the lines an arrow lights
+    // One lit line: the light is taken off every line, also off one the words have since narrowed away.
+    const lightIn = to => { const all = seen(); for (const row of menu.querySelectorAll('.lk-item.lit')) row.classList.remove('lit'); if (!all.length) { lit = -1; lightUnder(menu.querySelector('.lk-item-make:not([hidden])')); return; } lit = (to + all.length) % all.length; all[lit].classList.add('lit'); all[lit].scrollIntoView({ block: 'nearest' }); lightUnder(all[lit]); };
     const narrow = () => {
       const want = field.value.trim().toLowerCase().split(/\s+/).filter(Boolean); let exact = false;
       for (const el of menu.querySelectorAll('.lk-group, .lk-gap')) el.hidden = want.length > 0;
-      menu.classList.toggle('lk-narrowed', want.length > 0);   // a narrowed outline has gaps in it: no lines down
-      if (!want.length) foldUp();
+      menu.classList.toggle('lk-narrowed', want.length > 0);   // a narrowed outline stands open: no fold arrows
+      if (!want.length) { foldUp(); for (const row of outline) { row.classList.remove('lk-path'); G.node.hit(row.querySelector('.lk-item-word'), []); } }
       if (want.length) for (const row of menu.querySelectorAll('.lk-item:not(.lk-item-make)')) { const text = `${row.textContent} ${row.dataset.also || ''}`.toLowerCase(); row.hidden = !want.every(word => text.includes(word)); if (row.textContent.toLowerCase().trim() === field.value.trim().toLowerCase()) exact = true; }
+      if (want.length && tree) {   // each tag found under the tags it sits under, and the letters that found it
+        const state = G.tags.found(outline.map(row => ({ depth: items[Number(row.dataset.i)].depth, name: row })), row => !row.hidden);
+        outline.forEach((row, i) => { row.hidden = !state[i]; row.classList.toggle('lk-path', state[i] === 'path'); G.node.hit(row.querySelector('.lk-item-word'), state[i] === 'hit' ? want : []); });
+      }
       if (opts.rank) {   // the closest first: the words as typed at a word's start, then anywhere, then apart; the shorter before the longer
         const phrase = want.join(' '), score = row => { const text = row.querySelector('span:not(.lk-item-icon)').textContent.toLowerCase(); return (text.startsWith(phrase) || text.includes(' ' + phrase) ? 0 : text.includes(phrase) ? 1 : 2) * 1000 + text.length; };
         const order = want.length ? [...first].sort((a, b) => (a.hidden - b.hidden) || score(a) - score(b)) : first;
@@ -170,7 +203,7 @@ function make(at, items, opts, parent) {
       if (foldKey(event, seen()[lit], !field.value)) { /* folded */ }
       else if (event.key === 'ArrowDown') lightIn(lit + 1);
       else if (event.key === 'ArrowUp') lightIn(lit - 1);
-      else if (event.key === 'Enter') { const row = seen()[lit]; const words = field.value.trim(); if (row === extra && made) { done(); made.take(); } else if (row) take(row); else if (opts.enter && words) { done(); opts.enter(words); } }
+      else if (event.key === 'Enter') { const row = menu.querySelector('.lk-item.lit:not([hidden])') || seen()[lit]; const words = field.value.trim(); if (row === extra && made) { done(); made.take(); } else if (row) take(row); else if (opts.enter && words) { done(); opts.enter(words); } }
       else if (event.key === 'Escape') done();
       else return;
       event.preventDefault(); event.stopPropagation();
@@ -216,6 +249,11 @@ G.menu.CSS = `
 /* One hairline down from each tag through the tags under it, through the middle of its bullet, as Logseq's outline draws it
    (the owner, 26 November 2026: "menus that have you select tags should probably have bullet outline too"). */
 .lk-menu-tree .lk-item::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--lk-d, 0) * 29px); pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0 27.5px, var(--lk-line) 27.5px 28.5px, transparent 28.5px 29px); }   /* Logseq's step between levels, so a fold arrow stands clear of the line */
-.lk-menu-tree.lk-narrowed .lk-item::after { display: none; }
+.lk-menu-tree .lk-item:is(:hover, :focus, .lit) { background: none; }   /* the outline's one highlight is drawn under the line instead */
+.lk-menu .lk-glow { position: absolute; right: 4px; border-radius: var(--lk-corner); background: var(--lk-lit); pointer-events: none; opacity: 0; transition: left .14s ease-out, top .14s ease-out, height .14s ease-out, opacity .1s ease-out; }
+.lk-menu .lk-glow.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .lk-menu .lk-glow { transition: none; } }
+.lk-menu .lk-item.lk-path { color: var(--lk-quiet); }   /* a tag shown only so that what is under it is seen in its place */
+.lk-menu mark.lk-hit { background: none; color: inherit; font-weight: 600; padding: 0; margin: 0; border-radius: 0; }   /* the typed letters, as Search marks them */
 .lk-menu-find::placeholder { color: var(--lk-off); }`;
 })();
