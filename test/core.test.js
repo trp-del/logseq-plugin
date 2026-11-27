@@ -146,7 +146,19 @@ test('tasks stand under Overdue, Today, Coming up and Any time; an overdue one s
   assert.deepEqual([got[0].rows.map(r => r.late), got[1].rows.map(r => r.late)], [[true], [false]], 'a task past its day is late, one due today is not');
   assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
 });
-const { sure } = require('../core/sure.js'), { above } = require('../core/tags.js');
+const { sure, addresses } = require('../core/sure.js'), { above } = require('../core/tags.js');
+test('an address typed without http:// is made a link', () => {
+  const link = (typed) => `[${typed}](https://${typed})`;
+  assert.equal(addresses('see vanguard.com for the IRA'), `see ${link('vanguard.com')} for the IRA`);
+  assert.equal(addresses('www.irs.gov/forms?x=1, then Google.com.'), `${link('www.irs.gov/forms?x=1')}, then ${link('Google.com')}.`);
+  assert.equal(addresses('(bbc.co.uk/news) and youtu.be/abc'), `(${link('bbc.co.uk/news')}) and ${link('youtu.be/abc')}`);
+  assert.equal(addresses('goo.gl/x and t.me/y and shop.example.in/a'), `${link('goo.gl/x')} and ${link('t.me/y')} and ${link('shop.example.in/a')}`);
+});
+test('what only looks like an address is left alone', () => {
+  for (const words of ['notes.md and node.js and run.sh', 'e.g. 3.14 and $1.5k', 'mail me@chen.com or first.last@x.org', 'done.It was fine', 'open Logseq.app',
+    'https://vanguard.com and http://a.org/b', '[the site](https://vanguard.com)', '[vanguard.com](https://vanguard.com)', 'in `vanguard.com` code', '```\nvanguard.com\n```',
+    '[[vanguard.com]] page', '{{video youtube.com/x}}', 'file:///Users/a/b.com', 'no address here']) assert.equal(addresses(words), null, words);
+});
 // Doctor(1) < Person(2) < Entity(3); Consultation(4) < Occurrence(5); Hospital(7) < Entity(3)
 const INDEX = new Map([[1, { id: 1, parents: [2] }], [2, { id: 2, parents: [3] }], [3, { id: 3, parents: [] }], [4, { id: 4, parents: [5] }], [5, { id: 5, parents: [] }], [7, { id: 7, parents: [3] }]]);
 const provider = { ident: 'p/provider', type: 'node', range: [2] }, place = { ident: 'p/place', type: 'node', range: [7] }, date = { ident: 'p/date', type: 'date', range: [] };

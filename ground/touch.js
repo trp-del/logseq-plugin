@@ -477,7 +477,11 @@ function left(fn) {
   const soon = () => { clearTimeout(timer); timer = setTimeout(look, 120); };
   const types = ['focusin', 'focusout', 'keyup', 'pointerup', 'input'];
   for (const type of types) doc.addEventListener(type, soon, true);
-  return () => { clearTimeout(timer); for (const type of types) doc.removeEventListener(type, soon, true); };
+  // The words are taken as they are about to change and as they change, at once: Enter right after the last letter leaves the
+  // bullet before the wait above is over, and what was typed would go unseen.
+  const now = ['beforeinput', 'input'];
+  for (const type of now) doc.addEventListener(type, look, true);
+  return () => { clearTimeout(timer); for (const type of types) doc.removeEventListener(type, soon, true); for (const type of now) doc.removeEventListener(type, look, true); };
 }
 const KEY_CODES = { '.': 'Period', ',': 'Comma' };
 function key(combo, fn) {

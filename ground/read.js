@@ -39,6 +39,7 @@
                               and done at any depth, files right under it, the nearest day an open task is due)
      read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
+     read.typed(uuid)         a bullet's words as Logseq keeps them; null for a page, code or maths, and a property's value
      read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words }], words as a person reads them
      read.chosen(asked)       what an export is asked for: { blocks: [uuid] } (the bullet a menu named, else the bullets picked,
                               else, where asked, the one being written), else { page } (the page named, or the one on screen)
@@ -355,6 +356,12 @@ const schema = () => once('schema', async () => {
   for (const [tag, ident] of given) { if (!byTag.has(tag)) byTag.set(tag, []); byTag.get(tag).push(bare(ident)); }
   return { props, byTag };
 });
+async function typed(uuid) {
+  if (!UUID.test(String(uuid || ''))) return null;
+  const rows = await q(`[:find ?w :where [?b :block/uuid #uuid "${uuid}"] [?b :block/page _] [?b :block/title ?w]
+    (not [?b :logseq.property/created-from-property _]) (not-join [?b] [?b :logseq.property.node/display-type ?kind] [(not= ?kind :quote)])]`);
+  return rows.length ? String(rows[0][0]) : null;
+}
 async function writing(uuid) {
   const at = await node(uuid);
   if (!at) return null;
@@ -678,5 +685,5 @@ async function folded(uuids) {
   return out;
 }
 
-G.read = { chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
+G.read = { chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
 })();

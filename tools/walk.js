@@ -328,6 +328,16 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await box.frame().evaluate(u => logseq.Editor.editBlock(u), typed); await wait(700); await page.keyboard.press('Escape'); await wait(2200);
       return is([undone, await holds()], [[], []]);
     });
+    await step('a web address typed without http:// is a link once its bullet is left, and Logseq\'s Undo takes that back', async () => {   // the owner, 26 November 2026
+      const at = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, '')).uuid, OCT7);
+      const words = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?w :where [?b :block/uuid #uuid "${u}"] [?b :block/title ?w]]`)).flat()[0], at);
+      await wait(600); await box.frame().evaluate(u => logseq.Editor.editBlock(u), at); await wait(700);
+      await page.keyboard.type('Rates at vanguard.com, see notes.md', { delay: 40 });
+      await page.keyboard.press('Enter'); await wait(900); await page.keyboard.press('Escape'); await wait(2000);   // left by Enter at once, as one types
+      const made = await words(), links = await page.evaluate(u => [...document.querySelectorAll(`.ls-block[blockid="${u}"] a.external-link`)].map(a => [a.textContent, a.getAttribute('href')]), at);
+      await page.keyboard.press('Meta+z'); await wait(1200);
+      return is([made, links, await words()], ['Rates at [vanguard.com](https://vanguard.com), see notes.md', [['vanguard.com', 'https://vanguard.com']], 'Rates at vanguard.com, see notes.md']);
+    });
     // ---- Writing: where a tag sits, and where a new tag goes
     const tagged = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, '')).uuid, OCT7);
     await step('Logseq\'s own list of tags says where each tag sits', async () => {

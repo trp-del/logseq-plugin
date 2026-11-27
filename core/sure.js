@@ -44,7 +44,35 @@ function sure(facts) {
   void tags;
   return out;
 }
-const api = { sure };
+/* A web address typed without http:// in front. Logseq makes a link only of an address with one, so the words are written as
+   [as typed](https://as typed). addresses(words) answers the new words, or null where there is nothing to link.
+   An address starts with www., or ends in a common ending (.com, .org, .gov …); an ending that is also an English word or a
+   file's (.in, .me, .app) counts only with www. before it or a / after it. Left alone: a mail address, a file's name, code,
+   a link already made, and anything in [[ ]]. */
+const ENDINGS = new Set('com org net edu gov mil int io co ai dev info biz health xyz online site tech store blog news tv us uk ca de fr nl es se dk fi ch au nz jp cn br mx ie pt pl kr za eu'.split(' '));
+const NEEDS_MORE = new Set('app me in it is at be no so to am ly gg gl'.split(' '));
+const KEPT = /```[\s\S]*?(?:```|$)|`[^`\n]*`|\[[^\[\]\n]*\]\((?:[^()\n]|\([^()\n]*\))*\)|\[\[[^\n]*?\]\]|\(\([^\n]*?\)\)|\{\{[^\n]*?\}\}|<[^<>\n]*>|(?<![\w])[a-z][a-z0-9+.-]*:\/\/\S+|(?<![\w])(?:mailto|file|assets):\S+/gi;
+const ADDRESS = /(?<![\w@.\/\\:#$=&?%~+-])((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+)([a-z]{2,})(?![\w@-]|\.\w)((?::\d+)?(?:[\/?#][^\s<>\[\]`"]*)?)/gi;
+function linkOne(whole, host, ending, rest) {
+  let tail = rest;
+  for (;;) {   // the sentence's own marks are not the address's; nor is a bracket that closes one opened before it
+    const last = tail.slice(-1);
+    if (/[.,;:!'*_~^|]/.test(last) || (last === '?') || (last === ')' && tail.split('(').length < tail.split(')').length)) tail = tail.slice(0, -1);
+    else break;
+  }
+  const www = /^www\./i.test(host), known = ending === ending.toLowerCase();
+  if (!www && !(known && (ENDINGS.has(ending) || (NEEDS_MORE.has(ending) && tail.startsWith('/'))))) return whole;
+  const typed = host + ending + tail;
+  return `[${typed}](https://${typed.replace(/\(/g, '%28').replace(/\)/g, '%29')})${rest.slice(tail.length)}`;
+}
+function addresses(words) {
+  const text = String(words == null ? '' : words);
+  let out = '', at = 0;
+  for (const kept of text.matchAll(KEPT)) { out += text.slice(at, kept.index).replace(ADDRESS, linkOne) + kept[0]; at = kept.index + kept[0].length; }
+  out += text.slice(at).replace(ADDRESS, linkOne);
+  return out === text ? null : out;
+}
+const api = { sure, addresses };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).sure = api;
 })(typeof window !== 'undefined' ? window : globalThis);
