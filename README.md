@@ -685,4 +685,5 @@ node tools/check.js --quick  the first two only
 ```
 
 `tools/walk.js` starts a test Logseq of its own on a copy of a sample graph and tries the plugin with real presses and keys.
-It is a net, not the proof: a change is proven by hand.
+It is a net, not the proof: a change is proven by hand. A walk that cannot start closes the Logseq it began;
+`node tools/walk.js --keep` leaves the Logseq open to look at, and `node tools/walk.js --stop` closes one left open.

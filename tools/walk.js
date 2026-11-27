@@ -4,15 +4,27 @@
    It is a net, not the proof: a change is proven by hand, on the owner's kind of graph and window.
      node tools/walk.js              starts its own Logseq (port 9480), walks, closes it
      node tools/walk.js --keep       leaves that Logseq open afterwards, to look at
+     node tools/walk.js --stop       closes a Logseq a walk left open (--keep, or a walk that was cut short), and walks nothing
+   A walk that cannot start closes the Logseq it began (tools/sandbox.js), so the next one finds its port free.
    Every fault the owner reports is added here as a step that fails before the fix. */
 const path = require('node:path'), os = require('node:os'), fs = require('node:fs');
 const ROOT = path.resolve(__dirname, '..');
 for (const dir of [path.join(ROOT, 'node_modules'), path.resolve(ROOT, '..', '..', 'logseq-plugin', 'node_modules')]) if (fs.existsSync(dir)) { process.env.NODE_PATH = dir; require('node:module').Module._initPaths(); break; }
 const sandbox = require('./sandbox.js');
-const PORT = 9480, DIR = path.join(os.tmpdir(), `logseq-walk-${PORT}`), keep = process.argv.includes('--keep');
+const PORT = 9480, DIR = path.join(os.tmpdir(), `logseq-walk-${PORT}`), keep = process.argv.includes('--keep'), stopOnly = process.argv.includes('--stop');
 const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-4000-8000-00000000000e', NORTHGATE = '1a000000-0000-4000-8000-000000000002', OCT7 = '00000001-2026-1007-0000-000000000000';
 
 (async () => {
+  if (stopOnly) {
+    const was = !!(await sandbox.up(PORT));
+    await sandbox.stop({ port: PORT, home: path.join(DIR, 'home') });   // ends only a Logseq started with this port and a profile folder of its own
+    const still = !!(await sandbox.up(PORT));
+    if (!still) fs.rmSync(DIR, { recursive: true, force: true });
+    console.log(still ? `Something still answers on port ${PORT} and it is not a walk's Logseq: it was left alone.` : was ? `The walk's Logseq on port ${PORT} is closed and its copy removed.` : `No walk's Logseq was open on port ${PORT}.`);
+    process.exit(still ? 1 : 0);
+  }
+  // Asked before the folder is emptied: a Logseq still running there would lose its graph under it.
+  if (await sandbox.up(PORT)) throw new Error(`something already answers on port ${PORT}. If it is a Logseq a walk left open (--keep, or a walk that was cut short), close it with: node tools/walk.js --stop`);
   fs.rmSync(DIR, { recursive: true, force: true }); fs.mkdirSync(DIR, { recursive: true });
   const box = await sandbox.start({ dir: DIR, graph: 'Illness Test Graph', plugin: ROOT, port: PORT });
   const page = box.page, faults = [], errors = [];
