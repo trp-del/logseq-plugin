@@ -1830,11 +1830,12 @@ ${AREA} .ls-view-head .view-action-type:has(.ls-icon-layout-grid) .select-item::
 ${AREA} .ls-view-head .view-actions > button:has(.ls-icon-plus)::after { content: "New"; }
 ${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `${AREA} .ls-table[data-lk-less="${n}"] :is(.ls-table-header, .ls-table-row) > .flex-row:not(.sticky-columns) > :nth-child(${n})`).join(', ')} { display: none !important; }`,
   /* The left sidebar as words alone (the owner, on "A Leaner Logseq", 26 November 2026): no picture before Journals, Pages, a
-     favourite or a recent page; no section words (Navigations, Favorites, Recent), a gap between the groups instead; the graph's
+     favourite or a recent page; no word over the top rows, a gap between the groups instead; the graph’s
      name alone, its up-down mark under the pointer. The words stand on one edge.
      Recent stands in three groups, Pages, Properties and Tags, each under a small grey word (the owner, 27 November 2026: "we
      could split up recents by page, property, tag with subtle headers and have no icons"; chosen from pictures: "small grey
-     word"); inside a group Logseq's own order holds. */
+     word"); inside a group Logseq's own order holds. Above them all, Logseq's own heads Favorites and Recent, the names' size and bold; a press folds one, as in Logseq (the owner,
+     27 November 2026: "add favorite section", "should there be a Recents larger header for the other ones?", chosen from pictures: 3). */
   left: `
 .left-sidebar-inner :is(.sidebar-navigations .item, .recent-item, .favorite-item) :is(.ui__icon, svg, .page-icon) { display: none !important; }
 .left-sidebar-inner .sidebar-navigations .item { margin-left: 2px !important; }
@@ -1851,6 +1852,13 @@ ${['page', 'property', 'tag'].map(kind => `.left-sidebar-inner li.recent-item[da
 .left-sidebar-inner ul:not(:has(> li:is([data-lk-kind="page"], [data-lk-kind="property"]))) > li.recent-item[data-lk-kind="tag"]::before { padding-top: 0; }
 .left-sidebar-inner .sidebar-content-group > .sidebar-content-group-inner > .hd { display: none !important; }
 .left-sidebar-inner .sidebar-content-group { margin-top: 14px; }
+.left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) { margin-top: 24px; }
+.left-sidebar-inner .sidebar-content-group:is(.favorites, .recent):not(.has-children) { display: none; }
+.left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd { display: flex !important; padding: 4px 8px !important; margin: -4px 0 0 !important; min-height: 0; height: auto; line-height: 20px; opacity: 1; }
+.left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd :is(.a, a, strong) { font-size: var(--lk-line-size); font-weight: 700; color: var(--ls-primary-text-color) !important; opacity: 1 !important; }
+.left-sidebar-inner .sidebar-content-group.recent > .sidebar-content-group-inner > .hd { margin-bottom: 8px !important; }
+.left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd > .b { opacity: 0; }
+.left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd:hover > .b { opacity: 1; }
 .left-sidebar-inner .cp__graphs-selector .thumb { display: none !important; }
 .left-sidebar-inner .cp__graphs-selector .ls-icon-selector { opacity: 0; }
 .left-sidebar-inner .cp__graphs-selector:hover .ls-icon-selector { opacity: 1; }
