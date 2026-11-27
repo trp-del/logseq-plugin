@@ -1187,9 +1187,11 @@ const OPENED = `
 /* A task opened from its line keeps the line's start (the owner, 26 November 2026, fault 31-33): its bullet, status circle and words
    stay where they stood ("there should be bullets before tasks circles", 26 November 2026), no priority mark added (the priority is set from the right-click, as on the line),
    the tag Task left out as the line leaves it out, and in a narrow place no line for "Show hidden properties". */
-.lk-editor .block-left.positioned-properties { margin-left: 2px !important; }
+.lk-editor .block-left.positioned-properties { margin-left: 1px !important; margin-right: 1px !important; }
 .lk-editor .block-left.positioned-properties :is(.ui__icon, .ui__icon svg) { width: 18px !important; height: 18px !important; }   /* the circle the line draws, 18 across, so the words stay where the line's stood */
-.lk-list:not([data-viewed]) > .lk-rows > .lk-row > .lk-open > .lk-editor .block-left.positioned-properties { margin-left: 4px !important; }   /* where Logseq's own bullet stands before it (Todo), measured to the line's */
+.lk-list:not([data-viewed]) > .lk-rows > .lk-row > .lk-open > .lk-editor .block-left.positioned-properties { margin-left: 3px !important; margin-right: 1px !important; }   /* where Logseq's own bullet stands before it (Todo), measured to the line's */
+.lk-list:not([data-viewed]) > .lk-rows > .lk-row > .lk-open > .lk-editor .block-main-container:has(.block-left.positioned-properties) > .block-control-wrap > .bullet-link-wrap { position: relative; left: 1px; }
+.lk-editor .block-main-content:has(.block-left.positioned-properties) .block-title-wrap { line-height: 24px !important; }   /* the line's 24: at Logseq's 21 the words rose past the circle on opening (27 November 2026: "the status icon shifts") */
 .lk-editor .block-left.positioned-properties > .property-value-inner:has([class*="ls-icon-priority"]) { display: none !important; }
 .lk-editor .block-tag:has(> div > a.tag[data-ref="task"]), .lk-editor .block-tag:has(a.tag[data-ref="task"]):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }
 .lk-editor .ls-block-right:has(.block-tags):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }

@@ -245,6 +245,18 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const got = await page.evaluate(() => [...document.querySelectorAll('.lk-todo .lk-list')].filter(l => l.querySelector('.lk-list-name').innerText === 'Coming up').map(l => [...l.querySelectorAll('.lk-row')].filter(r => r.querySelector('.lk-line').innerText.split('\n')[0] === 'Water the ferns').map(r => !!r.querySelector(':scope > .lk-day').textContent.trim())).flat());
       return is([hint.length > 5, got], [true, [true]]);
     });
+    await step('a task opened from its line keeps its bullet, status circle and words where they stood', async () => {   // the owner, 27 November 2026: "the status icon shifts"
+      const row = page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' });
+      const stand = () => row.evaluate(el => { const root = el.querySelector(el.dataset.open ? ':scope > .lk-open > .lk-editor .block-main-container' : ':scope > .lk-line'), base = el.getBoundingClientRect();
+        const at = r => [Math.round(r.x + r.width / 2 - base.x), Math.round(r.y + r.height / 2 - base.y)];
+        const walk = document.createTreeWalker(root.querySelector(el.dataset.open ? '.block-title-wrap' : '.lk-words'), NodeFilter.SHOW_TEXT); let words; while ((words = walk.nextNode()) && !words.textContent.trim()); const range = document.createRange(); range.setStart(words, 0); range.setEnd(words, 4);
+        return [at(root.querySelector(el.dataset.open ? '.bullet-container .bullet' : '.lk-bul').getBoundingClientRect()), at(root.querySelector(el.dataset.open ? '.block-left.positioned-properties svg' : '.lk-status svg').getBoundingClientRect()), at(range.getBoundingClientRect())]; });
+      const closed = await stand();
+      await row.locator(':scope > .lk-line').focus(); await page.keyboard.press('ArrowRight'); await wait(3000);
+      const open = await stand();
+      await row.locator(':scope > .lk-line').focus(); await page.keyboard.press('Escape'); await wait(700);
+      return is(open, closed);
+    });
     await step('a task set Done from its circle leaves the list', async () => {
       const row = page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' });
       await row.locator('.lk-status').click(); await wait(400);
