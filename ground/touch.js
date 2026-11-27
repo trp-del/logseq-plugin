@@ -43,6 +43,7 @@
                               Answers { open(), off() }
      touch.page(key, title, draw)  a page of the plugin's own in Logseq's main view; draw(el) fills it. Answers { open(), at() }
      touch.toolbar(key, title, path, run)   a button in Logseq's toolbar, drawn as Logseq draws its own (path: the icon's line)
+     touch.notices({ stay }) -> off()   each of Logseq's notices closed after stay ms, held while pointed at
      touch.icon(id), touch.statusIcon(icon)   one of Logseq's own icons as markup
      touch.foldedSpots()      Logseq's folded bullets on screen, each { uuid, at, put(el) }: at, what the plugin put after its
                               words before; put(el) places el right after its words. touch.FOLDED the stylesheet that shows
@@ -1393,7 +1394,27 @@ function here() {
 const AREA = ':is(#main-content-container, #right-sidebar)', OUT = ':not(.lk-editor *)';
 const PLAIN_SIDE = '#right-sidebar:not([data-lk-split]) .sidebar-item.item-type-page';   // a page in the sidebar, not one shown as the right half
 const PILLS = `${AREA} .ls-block .positioned-properties.block-below`;
+const TOASTS = '.ui__toaster-viewport', TOAST = `${TOASTS} .ui__toast`;
 const CALM = {
+  /* A notice, Logseq's own or the plugin's, where Logseq draws a large card under the toolbar at the top right: a capsule as
+     wide as its words at the bottom centre of the window, 48 up, the next ones peeking above it, fading in and out where it
+     stands (the owner, 3 November 2026: it "gets in the way a lot"; 6 November: "make it capsule size", "do it at bottom";
+     27 November: "add the capsule notification ... back"). */
+  notices: `
+${TOASTS} { inset: auto auto 48px 50% !important; transform: translateX(-50%); width: min(30rem, calc(100vw - 2rem)) !important; display: flex; flex-direction: column; align-items: center; }
+${TOAST} { top: auto !important; bottom: 0 !important; left: auto !important; right: auto !important; width: max-content !important; max-width: 100%; transform-origin: center bottom !important;
+  transform: translateY(calc(-1 * (var(--toast-index) * var(--peek) + var(--shrink) * var(--height)))) scale(var(--scale)) !important;
+  border-radius: var(--lk-corner-round) !important; border-color: var(--lk-hair) !important; box-shadow: 0 2px 10px rgb(0 0 0 / .08) !important; transition: transform .25s ease, opacity .25s ease, height .15s ease !important; }
+${TOAST}[data-expanded] { transform: translateY(calc(-1 * var(--offset-y))) !important; }
+${TOAST}:is([data-starting-style], [data-ending-style]) { opacity: 0; transform: translateY(calc(-1 * (var(--toast-index) * var(--peek) + var(--shrink) * var(--height)))) scale(var(--scale)) !important; }
+${TOAST} .ui__toast-content { padding: 8px 38px 8px 18px !important; gap: 0 !important; }
+${TOAST} .ui__toast-content.untitled .ui__toast-body { padding-block: 0 !important; }
+${TOAST} .ui__toast-text { align-items: center !important; gap: 8px !important; }
+${TOAST} .ui__toast-description { font-size: var(--lk-line-size) !important; line-height: 20px !important; opacity: 1 !important; }
+${TOAST} :is(.ui__toast-status-icon, .ui__toast-status-icon svg) { width: 16px !important; height: 16px !important; }
+${TOAST} .ui__toast-content.untitled .ui__toast-header { top: 50% !important; right: 6px !important; transform: translateY(-50%); }
+${TOAST} .ui__toast-close { width: 24px !important; height: 24px !important; }
+${TOAST} .ui__toast-close svg { width: 14px; height: 14px; }`,
   /* What floats over Logseq's own screens (its menus, pop-ups, lists to choose from, the question before a delete, its windows
      and settings) on the plugin's own surface, as before the rebuild (the owner chose the old floating surface and window back,
      26 November 2026): the Mac's glass with a 10-point corner, a hair-thin edge and one shadow; lines of the menu's size; keys
@@ -1617,6 +1638,22 @@ function titleEnd(el, name) {
    draws the properties shut behind "Open properties", and shut again after the section is folded, opened or redrawn, so the
    press is made for the person whenever they are shut: never while one of Logseq's own lists or menus is open (a press would
    close the list under a bullet being written), and at most twice a minute for one section. Gives back what stops it. */
+/* Each notice is timed as it comes: after stay ms its own x is pressed, Logseq's way out, an error too. It is held while the
+   pointer or the keys are on the notices, and while it waits behind the ones Logseq shows. -> off() */
+function notices({ stay }) {
+  const doc = host(), win = doc.defaultView, timed = new WeakSet(), timers = new Set();
+  const time = toast => {
+    const id = win.setTimeout(() => {
+      timers.delete(id);
+      if (!toast.isConnected) return;
+      if (toast.matches('[data-limited]') || toast.closest(TOASTS)?.matches(':hover, :focus-within')) return time(toast);
+      toast.querySelector('.ui__toast-close')?.click();
+    }, stay);
+    timers.add(id);
+  };
+  const off = watch(() => { for (const toast of doc.querySelectorAll(TOAST)) if (!timed.has(toast)) { timed.add(toast); time(toast); } });
+  return () => { off(); for (const id of timers) win.clearTimeout(id); timers.clear(); };
+}
 function sidePages(within = SIDE_PAGE) {
   const doc = host(), pressed = new WeakMap();
   const shut = box => box.children.length === 1 ? box.querySelector(':scope > div:first-child > button:only-child') : null;
@@ -1827,5 +1864,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { notices, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

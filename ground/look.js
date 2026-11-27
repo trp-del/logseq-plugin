@@ -10,6 +10,8 @@ G.look = {
      drawn late must stand still before it moves;
      cap: when a copy of the old view or a lifted cut is cleared although its motion never ended (a window in the background). */
   MOTION: { glide: { ms: 280, ease: 'cubic-bezier(.2,.7,.2,1)', fade: 'ease-out', away: .35, awayStill: .6, in: .8, inDelay: .35, outDelay: .25, wait: 2000, rest: 40, cap: 2000 } },
+  /* A notice (the owner's capsule, 3 and 6 November 2026, back on 27 November): gone after stay ms; it fades where it stands. */
+  NOTICE: { stay: 4000 },
   /* The faces. Logseq reaches no face of the Mac by its name alone ("New York" came out as Georgia, "SF Mono" as Menlo), so
      each face the look uses comes with the plugin, in fonts/, and is said from there once Logseq has told the plugin where its
      folder is (root: logseq.baseInfo.lsr, known at the start, not at load). A tag is written in Commissioner with its stroke ends widened, a property's name in

@@ -161,6 +161,9 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
   value's bullet) stand in the gutter before that edge.
 - Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
   it does in a word beside its icon; a tag's own table leaves out its Tags column.
+- A notice, Logseq's own or the plugin's, is a small capsule of words at the bottom centre of the window, where Logseq draws
+  a large card under the toolbar at the top right; more than one peek above it. Every notice goes after four seconds, a
+  failure too, and stays while the pointer or the keys are on it; its × closes it at once.
 
 ### Focusing into a bullet and out (`beside/glide.js`, drawn in `ground/touch.js`, timed in `ground/look.js`)
 

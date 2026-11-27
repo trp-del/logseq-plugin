@@ -203,6 +203,15 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await list.locator('.lk-list-head .lk-fold').click(); await wait(400); await list.locator('.lk-list-head .lk-fold').click(); await wait(600);
       return is([on, await list.locator('.lk-tab.on').count()], [1, 0]);
     });
+    await step('a notice is a capsule at the bottom centre, goes after four seconds and stays while pointed at', async () => {   // the owner, 27 November 2026: "can you add the capsule notification ... back instead of rectangle in corner"
+      const say = () => box.frame().evaluate(() => { window.logseq.UI.showMsg('A notice for the check', 'warning'); }), toast = page.locator('.ui__toast', { hasText: 'A notice for the check' });
+      await page.mouse.move(5, 300); await say(); await wait(900);
+      const at = await toast.evaluate(el => { const r = el.getBoundingClientRect(); return [Math.abs(r.left + r.width / 2 - innerWidth / 2) < 2, Math.round(innerHeight - r.bottom), r.width < 360, parseFloat(getComputedStyle(el).borderTopLeftRadius) > r.height / 2]; });
+      await wait(4500); const gone = await toast.count();
+      await say(); await wait(900); await toast.hover(); await wait(4800); const held = await toast.count();
+      await page.mouse.move(5, 300); await wait(5000);
+      return is([at, gone, held, await toast.count()], [[true, 48, true, true], 0, 1, 0]);
+    });
     // ---- Arriving: Todo
     await step('Cmd-Shift-P opens the corner\'s commands, in the corner at one size while words narrow them, and again lets go', async () => {   // the owner, 26 November 2026: "make it have a set height and not shrink"
       const box = () => page.evaluate(() => { const m = document.querySelector('.lk-menu'); if (!m) return null; const r = m.getBoundingClientRect(); return [Math.round(innerWidth - r.right), Math.round(innerHeight - r.bottom), Math.round(r.height), !!document.querySelector('.cp__cmdk')]; });
