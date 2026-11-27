@@ -3,8 +3,11 @@
 A plugin for Logseq DB graphs (Logseq 2.0 and later, a DB graph open).
 
 **Install.** In Logseq, Settings, Plugins: turn on developer mode, then **Load unpacked plugin** and pick this folder (or
-**Install plugin from GitHub release** with this repository). The plugin needs Logseq's "effect" access to draw on Logseq's
-own page; each part can be switched off in the plugin's settings, and a change there takes effect when the plugin is reloaded.
+**Install plugin from GitHub release** with this repository, ticking the box named **effect** in that window before you
+press Install). The plugin draws on Logseq's own page, and Logseq lets an installed plugin do that only when that box was
+ticked, whatever the plugin itself asks for: installed without it, the plugin starts nothing and says so in one notice that
+stays until you close it. Each part can be switched off in the plugin's settings, and a change there takes effect when the
+plugin is reloaded.
 
 **A note is a node. The plugin shows any node whole, and lets it be changed wherever it appears.**
 Whole means four things: what the node is (its tags), what it says (its words and bullets), its facts (its properties), and

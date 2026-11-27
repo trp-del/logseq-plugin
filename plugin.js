@@ -5,7 +5,7 @@
      G.setting(key)  what a setting holds
      G.host()        Logseq's own page (the plugin runs in a frame beside it)
      G.esc(text)     words made safe to put into markup
-     G.say(text)     a notice, Logseq's own
+     G.say(text, status, stays)   a notice, Logseq's own; stays: it waits to be closed instead of going after a moment
    A file may use only what the layers under it gave G (tools/layers.js checks this): ground, then node, then page. */
 (function () {
 const G = (window.PluginDoor ||= {});
@@ -15,7 +15,7 @@ G.setting = key => logseq.settings?.[key];
 G.on = key => G.setting(key + 'On') !== false;
 G.host = () => window.parent.document;
 G.esc = text => String(text ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
-G.say = (text, status = 'info') => { try { logseq.UI.showMsg(text, status); } catch (error) { console.log('Logseq Plugin: ' + text); } };
+G.say = (text, status = 'info', stays = false) => { try { logseq.UI.showMsg(text, status, stays ? { key: 'logseq-plugin-stays', timeout: 0 } : undefined); } catch (error) { console.log('Logseq Plugin: ' + text); } };
 G.base = key => {
   const offs = [];
   const base = {
