@@ -11,8 +11,8 @@
    Days are numbers as Logseq keeps them (20261004). "around" widens a time; near reaches a month beyond a day or a week, three
    beyond a month, six beyond a year. */
 (function (root) {
-const FULL = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const Days = typeof module !== 'undefined' && module.exports ? require('./days.js') : root.PluginDoor.days;
+const SHORT = Days.MONTHS;
 // Words that join the parts and say nothing of their own: they neither narrow nor light a choice.
 const STOP = new Set(['with', 'about', 'and', 'the', 'a', 'an', 'of', 'on', 'in', 'at', 'for', 'by', 'to', 'from', 'or', 'around', 'near', 'roughly', 'circa', 'between', 'since', 'until', 'till', 'through', 'what', 'who', 'when', 'where', 'which', 'that', 'was', 'were', 'is', 'my', 'me', 'i', 'during']);
 const AROUND = new Set(['around', 'about', 'near', 'roughly', 'circa']);
@@ -21,11 +21,9 @@ const TITLES = ['dr.', 'dr', 'prof.', 'prof', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.',
 const norm = text => String(text == null ? '' : text).toLowerCase().replace(/[’‘]/g, "'").replace(/\s+/g, ' ').trim();
 const toks = text => [...String(text).matchAll(/\S+/g)].map(m => ({ at: m.index, end: m.index + m[0].length, key: norm(m[0].replace(/[,;:!?]+$/, '')) }));
 const num = (y, m, d) => { const at = new Date(y, m - 1, d); return at.getFullYear() * 10000 + (at.getMonth() + 1) * 100 + at.getDate(); };   // rolls month 13 or day 0 over
-const shift = (day, by) => num(Math.floor(day / 10000), Math.floor(day / 100) % 100, day % 100 + by);
-const monthOf = word => { const w = String(word).replace(/\.$/, ''); return w.length < 3 ? 0 : FULL.findIndex(name => name.startsWith(w)) + 1; };
-const yearOf = key => (/^(19|20)\d\d$/.test(key) ? Number(key) : 0);
-const dayOf = key => { const m = String(key).match(/^(\d{1,2})(st|nd|rd|th)?$/), d = m ? Number(m[1]) : 0; return d >= 1 && d <= 31 ? d : 0; };
-// One time, from the word at i: { len, unit, y, m, d, yGiven }.
+const shift = Days.shift;
+/* One time, from the word at i: { len, unit, y, m, d, yGiven }. A month, a day of it and its year are read by core/days.js, the
+   one reader of a day said in words; the periods (this month, last year, a year alone) are read here. */
 function one(words, i, today) {
   const t = words[i]; if (!t) return null;
   const Y = today.getFullYear(), M = today.getMonth() + 1, D = today.getDate();
@@ -37,22 +35,12 @@ function one(words, i, today) {
     if (unit === 'month') { const at = new Date(Y, M - 1 - back, 1); return { len: 2, unit: 'month', y: at.getFullYear(), m: at.getMonth() + 1, d: 1 }; }
     if (unit === 'week') { const at = new Date(Y, M - 1, D - 7 * back); return { len: 2, unit: 'week', y: at.getFullYear(), m: at.getMonth() + 1, d: at.getDate() }; }
   }
-  let m = monthOf(t.key);
-  if (m) {
-    let len = 1, d = 0, y = 0;
-    if (words[i + 1] && dayOf(words[i + 1].key)) { d = dayOf(words[i + 1].key); len = 2; }
-    if (words[i + len] && yearOf(words[i + len].key)) { y = yearOf(words[i + len].key); len++; }
-    const yGiven = !!y; if (!y) y = m <= M ? Y : Y - 1;   // a month alone is the latest one up to today
-    return { len, unit: d ? 'day' : 'month', y, m, d: d || 1, yGiven };
+  const got = Days.said(words, i);
+  if (got) {
+    const y = got.y || Days.yearFor(got.m, 1, Days.number(today), 'past');   // with no year, the latest such month up to today
+    return got.d && !Days.real(y, got.m, got.d) ? null : { len: got.len, unit: got.d ? 'day' : 'month', y, m: got.m, d: got.d || 1, yGiven: !!got.y };   // "feb 30" is no day
   }
-  if (dayOf(t.key) && words[i + 1] && monthOf(words[i + 1].key)) {
-    const d = dayOf(t.key); m = monthOf(words[i + 1].key);
-    let len = 2, y = 0;
-    if (words[i + 2] && yearOf(words[i + 2].key)) { y = yearOf(words[i + 2].key); len++; }
-    const yGiven = !!y; if (!y) y = m <= M ? Y : Y - 1;
-    return { len, unit: 'day', y, m, d, yGiven };
-  }
-  if (yearOf(t.key)) return { len: 1, unit: 'year', y: yearOf(t.key), m: 1, d: 1, yGiven: true };
+  if (Days.yearOf(t.key)) return { len: 1, unit: 'year', y: Days.yearOf(t.key), m: 1, d: 1, yGiven: true };
   return null;
 }
 const NEAR = { day: 30, week: 30, month: 92, year: 183 };

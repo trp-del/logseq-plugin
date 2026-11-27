@@ -19,16 +19,10 @@
      since   the rows dated after the day turned back to (shown faint under a line); count, of: "8", "Consultations"
      from, to: the span of the shown rows' days; said: the settings that are not the default, as words; fresh: how many are new */
 (function (root) {
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const SHORT = MONTHS.map(name => name.slice(0, 3).toLowerCase());
+const D = typeof module !== 'undefined' && module.exports ? require('./days.js') : root.PluginDoor.days;
+const L = typeof module !== 'undefined' && module.exports ? require('./lists.js') : root.PluginDoor.lists;
+const MONTHS = D.FULL, plural = L.plural;
 const tokens = text => String(text == null ? '' : text).toLowerCase().split(/\s+/).filter(Boolean);
-function plural(name) {
-  const word = String(name || '');
-  if (!word || /s$/i.test(word)) return word;
-  if (/[^aeiou]y$/i.test(word)) return word.slice(0, -1) + 'ies';
-  if (/(x|z|ch|sh)$/i.test(word)) return word + 'es';
-  return word + 's';
-}
 function kinds(rows) {
   const n = new Map();
   for (const row of rows) n.set(row.tag || '', (n.get(row.tag || '') || 0) + 1);
@@ -49,20 +43,9 @@ function offers(rows) {
   for (const [name, at] of [...held].sort((a, b) => a[0].localeCompare(b[0]))) if (!dates.has(name) && at.values.size > 1 && at.rows >= rows.length / 2 && at.rows / at.values.size >= 2) groups.push(name);
   return { groups, dates: [...(rows.some(row => row.written) ? ['Journal'] : []), ...[...dates.keys()].sort((a, b) => a.localeCompare(b))], sorts: ['changed', 'name', ...(kinds(rows).length > 1 ? ['tag'] : [])] };
 }
-// A day typed in words: "Oct 7", "7 Oct", "October 7, 2026", "2026-10-07". With no year it is this year's, or last year's when this year's is still to come.
-function dayIn(text, today) {
-  const t = String(text).trim().toLowerCase();
-  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (m) return Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]);
-  let name = '', date = 0, year = 0;
-  if ((m = t.match(/^([a-z]{3,9})\.? (\d{1,2})(?:st|nd|rd|th)?(?:,? (\d{4}))?$/))) [name, date, year] = [m[1], Number(m[2]), Number(m[3] || 0)];
-  else if ((m = t.match(/^(\d{1,2})(?:st|nd|rd|th)? ([a-z]{3,9})\.?(?:,? (\d{4}))?$/))) [name, date, year] = [m[2], Number(m[1]), Number(m[3] || 0)];
-  else return 0;
-  const month = SHORT.indexOf(name.slice(0, 3)) + 1;
-  if (!month || !MONTHS[month - 1].toLowerCase().startsWith(name) || date < 1 || date > 31) return 0;
-  if (!year) { year = Math.floor(today / 10000); if (year * 10000 + month * 100 + date > today) year -= 1; }
-  return year * 10000 + month * 100 + date;
-}
+/* A day typed in words: "Oct 7", "7 Oct", "October 7, 2026", "2026-10-07"; 0 for no day. With no year it is this year's, or
+   last year's when this year's is still to come. Read by core/days.js, the one reader of a day said in words. */
+const dayIn = (text, today) => D.written(text, today, 'past');
 function parse(text, today) {
   const m = String(text || '').match(/^(.*?)(?:^|\s)(?:on|up to|until)\s+(.+)$/i), upTo = m ? dayIn(m[2], today) : 0;
   return upTo ? { words: m[1].trim(), upTo } : { words: String(text || '').trim(), upTo: 0 };

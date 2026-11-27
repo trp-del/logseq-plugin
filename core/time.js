@@ -7,9 +7,8 @@
    The line runs from the first node's month to today, or to the last day when that is later.
    week(day) the seven days around a day; dayAt(start, end, fraction) the day at a place along the line; words(day) "Oct 7, 2026". */
 (function (root) {
-const DAY = 864e5, MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], CAP = 5;
-const date = day => new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100);
-const number = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+const D = typeof module !== 'undefined' && module.exports ? require('./days.js') : root.PluginDoor.days;
+const DAY = 864e5, MONTHS = D.MONTHS, CAP = 5, date = D.toDate, number = D.number;
 const words = day => `${MONTHS[Math.floor(day / 100) % 100 - 1]} ${day % 100}, ${Math.floor(day / 10000)}`;
 function layout({ dots = [], lanes = null, pick = null, lit = null, tall = false, today } = {}) {
   const all = [...dots.map(dot => dot.day), today].filter(Boolean), lo = date(Math.min(...all)), hi = date(Math.max(...all));

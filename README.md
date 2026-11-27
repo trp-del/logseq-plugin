@@ -25,7 +25,9 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. The key sheet: Option held alone shows the keys. Export: a page or some bullets out as a printed page (PDF) or as Markdown, with a preview whose words can be changed first. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
-nothing of Logseq and are checked without it (`node --test test/`).
+nothing of Logseq and are checked without it (`node --test test/`). Each thing is decided in one of them: a day said in words
+("nov 20", "20 november", "2026-11-20") is read by `core/days.js` wherever it is typed, and the word for several of a kind
+("People", "Categories") is made by `core/lists.js`.
 
 `ground/touch.js` is the only file that names Logseq's own markup or uses anything outside its plugin API. A Logseq update is
 checked against that one file.
