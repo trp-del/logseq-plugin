@@ -7,7 +7,8 @@ G.part({
   key: 'place', title: 'A page’s place', about: 'Under a page’s title: its tags, each with the tags it sits under.',
   start(base) {
     base.style('place', G.touch.HIDES_TAGS + `
-.lk-place { font-family: var(--lk-tag-face); color: var(--lk-quiet); font-size: var(--lk-words-size); font-weight: 400; line-height: 24px; margin: 2px 0 6px; }
+/* One line that never wraps and gives way with an ellipsis, wherever it stands: at the title's end, under a title, in the sidebar. */
+.lk-place { font-family: var(--lk-tag-face); color: var(--lk-quiet); font-size: var(--lk-words-size); font-weight: 400; line-height: 24px; margin: 2px 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .lk-place:empty { display: none; }
 /* A tag's own page: above its title, the tag it stands under, pressed to put it under another (before 0.9). */
 .lk-parent { display: flex; align-items: baseline; gap: 10px; margin: 0 0 2px; font-family: var(--ls-font-family, inherit); font-size: var(--lk-small); font-weight: 400; line-height: 20px; letter-spacing: normal; }
@@ -15,9 +16,9 @@ G.part({
 .lk-parent > button { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 0 4px; margin-left: -4px; border-radius: var(--lk-corner); color: var(--lk-text); font: inherit; font-family: var(--lk-tag-face); font-size: var(--lk-tag-size); cursor: pointer; }
 .lk-parent > button:hover, .lk-parent > button:focus-visible { background: var(--lk-wash); outline: none; }
 .lk-parent > button::after { content: ""; width: 5px; height: 5px; margin: -3px 2px 0 2px; border: solid var(--lk-quiet); border-width: 0 1.2px 1.2px 0; transform: rotate(45deg); }
-/* At the right end of the title's line on the main page: one line that never wraps, a step smaller, giving way with an ellipsis. */
-.lk-place.lk-place-end { margin: 4px 0; padding-left: 0; max-width: min(24em, 100%); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--lk-words-size); line-height: 24px; letter-spacing: normal; }
-.lk-place a { color: inherit; cursor: pointer; white-space: nowrap; }   /* a name never breaks in two: a narrow place breaks between names */
+/* At the right end of the title's line on the main page. */
+.lk-place.lk-place-end { margin: 4px 0; padding-left: 0; max-width: min(24em, 100%); font-size: var(--lk-words-size); line-height: 24px; letter-spacing: normal; }
+.lk-place a { color: inherit; cursor: pointer; }
 .lk-place a:hover { color: var(--lk-text); }
 .lk-place .lk-up { color: var(--lk-off); margin: 0 .4em; }
 .lk-place .lk-path + .lk-path::before { content: ""; display: inline-block; width: 1.4em; }`);
