@@ -6,7 +6,7 @@
    any more (it was deleted, or it left the list), the arrow waits at the bottom right of the window.
      G.undo.after(uuid, write)   write: the promise of a change to that node; marks the node once the change is made
      G.undo.mark(uuid, steps)    the same for a change already made; steps: how many steps of Logseq's Undo it is (1)
-     G.undo.dress(row)           called by a list for each row it draws: the marked node's row gets its arrow */
+     G.undo.dress(row)           called by a list (or a table) for each row it draws: the marked node's row gets its arrow */
 (function () {
 const G = window.PluginDoor;
 const ARROW = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h5a3 3 0 0 1 0 6H6M5 6l2.5-2.5M5 6l2.5 2.5"/></svg>';
@@ -33,8 +33,8 @@ function arrow(doc, docked) {
   return button;
 }
 function dress(row) {
-  if (!last || row.dataset.uuid !== last.uuid) { row.querySelector(':scope > .lk-line .lk-undo')?.remove(); return; }
-  const line = row.querySelector(':scope > .lk-line');
+  if (!last || row.dataset.uuid !== last.uuid) { row.querySelector(':scope > .lk-line .lk-undo, :scope > .lk-td .lk-undo')?.remove(); return; }
+  const line = row.querySelector(':scope > .lk-line') || row.querySelector(':scope > .lk-td');   // a line, or a table's row (node/table.js): after its first cell's words
   if (!line || line.querySelector('.lk-undo')) return;
   const words = line.querySelector(':scope > .lk-words') || line, under = words.querySelector(':scope > .lk-sits');   // inside the words, so it follows the last of them wherever they end; before the small line that says where the node sits
   words.insertBefore(arrow(row.ownerDocument, false), under);
@@ -46,13 +46,13 @@ function mark(uuid, steps = 1) {
   clear();
   const doc = G.host(), view = doc.defaultView;
   last = { uuid, steps: Math.max(1, Number(steps) || 1), timers: [], dock: null, offChanged: null };
-  const mine = last, rows = () => [...doc.querySelectorAll(`.lk-row[data-uuid="${uuid}"]`)];
+  const mine = last, rows = () => [...doc.querySelectorAll(`:is(.lk-row, .lk-trow)[data-uuid="${uuid}"]`)];
   const light = () => { for (const row of rows()) dress(row); };
   light();
   // The lists read the graph again after the change: the row may be drawn anew, so it is dressed once more when they have.
   mine.timers.push(view.setTimeout(() => { if (last === mine) light(); }, 900));
   // No line shows it any more: the arrow waits at the bottom right.
-  mine.timers.push(view.setTimeout(() => { if (last !== mine || doc.querySelector('.lk-row .lk-undo')) return; mine.dock = arrow(doc, true); doc.body.appendChild(mine.dock); }, 1500));
+  mine.timers.push(view.setTimeout(() => { if (last !== mine || doc.querySelector(':is(.lk-row, .lk-trow) .lk-undo')) return; mine.dock = arrow(doc, true); doc.body.appendChild(mine.dock); }, 1500));
   // The change itself is still being told for a moment; after that, any change to the graph ends this arrow.
   mine.timers.push(view.setTimeout(() => { if (last === mine) mine.offChanged = G.touch.changed(() => { if (last === mine) clear(); }); }, 1600));
 }

@@ -7,13 +7,19 @@
    done with the ticked rows and waits faintly until it can be: for tags Merge…, Move up a level, Move under…, Rename and
    Delete (empty tags only), for properties Merge… and Rename. Each is written at once, through ground/write.js, and Logseq's
    own Undo takes it back (the faded arrow). History lists what was changed here, newest first, kept on this computer for 30
-   days. */
+   days.
+   Properties are the table they were before the rebuild (the owner, 26 November 2026, "I like before version"; node/table.js):
+   Property, On tags (▾ puts it on a tag or takes it off), Holds (▾ changes the tags a node value must have), Filled ("2 of 6"),
+   sorted by a press on a column's name, least filled first at the start. */
 (function () {
 const G = window.PluginDoor;
 const TREE = 'M3 12h2c3 0 3 -6 6 -6h1M3 12h2c3 0 3 6 6 6h1M12 6c2 0 2 -3 4 -3h4M12 6c2 0 2 3 4 3h4M12 18c2 0 2 -3 4 -3h4M12 18c2 0 2 3 4 3h4';   // one into two into four, on its side
 const HISTORY = 'lk.ontology.history', DAYS30 = 30 * 864e5;
 const TABS = [['tags', 'Tags', 'tag'], ['props', 'Properties', 'list'], ['history', 'History', 'history']];
 const tabOf = { page: 'tags', side: 'tags' };   // the tab each place was left on, while Logseq runs
+const sortOf = { page: { key: 'filled', dir: 1 }, side: { key: 'filled', dir: 1 } };   // how each place's table of properties was last sorted
+// What a property holds, in words, as the table of 0.5.17 said it.
+const KIND = { date: 'a date', datetime: 'a date', number: 'a number', checkbox: 'yes or no', url: 'a link' };
 // What was changed here, by graph, newest first; each line its words as parts: [kind, text], kind '' (words), 'tag' or 'prop'.
 const history = {
   all() { try { return JSON.parse(G.host().defaultView.localStorage.getItem(HISTORY) || '{}') || {}; } catch (error) { return {}; } },
@@ -55,12 +61,6 @@ G.part({
 .lk-map > .lk-rel { order: 6; flex: 0 0 100%; min-width: 0; }
 .lk-map > .lk-rel { display: grid; grid-template-columns: repeat(2, minmax(232px, 340px)); justify-content: space-between; gap: 56px 44px; align-items: start; padding: 26px 26px 0 20px; container-type: normal; }   /* one left edge: the title, the line that adds and the top tags' dots (the owner's marked page, 26 Nov) */   /* the columns are counted as the areas are drawn */
 .lk-map > .lk-rel > .lk-list { container: lk-list / inline-size; min-width: 0; }
-/* Properties under the tag trees, across the whole width in columns as the trees stand, its head a top tag's: never one run off the screen, and in the same place whatever the width. */
-.lk-map > .lk-rel > .lk-list[data-face="prop"] { grid-column: 1 / -1; }
-.lk-map > .lk-rel > .lk-list[data-face="prop"] > .lk-rows { columns: 232px; column-gap: 44px; }
-.lk-map > .lk-rel > .lk-list[data-face="prop"] > .lk-rows > .lk-row { break-inside: avoid; }
-.lk-ontology .lk-list[data-face="prop"] > .lk-list-head .lk-plain { font-weight: 600; color: var(--lk-text); }
-.lk-map > .lk-rel > .lk-list[data-face="prop"] > .lk-list-head { margin-left: 0; }   /* its name on the dots' edge */
 .lk-joins { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
 .lk-joins { color: var(--lk-text); }
 .lk-joins path { fill: none; stroke: currentColor; stroke-opacity: .5; stroke-width: 1; }   /* a hairline in the quiet grey, in light and dark alike */
@@ -90,7 +90,6 @@ G.part({
 .lk-row.lk-renaming > .lk-line { display: none; }
 .lk-row > .lk-rename { grid-column: 2 / -1; box-sizing: border-box; width: auto; min-width: 0; height: var(--lk-line-h); margin: 0 0 0 calc(var(--lk-mark-box) + var(--lk-mark-gap)); padding: 0; border: 0; border-bottom: 1px solid var(--lk-text); border-radius: 0; background: none; box-shadow: none; outline: 0; color: var(--lk-text); font-size: var(--lk-words-size); }   /* the name where it stood, underlined while it is written, as before */
 .lk-list[data-face="tag"] .lk-row > .lk-rename { font-family: var(--lk-tag-face); }
-.lk-list[data-face="prop"] .lk-row > .lk-rename { font-family: var(--lk-prop-face); font-size: var(--lk-prop-size); }
 /* The merge, said once before it is made: the tags as tags, a few nodes as they will read. */
 .lk-ask .lk-tag { font-family: var(--lk-tag-face); }
 .lk-ask .lk-tag.lk-going { color: var(--lk-going); text-decoration: line-through; text-decoration-thickness: 1.5px; }   /* what goes, struck through in red, as anywhere a change is shown */
@@ -105,7 +104,14 @@ G.part({
 .lk-history-line { display: flex; gap: 16px; align-items: baseline; }
 .lk-history-when { flex: none; min-width: 7.5em; color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-history .lk-tag { font-family: var(--lk-tag-face); }
-.lk-history .lk-prop { color: var(--lk-text); }`);
+.lk-history .lk-prop { color: var(--lk-text); }
+/* The table of properties: across the page's whole width, its tick boxes on the same left edge as the tags' (node/table.js). */
+.lk-ontology[data-tab="props"] > .lk-rel { display: block; padding-left: 0; }
+.lk-ontology:not(.lk-map)[data-tab="props"] > .lk-rel { padding-right: 0; }
+.lk-ontology .lk-table a.lk-prop { color: var(--lk-text); font-size: var(--lk-line-size); text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.lk-ontology .lk-table a.lk-prop:hover { text-decoration-color: currentColor; }
+.lk-trow.lk-renaming > .lk-td:first-of-type > .lk-words { display: none; }
+.lk-trow .lk-td > .lk-rename { flex: 1 1 auto; box-sizing: border-box; width: auto; min-width: 0; height: 22px; margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--lk-text); border-radius: 0; background: none; box-shadow: none; outline: 0; color: var(--lk-text); font-family: var(--lk-prop-face); font-size: var(--lk-line-size); }`);
     /* One drawing for both places. In the sidebar: one outline. On the page: every top tag an area of its own, side by side,
        so the lines between tags run in the gaps and over the band above the areas. */
     const draw = (holder, wide) => {
@@ -226,17 +232,9 @@ G.part({
       const pickedNow = () => holder.dataset.tab === 'props' ? picked.props : picked.tags;
       const read = async () => {
         const tab = holder.dataset.tab;
-        if (tab === 'history') return [];
+        if (tab !== 'tags') return [];   // properties are a table of their own (below), History a list of its own
         const tags = await G.read.tags(), tree = G.tags.tree(tags);
         ids = new Map(tree.map(row => [row.tag.uuid, row.tag.id])); tagIndex = tags;
-        if (tab === 'props') {
-          const props = [...(await G.read.properties()).values()].sort((a, b) => a.title.localeCompare(b.title));
-          const [propNodes, held] = await Promise.all([G.read.byUuids(props.map(prop => prop.uuid)), G.read.propertyCounts().catch(() => new Map())]);
-          const rows = propNodes.map(node => ({ ...plain(node), count: held.get(String(node.uuid).toLowerCase()) || 0 }));   // each with how many nodes hold it, as a tag says its nodes
-          info = new Map(rows.map(row => [row.uuid, { title: props.find(prop => prop.uuid === row.uuid)?.title || '', count: row.count }]));
-          for (const uuid of [...picked.props]) if (!info.has(uuid)) picked.props.delete(uuid);
-          return rows.length ? [{ key: 'ontology:properties', kind: 'group', name: '', tag: '', face: 'prop', rows }] : [];
-        }
         const [tagNodes, pairs] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.tagPairs()]);
         const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.tags.counts(tags, pairs);
         joins = await G.read.relations();
@@ -265,8 +263,7 @@ G.part({
           return true;
         },
         more(row, at) {
-          if (!isTag(row)) return row.closest('.lk-list')?.dataset.face === 'prop'
-            ? [{ gap: true }, { word: 'Move values…', take: async () => { const prop = [...(await G.read.properties()).values()].find(one => one.uuid === row.dataset.uuid); if (prop) G.moving.ask(holder, { from: prop.ident }); } }] : [];
+          if (!isTag(row)) return [{ gap: true }, { word: 'Move values…', take: async () => { const prop = [...(await G.read.properties()).values()].find(one => one.uuid.toLowerCase() === row.dataset.uuid); if (prop) G.moving.ask(holder, { from: prop.ident }); } }];
           const uuid = row.dataset.uuid;
           return [{ gap: true }, { word: 'Show its nodes', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.arrive.search(tag.id); } },
             { word: 'Move values…', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.moving.ask(holder, { tag: { id: tag.id, title: tag.title } }); } },
@@ -274,7 +271,55 @@ G.part({
             ...(depthOf(row) > 0 ? [{ word: 'Move to the top', take: () => move(uuid, '') }] : [])];
         } };
       const NONE = { tags: 'No tags of your own yet', props: 'No properties of your own yet', history: '' };
-      let list = G.node.listing(rel, read, { ...opts, none: NONE[holder.dataset.tab] });
+      // ---- the table of properties
+      const tagLink = id => { const tag = tagIndex.get(id); return tag ? `<a class="lk-tag" data-to="${G.esc(String(tag.uuid).toLowerCase())}">${G.esc(tag.title)}</a>` : ''; };
+      const tagList = ids => ids.slice(0, 3).map(tagLink).join('<span class="lk-sep">, </span>') + (ids.length > 3 ? ` <span class="lk-off">and ${ids.length - 3} more</span>` : '');
+      const holds = row => row.type === 'node' ? (row.range.length ? tagList(row.range) : 'any node') : G.esc(row.choice ? 'a choice' : KIND[row.type] || 'words');
+      const holdsWords = row => row.type === 'node' ? (row.range.length ? row.range.map(id => tagIndex.get(id)?.title || '').join(', ') : 'any node') : row.choice ? 'a choice' : KIND[row.type] || 'words';
+      const readProps = async () => {
+        const [tags, pairs, { props, byTag }, held, choices] = await Promise.all([G.read.tags(), G.read.tagPairs(), G.read.schema(), G.read.holding(), G.read.choices().catch(() => new Map())]);
+        tagIndex = tags;
+        const fill = G.tags.filled(tags, pairs, byTag, held);
+        const rows = [...props.values()].map(prop => { const f = fill.get(prop.ident) || { on: [], filled: 0, of: 0 }; return { uuid: String(prop.uuid).toLowerCase(), ident: prop.ident, title: prop.title, type: prop.type, range: prop.range.filter(id => tags.has(id)), choice: (choices.get(prop.ident) || []).length > 0, on: f.on, filled: f.filled, of: f.of, held: new Set(held.get(prop.ident) || []).size }; });
+        info = new Map(rows.map(row => [row.uuid, { title: row.title, count: row.held, row }]));
+        for (const uuid of [...picked.props]) if (!info.has(uuid)) picked.props.delete(uuid);
+        return rows;
+      };
+      // A ▾ in a cell: the tags, as an outline, with a tick at each one that carries the property (On tags) or that its node values
+      // must have (Holds). A press puts the tag in or takes it out, written at once; Logseq's own Undo takes it back.
+      const onTags = async (at, uuid) => {
+        const row = info.get(uuid)?.row;
+        if (!row) return;
+        const carries = new Set(row.on);
+        G.menu(at, [{ group: `Tags that give ${row.title}` }, ...G.tags.tree(tagIndex).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: carries.has(tag.id), take: () => once_(`${row.title} could not be changed`, async () => {
+          const [now, prop] = await Promise.all([G.read.reach(tag.id), G.read.node(uuid)]);
+          if (!prop) return;
+          const off = now.props.includes(prop.id);
+          await G.undo.after(uuid, G.write.tagProperties(tag.uuid, off ? now.props.filter(id => id !== prop.id) : [...now.props, prop.id]));
+          did(off ? [['', 'Took '], ['prop', row.title], ['', ' off '], ['tag', tag.title]] : [['', 'Put '], ['prop', row.title], ['', ' on '], ['tag', tag.title]]);
+        }) }))], { find: 'A tag' });
+      };
+      const nodeTags = async (at, uuid) => {
+        const row = info.get(uuid)?.row;
+        if (!row || row.type !== 'node') return;
+        const has = new Set(row.range), set = (ids, said) => once_(`${row.title} could not be changed`, async () => { await G.undo.after(uuid, G.write.range(uuid, ids)); did(said); });
+        G.menu(at, [{ group: `What ${row.title} holds` }, { word: 'Any node', on: !has.size, take: () => { if (has.size) set([], [['', 'Let '], ['prop', row.title], ['', ' hold any node']]); } }, { gap: true },
+          ...G.tags.tree(tagIndex).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id), take: () => has.has(tag.id)
+            ? set(row.range.filter(id => id !== tag.id), [['', 'Let '], ['prop', row.title], ['', ' hold nodes of '], ...(row.range.length > 1 ? names(row.range.filter(id => id !== tag.id).map(id => tagIndex.get(id)?.title || ''), 'tag') : [['', 'any tag']])])
+            : set([...row.range, tag.id], [['', 'Let '], ['prop', row.title], ['', ' hold nodes of '], ...names([...row.range, tag.id].map(id => tagIndex.get(id)?.title || ''), 'tag')]) }))], { find: 'A tag' });
+      };
+      const COLUMNS = [
+        { key: 'name', word: 'Property', width: 'minmax(120px, 1fr)', min: 120, by: row => row.title.toLowerCase(), cell: row => `<span class="lk-words"><a class="lk-prop" data-to="${row.uuid}">${G.esc(row.title)}</a></span>` },
+        { key: 'on', word: 'On tags', width: 'minmax(130px, 1.5fr)', min: 130, by: row => row.on.length ? (tagIndex.get(row.on[0])?.title || '').toLowerCase() : '￿', cell: row => `<span class="lk-words">${row.on.length ? tagList(row.on) : '<span class="lk-off">No tag</span>'}</span><button type="button" class="lk-change" data-cell="on" aria-label="Tags that give ${G.esc(row.title)}" title="Put ${G.esc(row.title)} on a tag…"></button>` },
+        { key: 'holds', word: 'Holds', width: 'minmax(110px, 1.5fr)', min: 110, by: row => holdsWords(row).toLowerCase(), cell: row => `<span class="lk-words">${holds(row)}</span>${row.type === 'node' ? `<button type="button" class="lk-change" data-cell="holds" aria-label="What ${G.esc(row.title)} holds" title="Node tags of ${G.esc(row.title)}…"></button>` : ''}` },
+        { key: 'filled', word: 'Filled', width: 'minmax(84px, 100px)', min: 84, end: true, by: row => row.of ? row.filled / row.of : 0, cell: row => row.of ? `${row.filled} of ${row.of}` : plural(row.held, 'node') },
+      ];
+      const table = () => G.table(rel, { columns: COLUMNS, read: readProps, face: 'prop', none: NONE.props, sort: sortOf[place], sorted: sort => { sortOf[place] = sort; }, tie: row => row.title,
+        ticks: { has: uuid => picked.props.has(uuid), flip(uuid, row, on) { if (on) picked.props.add(uuid); else picked.props.delete(uuid); bar(); } },
+        key: (row, event) => opts.key(row, event), more: (row, at) => opts.more(row, at),
+        press(row, event) { const cell = event.target.closest('.lk-change[data-cell]'); if (!cell) return false; (cell.dataset.cell === 'on' ? onTags : nodeTags)(cell, row.dataset.uuid); return true; } });
+      const mount = tab => tab === 'props' ? table() : G.node.listing(rel, read, { ...opts, none: NONE[tab] });
+      let list = mount(holder.dataset.tab);
 
       // ---- the tabs
       const tabs = () => {
@@ -285,7 +330,7 @@ G.part({
         if (tab === holder.dataset.tab) return;
         tabOf[place] = holder.dataset.tab = tab;
         holder.querySelector(':scope > .lk-merge')?.remove();
-        tabs(); list.off(); list = G.node.listing(rel, read, { ...opts, none: NONE[tab] }); lit = ''; lines(); bar(); past();
+        tabs(); list.off(); list = mount(tab); lit = ''; lines(); bar(); past();
       };
       tabsEl.addEventListener('click', event => { const tab = event.target.closest('[data-tab]'); if (tab) show(tab.dataset.tab); });
 
@@ -306,7 +351,7 @@ G.part({
         if (html && n) html += `<button type="button" class="lk-btn lk-low lk-pick-x" data-act="clear" aria-label="Let them go" title="Let them go">${G.touch.icon('x', 14)}</button>`;
         if (acts.lkHtml !== html) { acts.innerHTML = html; acts.lkHtml = html; }
       };
-      const clear = () => { pickedNow().clear(); for (const row of rel.querySelectorAll('.lk-row.lk-picked')) { row.classList.remove('lk-picked'); const tick = row.querySelector(':scope > .lk-tick'); if (tick) tick.checked = false; } bar(); };
+      const clear = () => { pickedNow().clear(); for (const row of rel.querySelectorAll('.lk-picked')) { row.classList.remove('lk-picked'); const tick = row.querySelector(':scope > .lk-tick'); if (tick) tick.checked = false; } bar(); };
       const graph = () => G.read.graph().catch(() => '');
       const did = async said => history.add(await graph(), said);
       let busy = false;
@@ -353,16 +398,16 @@ G.part({
       };
       // The name in place: the row's line gives way to a field; Enter writes it, Escape or a press elsewhere leaves it.
       const rename = uuid => {
-        const row = rel.querySelector(`.lk-rows > .lk-row[data-uuid="${uuid}"]`), was = info.get(uuid)?.title || '';
-        if (!row || row.querySelector(':scope > .lk-rename')) return;
+        const row = rel.querySelector(`:is(.lk-rows > .lk-row, .lk-trow)[data-uuid="${uuid}"]`), was = info.get(uuid)?.title || '';
+        if (!row || row.querySelector('.lk-rename')) return;
         const field = doc.createElement('input'); field.type = 'text'; field.className = 'lk-field lk-rename'; field.value = was; field.spellcheck = false; field.setAttribute('aria-label', `New name for ${was}`);
-        row.classList.add('lk-renaming'); row.appendChild(field); field.focus(); field.select();
+        row.classList.add('lk-renaming'); (row.classList.contains('lk-trow') ? row.querySelector(':scope > .lk-td') : row).appendChild(field); field.focus(); field.select();
         const kind = isTag(row) ? 'tag' : 'prop';
         let gone = false;
         const leave = () => { if (gone) return; gone = true; field.remove(); row.classList.remove('lk-renaming'); };
         field.addEventListener('keydown', event => {
           event.stopPropagation();
-          if (event.key === 'Escape') { event.preventDefault(); leave(); row.querySelector(':scope > .lk-line')?.focus({ preventScroll: true }); }
+          if (event.key === 'Escape') { event.preventDefault(); leave(); (row.querySelector(':scope > .lk-line') || row).focus({ preventScroll: true }); }
           if (event.key !== 'Enter') return;
           event.preventDefault();
           const name = field.value.trim();

@@ -238,6 +238,18 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const joined = await page.evaluate(() => { const paths = [...document.querySelectorAll('.lk-map .lk-joins path')]; return [paths.length > 0, paths.every(p => getComputedStyle(p).strokeOpacity === '0.5' && getComputedStyle(p).fill === 'none' && !/L/.test(p.getAttribute('d')))]; });   // the old Ontology's hairlines: one a pair, quiet grey, no heads (the owner, 25 November 2026)
       return is([await page.evaluate(() => location.hash.split('?')[0]), await page.locator('.lk-page-title').innerText(), areas.length > 1, areas[0][0], areas.length > 1 && areas[0][1] === areas[1][1], joined], ['#/lk-ontology', 'Ontology', true, 'Entity', true, [true, true]]);
     });
+    await step('Properties is the table it was before the rebuild: Property, On tags, Holds, Filled, least filled first; a press on a column\'s name sorts by it', async () => {   // the owner, 26 November 2026: "I like before version"
+      await page.locator('.lk-map .lk-onto-tabs [data-tab="props"]').click(); await wait(2000);
+      const table = () => page.evaluate(() => [[...document.querySelectorAll('.lk-map .lk-th')].map(th => th.innerText.replace(/\n/g, ' ')), [...document.querySelectorAll('.lk-map .lk-trow')].slice(0, 2).map(row => [...row.querySelectorAll('.lk-td')].map(td => td.innerText.trim()))]);
+      const first = await table();
+      await page.locator('.lk-map .lk-th', { hasText: 'Property' }).click(); await wait(300);
+      const byName = await table();
+      await page.locator('.lk-map .lk-th', { hasText: 'Property' }).click(); await wait(300);
+      const back = (await table())[0];
+      await page.locator('.lk-map .lk-onto-tabs [data-tab="tags"]').click(); await wait(1500);
+      return is([first, byName, back], [[['Property', 'On tags', 'Holds', 'Filled ↑'], [['Side Effects', 'Pharmacological Agent', 'Symptom', '2 of 6'], ['Notes', 'Person', 'words', '6 of 12']]],
+        [['Property ↑', 'On tags', 'Holds', 'Filled'], [['Agent', 'Treatment', 'Pharmacological Agent', '3 of 3'], ['Confirmation Status', 'Cancer', 'a choice', '1 of 1']]], ['Property ↓', 'On tags', 'Holds', 'Filled']]);
+    });
     await step('In the sidebar, on that page, opens the outline beside whatever you read: the tabs, then the tags in their own face', async () => {
       await page.locator('.lk-map > .lk-side').click(); await wait(2500); await goto(CHEN);   // the outline beside a page, the page of its own left behind
       

@@ -17,7 +17,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | Layer | Folder | What it gives |
 |---|---|---|
 | 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (a tag in Literata, a property's name in Fragment Mono, both carried in `fonts/`). |
-| 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. |
+| 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. One table, its rows sorted by a press on a column's name (Ontology's properties). |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. At the right end of a page's title, its tags and the tags above them; on a tag's page, its parent above the title. |
 | 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
@@ -314,13 +314,29 @@ and over the band above the areas when they are further apart.
 The corner opens Ontology as a page. Under its title stand three tabs, as before the rebuild, each an icon and a word, the one
 in force in the ink with a line under it: **Tags**, **Properties** and **History**. Tags shows every top tag as an area with the
 tags under it as an outline, as many areas side by side as fit. The lines of the selected tag run between the edges of the
-areas, in the gaps and over the band above the areas, never over a name. Properties shows your properties by name, each with how
-many nodes hold it. History lists what was changed from Ontology (a move, a merge, a rename, a deletion, a move of values),
+areas, in the gaps and over the band above the areas, never over a name. Properties shows your properties as the table they
+were before the rebuild (below). History lists what was changed from Ontology (a move, a merge, a rename, a deletion, a move of values),
 newest first, each with its day and time, kept on this computer for 30 days; "Nothing has been changed yet." when there is
 nothing. Under the tabs stand the New tag line (on Tags), **Move values…** (the box, with the property still to choose) and
 **In the sidebar**, which opens the same outline as a section of the right sidebar, for use beside a page you are reading.
 Everything the outline does, it does in both places, the tabs, the tick boxes and the row of actions included; each place keeps
 its own tab and its own ticks.
+
+**The table of properties.** One row a property, under four columns: **Property** (its name in the property's face, a link to
+its page), **On tags** (the tags that give it, the one with the most nodes first, three at most and then "and 2 more", or "No
+tag"), **Holds** (what it takes: the tags its node values must have, "any node", or "words", "a date", "a number", "a choice",
+"yes or no", "a link") and **Filled** ("2 of 6": how many of the nodes of those tags, and of the tags under them, hold a value,
+of how many; for a property no tag gives, how many nodes hold it). A press on a column's name sorts the rows by it, an arrow
+after the name saying which way; a second press turns the order round. It opens sorted by Filled, the least filled first, and
+each place keeps its own order while Logseq runs. The ▾ after the tags in On tags opens your tags as an outline with a find
+line, a tick at each tag that gives the property: a press puts the property on that tag or takes it off. The ▾ in Holds (only
+where it holds nodes) opens "Any node" and your tags, a tick at each one its values must have: a press adds the tag or takes it
+out, "Any node" takes them all out. Each is written at once, said in History, and Logseq's own Undo takes it back, the faded
+arrow standing after the property's name. A press on a tag's name goes to its page, Shift in the sidebar; the keys: Up and Down
+walk the rows (Up from the first goes to the column names), Enter goes to the property's page, Space ticks, Escape lets the
+ticks go, and on a column's name Enter or Space sorts. A row's right-click menu has Open, Open in sidebar, Move values… and
+Delete…. In the sidebar the columns narrow, a long name cut with "…", and the table scrolls sideways inside its own box where
+there is no room for them.
 
 **Tick boxes and the row of actions.** Every tag and every property has a tick box before it, in one column at the area's left
 edge whatever its depth, faint until it is ticked or pointed at; Space ticks the row the keys are on, Escape lets every tick
@@ -383,9 +399,9 @@ that kind's own line.
 ### Ontology (`tend/ontology.js`)
 
 **Ontology in the sidebar** in the command palette, or **In the sidebar** on Ontology's page, opens a section of the right sidebar
-with the same three tabs: your tags as an outline, each under the tag it sits under; your properties by name; History. A tag and a property are nodes like any other, so a row opens
+with the same three tabs: your tags as an outline, each under the tag it sits under; your properties as a table; History. A tag and a property are nodes like any other, so a row opens
 in place as Logseq's own page for it. There its name is renamed, and Logseq's own arrow beside the name unfolds what it keeps:
-the tag it extends, its properties, a property's kind and what it takes. What Ontology itself writes is its row of actions, its moves and Move values.
+the tag it extends, its properties, a property's kind and what it takes. What Ontology itself writes is its row of actions, its moves, the two ▾ of its table of properties and Move values.
 
 ### Update plugins (`beside/update.js`, its words in `core/update.js`)
 
@@ -415,7 +431,7 @@ read is refused, never guessed. The part can be switched off in the plugin's set
 
 ## What it writes
 
-Only what you do: in Ontology a tag moved, merged, renamed or deleted, properties merged or renamed, and values moved; a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet, and what is changed from Alfred (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a tag, a status). Each is one of Logseq's own editor calls, so
+Only what you do: in Ontology a tag moved, merged, renamed or deleted, properties merged or renamed, a property put on a tag or taken off, the tags a property's values must have, and values moved; a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet, and what is changed from Alfred (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a tag, a status). Each is one of Logseq's own editor calls, so
 **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
 window's local storage and nothing else.
 

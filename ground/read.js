@@ -14,7 +14,7 @@
      read.tagsOf(id)          the ids of a node's own tags
      read.tagIds()            the ids of the person's tags as they are this moment (never kept)
      read.tagPairs()          [[tag id, node id]]   which node holds which of the person's tags
-     read.propertyCounts()    property uuid -> how many nodes hold something under it
+     read.holding()           property ident -> [node id]   the nodes that hold something under each of the person's properties
      read.relations()         [[tag id, property ident, tag id, n]]   n nodes of the first tag hold, under the property, a node of the second
      read.holders(ident)      the nodes holding a value under a property: [{ id, uuid, words, tag, values: [{ raw, text }] }]
      read.heldUnder(node, value)  the name of the property under which one node holds another (uuids), or ''
@@ -84,8 +84,13 @@ const tags = () => once('tags', async () => {
 const tagIds = async () => new Set((await q('[:find ?t ?i :where [?t :block/tags :logseq.class/Tag] [?t :db/ident ?i]]')).filter(([, ident]) => /^user\.class\//.test(bare(ident))).map(([id]) => id));
 // The plain pages made since a moment (a time in milliseconds), asked afresh each time: no journal day, no tag, no property,
 // and none that already holds one of the person's tags.
+// The nodes that hold something under each of the person's properties: ident -> [node id], kept until the graph changes.
+const holding = () => once('holding', async () => {
+  const out = new Map();
+  for (const [ident, b] of await q(`[:find ?i ?b :where [?p :block/tags :logseq.class/Property] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?b ?i _] ${LIVE}]`)) { const key = bare(ident); if (!out.has(key)) out.set(key, []); out.get(key).push(b); }
+  return out;
+});
 // Which node holds which of the person's tags: [[tag id, node id]], kept until the graph changes.
-const propertyCounts = async () => new Map((await q(`[:find ?u (count ?b) :where [?p :block/tags :logseq.class/Property] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/uuid ?u] [?b ?i _]]`)).map(([u, n]) => [String(u).toLowerCase(), Number(n) || 0]));
 const tagPairs = () => once('tagPairs', async () => {
   const mine = await tagIds();
   return (await q(`[:find ?t ?b :where [?b :block/tags ?t] [?t :block/tags :logseq.class/Tag] ${LIVE}]`)).filter(([t]) => mine.has(t));
@@ -487,5 +492,5 @@ async function folded(uuids) {
   return out;
 }
 
-G.read = { reach, folded, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
+G.read = { reach, folded, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, holding, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID };
 })();

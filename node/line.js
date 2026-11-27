@@ -4,7 +4,7 @@
                                                         at its end where the node has one (node.count), and
                                                         after them node.why: values of the node that a search matched
      G.line.act(event, row)                             what a press or a key on a line does; true when it took the event
-     G.line.menu(at, row)                               the line's right-click menu
+     G.line.menu(at, row, more)                         the line's right-click menu (a table's row too, node/table.js)
    A row is the list's element for one node (data-uuid, data-page when the node is a page); the line stands in it. */
 (function () {
 const G = window.PluginDoor, W = G.words;
@@ -66,11 +66,11 @@ async function addLine(row) {
   } catch (error) { G.say(`The line could not be added: ${error?.message || 'Logseq refused'}`, 'warning'); }
 }
 async function menu(at, row, more) {
-  const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0, face = row.closest('.lk-list')?.dataset.face || '';
+  const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0, face = row.closest('.lk-list, .lk-table')?.dataset.face || '';
   G.menu(at, [
     { word: 'Open', take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', take: () => G.touch.open(uuid, true) },
-    ...(row.closest('.lk-list')?.dataset.face ? [] : [{ gap: true }, { word: 'Tags…', take: () => pickTags(at, row) }]),   // not on a tag or a property itself
+    ...(face ? [] : [{ gap: true }, { word: 'Tags…', take: () => pickTags(at, row) }]),   // not on a tag or a property itself
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => G.undo.after(uuid, G.write.setStatus(uuid, s.title)).catch(error => G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning')) }))] : []),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
@@ -79,7 +79,7 @@ async function menu(at, row, more) {
       const del = async () => { await G.undo.after(uuid, G.write.remove(uuid, !!face || row.dataset.page === '1')); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); };
       if (!face) return void del().catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning'));
       // A tag or a property reaches every node that holds it: the question first, in red.
-      const name = row.querySelector('.lk-words')?.textContent.trim() || 'this', held = Number(row.querySelector('.lk-num')?.textContent) || 0, kind = face === 'tag' ? 'tag' : 'property';
+      const name = row.querySelector('.lk-words')?.textContent.trim() || 'this', held = Number(row.querySelector('.lk-num')?.textContent || row.dataset.held) || 0, kind = face === 'tag' ? 'tag' : 'property';
       G.ask.gone(row, { words: `Delete the ${kind} “${name}”?`, note: held ? `${held} ${held === 1 ? 'node holds' : 'nodes hold'} it. It is taken off every one of them.` : 'It is taken off every node that holds it.', yes: `Delete the ${kind}`, take: del });
     } },
   ]);

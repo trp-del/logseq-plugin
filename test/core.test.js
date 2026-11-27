@@ -197,6 +197,15 @@ test('the nodes under a tag are its own and those of the tags below it, each cou
   const counts = tagTree.counts(tags, [[1, 10], [2, 11], [3, 11], [3, 12], [4, 13], [9, 14]]);
   assert.deepEqual([counts.get(1), counts.get(2), counts.get(3), counts.get(4)], [3, 2, 2, 1]);
 });
+test('a property says how many of the nodes of the tags that give it hold a value, of how many, the biggest tag first', () => {
+  const tags = new Map([[1, { id: 1, title: 'Entity', parents: [] }], [2, { id: 2, title: 'Person', parents: [1] }], [3, { id: 3, title: 'Doctor', parents: [2] }], [4, { id: 4, title: 'Place', parents: [] }]]);
+  const pairs = [[2, 11], [3, 12], [3, 13], [4, 14]], byTag = new Map([[4, ['notes']], [2, ['notes', 'spoke']], [9, ['gone']]]);
+  const got = tagTree.filled(tags, pairs, byTag, new Map([['notes', [12, 14, 14, 99]], ['loose', [11, 12]]]));
+  assert.deepEqual(got.get('notes'), { on: [2, 4], filled: 2, of: 4 });   // Person's 3 nodes (Doctor's with it) and Place's 1
+  assert.deepEqual(got.get('spoke'), { on: [2], filled: 0, of: 3 });
+  assert.deepEqual(got.get('loose'), { on: [], filled: 2, of: 0 });   // on no tag: the nodes that hold it
+  assert.equal(got.has('gone'), false);   // a tag that is not the person's gives nothing
+});
 
 // ---- values moved from one property into another
 const move = require('../core/move.js');
