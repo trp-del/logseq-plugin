@@ -52,7 +52,8 @@ G.part({
 .lk-ontology .lk-list > .lk-rows > .lk-row .lk-words { font-size: var(--lk-small); font-weight: 400; }
 .lk-ontology .lk-list > .lk-rows > .lk-row > .lk-line { padding-block: 1px; line-height: 24px; }
 .lk-ontology .lk-line > .lk-num { margin-left: auto; padding-left: 12px; }
-.lk-ontology .lk-list[data-face="tag"] > .lk-rows > .lk-row:not([style*="--lk-depth: 0;"]) { background: repeating-linear-gradient(90deg, transparent 0 11px, var(--lk-line) 11px 12px) 14px 0 / calc(var(--lk-depth, 0) * 12px) 100% no-repeat; }   /* one hairline under each tag the row sits under, through its bullet (25 px in, 12 a step) */
+.lk-ontology .lk-list[data-face="tag"] > .lk-rows > .lk-row { padding-left: calc(var(--lk-depth, 0) * 29px); }   /* Logseq's own step between levels, so a fold arrow stands clear of the guide line of the tag above (the owner, 26 November 2026) */
+.lk-ontology .lk-list[data-face="tag"] > .lk-rows > .lk-row:not([style*="--lk-depth: 0;"]) { background: repeating-linear-gradient(90deg, transparent 0 25px, var(--lk-line) 25px 26px, transparent 26px 29px) 0 0 / calc(var(--lk-depth, 0) * 29px - 3px) 100% no-repeat; }   /* one hairline under each tag the row sits under, through its bullet's middle (25.5 in, 29 a step) */
 .lk-ontology .lk-line .lk-words { cursor: pointer; }
 .lk-page { padding: 0 0 48px; }
 .lk-page-title { font-size: var(--ls-page-title-size, 2rem); font-weight: 600; line-height: 1.25; margin: 0 0 18px; color: var(--lk-text); }

@@ -666,11 +666,11 @@ function foldedSpots() {
   return [...host().querySelectorAll('.ls-block[blockid][data-collapsed="true"]')].map(block => {
     const words = own(block, '.block-title-wrap'), file = !words && own(block, '.block-head-wrap a.asset-ref');
     if (!words && !file) return null;
-    return { uuid: block.getAttribute('blockid').toLowerCase(), at: own(block, '.lk-folded'), put: el => words ? words.append(el) : file.after(el) };
+    return { uuid: block.getAttribute('blockid').toLowerCase(), at: own(block, '.lk-held-note'), put: el => words ? words.append(el) : file.after(el) };
   }).filter(Boolean);
 }
-const FOLDED = `.ls-block:not([data-collapsed="true"]) > .block-main-container .lk-folded { display: none; }
-.block-head-wrap > a.asset-ref + .lk-folded { margin-right: auto; align-self: center; flex: none; }`;
+const FOLDED = `.ls-block:not([data-collapsed="true"]) > .block-main-container .lk-held-note { display: none; }
+.block-head-wrap > a.asset-ref + .lk-held-note { margin-right: auto; align-self: center; flex: none; }`;
 const openUrl = url => logseq.App.openExternalLink(url);
 
 /* Where the plugin's lists stand, Logseq's own for the same thing are taken away: its Linked references and its two-way

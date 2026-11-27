@@ -29,11 +29,11 @@ G.part({
   key: 'folded', title: 'What a folded bullet holds', about: 'After a folded bullet’s words: its unfinished tasks, the files right under it and the nearest day due.',
   start(base) {
     base.style('folded', `${G.touch.FOLDED}
-.lk-folded { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; white-space: nowrap; user-select: none; cursor: default; font-size: var(--lk-small); color: var(--lk-quiet); font-weight: 400; }
-.lk-folded svg, .lk-folded .ti { align-self: center; width: 14px; height: 14px; }
-.lk-folded .lk-pair { display: inline-flex; align-items: baseline; gap: .15em; }
-.lk-folded .lk-pair + .lk-pair { margin-left: .35em; }
-.lk-folded .lk-sep { margin: 0 .1em; }`);
+.lk-held-note { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; white-space: nowrap; user-select: none; cursor: default; font-size: var(--lk-small); color: var(--lk-quiet); font-weight: 400; }
+.lk-held-note svg, .lk-held-note .ti { align-self: center; width: 14px; height: 14px; }
+.lk-held-note .lk-pair { display: inline-flex; align-items: baseline; gap: .15em; }
+.lk-held-note .lk-pair + .lk-pair { margin-left: .35em; }
+.lk-held-note .lk-sep { margin: 0 .1em; }`);
     const held = new Map(), asked = new Set();
     let stopped = false;
     const draw = () => {
@@ -46,7 +46,7 @@ G.part({
         if (spot.at?.dataset.held === key) continue;
         spot.at?.remove();
         const el = G.host().createElement('span');
-        el.className = 'lk-folded'; el.contentEditable = 'false'; el.dataset.held = key; el.title = said(now); el.innerHTML = html(now);
+        el.className = 'lk-held-note'; el.contentEditable = 'false'; el.dataset.held = key; el.title = said(now); el.innerHTML = html(now);
         for (const type of ['mousedown', 'pointerdown', 'click']) el.addEventListener(type, event => event.stopPropagation());
         spot.put(el);
       }
@@ -61,7 +61,7 @@ G.part({
     };
     base.onStop(G.touch.watch(draw));
     base.onStop(G.touch.changed(() => { held.clear(); draw(); }));
-    base.onStop(() => { stopped = true; for (const el of G.host().querySelectorAll('.lk-folded')) el.remove(); });
+    base.onStop(() => { stopped = true; for (const el of G.host().querySelectorAll('.lk-held-note')) el.remove(); });
   },
 });
 })();
