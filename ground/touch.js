@@ -96,6 +96,15 @@
                               (read.recentKinds); the sheet (CALM.left) then stands them in groups. Gives back what stops it
      touch.graphs             Logseq's graphs: list() their addresses, current() the open one's, open(url) opens one by
                               pressing its line in Logseq's own list of graphs; answers whether the line was there
+     touch.file(path)         a file of this Mac read whole: { path, name, title, type, size, bytes, sum } (title and type as
+                              Logseq names a file's node: the name without its ending, the ending in small letters; sum: the
+                              checksum Logseq keeps of a file). Refuses with "<name> could not be read"
+     touch.fileInto(uuid, file, { show, taken, patience })   a file handed to an empty bullet as a paste, which is how Logseq
+                              itself takes a file (its plugin API has no call that makes a file's node). The bullet is opened in
+                              Logseq's own box first; where it is not on screen, the page show is, for that moment, and the
+                              screen put back after. Answers what taken() answers once Logseq has made the node, or null when
+                              it has not within patience; refuses, with nothing pasted, where the bullet could not be opened.
+                              ground/write.js addFile is what a part calls
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
 const G = window.PluginDoor;
@@ -415,6 +424,61 @@ async function setDown() {
   await logseq.Editor.exitEditingMode(false);
   await new Promise(done => host().defaultView.setTimeout(done, 200));
   return uuid ? async () => { try { await logseq.Editor.editBlock(uuid, { pos: at }); } catch (error) { console.warn('Logseq Plugin: the bullet could not be opened again', error); } } : () => {};
+}
+/* A file of this Mac, read whole. Logseq serves any whole path on its assets:// address (its own code, electron/core.cljs,
+   2.0.2; what stands after a ? or a # is cut off there, so each piece of the path is written safe). The name, title and type
+   are the ones Logseq gives the file's node, and sum is the checksum it keeps of it (SHA-256, as its own asset.cljs makes it),
+   taken with the window's own crypto, the one Logseq uses. */
+async function file(path) {
+  const at = String(path ?? ''), name = at.split('/').filter(Boolean).pop() || '';
+  const cannot = () => Object.assign(new Error(`${name || 'The file'} could not be read`), { plain: true });
+  if (!at.startsWith('/') || !name) throw cannot();
+  let bytes = null;
+  try { const got = await fetch('assets://' + at.split('/').map(encodeURIComponent).join('/')); if (got.ok) bytes = await got.arrayBuffer(); } catch (error) { bytes = null; }
+  if (!bytes) throw cannot();
+  const dot = name.lastIndexOf('.'), ending = dot > 0 ? name.slice(dot + 1) : '';
+  const digest = await host().defaultView.crypto.subtle.digest('SHA-256', bytes).catch(() => null);
+  if (!digest) throw cannot();
+  const sum = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  return { path: at, name, title: ending ? name.slice(0, dot) : name, type: ending.toLowerCase(), size: bytes.byteLength, bytes, sum };
+}
+/* A file handed to an empty bullet, as Logseq itself takes a file. Its plugin API has no call that makes a file's node; its own
+   editor does, on a paste (frontend/handler/paste.cljs and editor/assets.cljs, 2.0.2): the file is copied into the graph's
+   assets folder and the empty bullet being written becomes the file's node, in one write. So the bullet is opened in Logseq's
+   own box and handed the file as a paste. Two things of Logseq's are named: the box, by the name Logseq gives it after its
+   bullet, and the bullet's element, to know it is drawn.
+   The file goes only into that bullet: nothing is pasted unless the box is the bullet's own and Logseq says that very bullet is
+   the one being written. A bullet that is not drawn cannot be opened, so the page show (a uuid) is shown for the moment and
+   the screen put back after. taken() is asked until it answers (Logseq has made the node) or patience (ms) runs out: answers
+   what it answered, or null. A refusal comes before the paste, so nothing of the file is in the graph then. */
+async function fileInto(uuid, given, { show = '', taken, patience = 30000 } = {}) {
+  const doc = host(), view = doc.defaultView, id = String(uuid).toLowerCase(), was = view.location.hash, scroller = doc.getElementById('main-content-container'), top = scroller?.scrollTop;
+  const rest = ms => new Promise(done => view.setTimeout(done, ms));
+  const wait = async (ask, ms, every = 60) => { for (const end = Date.now() + ms; ;) { const got = await ask(); if (got || Date.now() > end) return got || null; await rest(every); } };
+  const drawn = () => doc.querySelector(`.ls-block[blockid="${id}"]`), box = () => doc.getElementById('edit-block-' + id);
+  const cannot = words => Object.assign(new Error(words), { plain: true });
+  let moved = false;
+  try {
+    if (!(await wait(drawn, 400)) && show) { moved = true; await logseq.App.pushState('page', { name: String(show) }); await wait(drawn, 4000); }
+    if (!drawn()) throw cannot('its page did not come on screen');
+    // Opened for writing; asked again where a page still settling took the first ask.
+    for (let tries = 0; !box() && tries < 3; tries++) { await logseq.Editor.editBlock(id); await wait(box, 1500); }
+    const mine = box();
+    if (!mine) throw cannot('its bullet could not be opened');
+    if (doc.activeElement !== mine) mine.focus();
+    const held = await logseq.Editor.checkEditing().catch(() => false);
+    if (doc.activeElement !== mine || String(held || '').toLowerCase() !== id || mine.value.trim()) throw cannot('its bullet could not be opened');
+    const transfer = new view.DataTransfer();
+    transfer.items.add(new view.File([given.bytes], given.name, {}));
+    mine.dispatchEvent(new view.ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
+    const got = await wait(taken, patience, 200);
+    if (got) await rest(250);   // Logseq puts the caret into the file's node once it has made it: left after that
+    return got;
+  } finally {
+    try { await logseq.Editor.exitEditingMode(false); } catch (error) { /* it had closed itself */ }
+    if (moved) { if (view.location.hash !== was) view.location.hash = was; await rest(300); }
+    else if (scroller && Number.isFinite(top)) scroller.scrollTop = top;
+  }
 }
 /* FOCUSING INTO A BULLET AND OUT, where it meets Logseq's screen (beside/glide.js decides which bullet moves, and when). Only
    the main view. Logseq swaps the whole view in one frame, and every way in and out goes through the app's history, so the view
@@ -2292,5 +2356,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, writingIn, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { file, fileInto, kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, writingIn, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

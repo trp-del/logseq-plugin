@@ -33,6 +33,9 @@
                               (in any case) and every node whose words are exactly these, read from the graph itself, so one
                               Logseq's search misses is still found. Words found in a value a node holds answer that node
      read.files(ids)          id -> the type of the file a node is ('pdf', 'png'), for those that are files
+     read.fileTwin(file)      the node a file of this Mac (ground/touch.js file) already is in the graph: { uuid, title, gone }
+                              (gone: it lies on a page in Logseq's Recycle), or null. Found as Logseq itself finds it before
+                              it takes a file: by the checksum it keeps of every file (never kept)
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
      read.held(ids)           id -> { name: [words] }   the same, told apart by the property's name
@@ -329,6 +332,19 @@ async function search(words, limit = 40) {
 async function files(ids) {
   const list = [...new Set(ids)].filter(isId);
   return new Map(list.length ? (await q(`[:find ?b ?type :where ${among('?b', list)} [?b :logseq.property.asset/type ?type]]`)).map(([b, type]) => [b, bare(type).toLowerCase()]) : []);
+}
+/* The node a file already is. Logseq keeps a checksum of every file it takes and takes no file whose checksum the graph
+   already holds, wherever that node lies (its own code, editor/assets.cljs and db/async.cljs, 2.0.2): the same question is
+   asked here, so what is answered null is what Logseq will take. A node still on a page of the person's is answered before
+   one on a page in the Recycle. */
+async function fileTwin(file) {
+  const sum = String(file?.sum || '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(sum)) return null;
+  const rows = await q(`[:find ?u ?t ?b :where [?b :logseq.property.asset/checksum "${sum}"] [?b :block/uuid ?u] [(get-else $ ?b :block/title "") ?t]]`);
+  if (!rows.length) return null;
+  const here = new Set((await q(`[:find ?b :where ${among('?b', rows.map(([, , b]) => b))} ${LIVE}]`)).map(([b]) => b));
+  const [uuid, title, id] = rows.find(([, , b]) => here.has(b)) || rows[0];
+  return { uuid: String(uuid).toLowerCase(), title: String(title || file.title || ''), gone: !here.has(id) };
 }
 async function tagged(tagIds) {
   const list = [...new Set(tagIds)].filter(isId);
@@ -788,5 +804,5 @@ async function folded(uuids) {
   return out;
 }
 
-G.read = { recentKinds, files, chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, under, asKept, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
+G.read = { recentKinds, files, fileTwin, chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, under, asKept, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
 })();

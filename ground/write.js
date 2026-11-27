@@ -4,7 +4,7 @@
    from the plugin each went back with one Undo, the Task tag Logseq had added going with the status).
      write.setStatus(uuid, title)   a task's status, by the name Logseq shows it under
      write.remove(uuid, isPage)     a bullet deleted; a page sent to Logseq's Recycle
-     (the four that add a bullet, addTask, addNode, addBullet and addLine, set down the bullet being written for the moment)
+     (the five that add a bullet, addTask, addNode, addBullet, addLine and addFile, set down the bullet being written for the moment)
      write.addTask(words, day)      a new bullet at the end of today's journal, its status Todo, its Deadline the day when one is given; answers its uuid
      write.setPriority(uuid, title) a task's priority by its name, or taken off with none
      write.setDeadline(uuid, day)   a task's deadline, or taken off with 0
@@ -40,14 +40,22 @@
                                     every link and tag the bullet already holds is written back as the link it is
      write.addBullet(at, words, where)  a new bullet with these words: after the bullet at (the default), as its last bullet
                                     ({ under: true }), or at the end of the page at ({ page: true }); answers its uuid
+     write.addFile(at, file, { under })  a file of this Mac (ground/touch.js file) put into the graph as Logseq itself puts
+                                    a pasted file: a node of its own, the file copied into the graph's assets folder. At the
+                                    end of the page at, or as the last bullet of the bullet at ({ under: true }). Answers
+                                    { uuid, steps }: the file's node, and the steps of Undo that take it away again. A file
+                                    the graph already holds, one with no ending and one over 100 MB are refused before
+                                    anything is made; refused later, the empty bullet made for it is taken away again
      write.moveIn(uuid)             a bullet set in under the bullet before it; write.moveOut(uuid) sets it out, after the one it
                                     sat under. Each answers how many writes it took (0: there was nowhere to move it)
      write.restore(uuid), write.deleteForGood(uuid)   Logseq's Recycle: a page brought back; deleted for good
      write.setValue(uuid, ident, raw, { ref }), write.clearValue(uuid, ident)   old names of setNode or setText, and of clear,
                                     kept until the places that call them are changed
-     write.refused(what, error, then)   the one way to say a refusal: a notice that says what was not done (what), why in
-                                    everyday words, and what to do (then, a whole sentence, where the place knows it).
-                                    Logseq's own error words go to the console, never into the notice. Answers the words
+     write.refused(what, error, then, { quiet })   the one way to say a refusal: a notice that says what was not done (what),
+                                    why in everyday words, and what to do (then, a whole sentence, where the place knows
+                                    it). Logseq's own error words go to the console, never into the notice. Answers the
+                                    words. quiet: the same words answered and no notice shown, for a place that shows them
+                                    itself (a panel outside Logseq)
      write.day(day)                 a day's journal page, made if there is none; answers its uuid
      write.undo()                   Logseq's Undo
    Logseq's calls as the running Logseq takes them (2.0.2, tried 27 November 2026), where its documentation says otherwise or
@@ -229,6 +237,36 @@ G.write = {
     const made = await adding(() => page ? logseq.Editor.appendBlockInPage(sure(at), text) : logseq.Editor.insertBlock(sure(at), text, { sibling: !under }));
     return String(made?.uuid || '');
   },
+  /* A file into the graph. Logseq's plugin API has no call that makes a file's node; its own editor makes one when a file is
+     pasted into an empty bullet (ground/touch.js fileInto), in one write: the file is copied into the assets folder and the
+     bullet becomes the file's node. So: an empty bullet (one step of Undo), then the paste (one more). Everything that can be
+     known to fail is asked first, so a refusal leaves nothing: Logseq takes no file whose checksum the graph holds, none
+     without an ending, none over 100 MB. Refused after the bullet was made and before the paste, the bullet is deleted by its
+     own id, and only while it is still empty. Once the file was pasted and Logseq has not made the node in time, the bullet
+     stays and the refusal says so: Logseq may only be slow, and a file landing a moment later then has its bullet (the
+     plugin before the rebuild learned this on 10 November 2026: with the bullet removed the copied file was left with
+     nothing pointing at it). The bullet the person is writing in is set down first and opened again after, as for every
+     write that adds a bullet, and the file is pasted only into the bullet made here (fileInto sees to that). */
+  async addFile(at, file, { under = false } = {}) {
+    const to = sure(at), name = String(file?.name || 'The file');
+    if (!file?.bytes || !file.sum) throw no(`${name} could not be read`);
+    if (!file.type) throw no(`${name} has no ending (like .pdf), and Logseq takes no file without one`);
+    if (file.size > 100 * 1024 * 1024) throw no(`${name} is larger than 100 MB, the most Logseq takes`);
+    const twin = await G.read.fileTwin(file);
+    if (twin) throw no(`${name} is already in the graph, as “${few(twin.title)}”${twin.gone ? ', on a page in the Recycle' : ''}`);
+    return adding(async () => {
+      const made = String((under ? await logseq.Editor.insertBlock(to, '', { sibling: false }) : await logseq.Editor.appendBlockInPage(to, ''))?.uuid || '').toLowerCase();
+      if (!UUID.test(made)) throw no(`a bullet for ${name} could not be added`);
+      const empty = async () => { const words = await G.read.typed(made).catch(() => null); return words != null && !words.trim(); };
+      let node = null;
+      try { node = await G.touch.fileInto(made, file, { show: to, taken: () => G.read.fileTwin(file).then(found => (found && !found.gone ? found : null)), patience: 30000 + Math.round(file.size / 5000) }); }
+      catch (error) { if (await empty()) await logseq.Editor.removeBlock(made).catch(() => {}); throw error; }
+      if (!node) throw no(`Logseq has not taken ${name} yet`, 'Its empty bullet stays on the page for when it does; delete the bullet if the file does not come.');
+      // Logseq makes the empty bullet itself the file's node. Had words reached the bullet meanwhile, the node stands after it.
+      if (node.uuid !== made && await empty()) { await logseq.Editor.removeBlock(made); return { uuid: node.uuid, steps: 3 }; }
+      return { uuid: node.uuid, steps: 2 };
+    });
+  },
   // Set in as Logseq's Tab does: the last bullet under the one before it.
   async moveIn(uuid) {
     const before = await logseq.Editor.getPreviousSiblingBlock(sure(uuid));
@@ -295,9 +333,9 @@ G.write = {
   },
   /* The one way to say a refusal (the owner, 24 November 2026, of Logseq's own error words in a notice: "what is this"): what
      was not done, why in everyday words, what to do. */
-  refused(what, error, then = '') {
+  refused(what, error, then = '', { quiet = false } = {}) {
     const words = [`${String(what).replace(/[\s.:]+$/, '')}: ${why(error)}.`, error?.left, error?.then, then].filter(Boolean).join(' ');
-    G.say(words, 'warning');
+    if (!quiet) G.say(words, 'warning');
     return words;
   },
   undo: () => logseq.App.invokeExternalCommand('logseq.editor/undo'),
