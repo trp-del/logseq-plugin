@@ -560,15 +560,14 @@ function homePane(go, title, order, lit, tabLabel) {
   Object.assign(out.update.ids, homeFoot(go, tabLabel || "", null));
   return JSON.stringify(out);
 }
-// "3 today · 1 late", from Todo's own list; nothing when the Todo part is off.
+// "3 today · 1 late", from Todo's own list. A plugin that refuses the list, or does not answer, is an error with its reason:
+// no count is ever made of a list that was not read.
 function todoCounts() {
-  try {
-    const got = pluginModel("todoList", {}) || { parts: [] }, part = head => (got.parts || []).find(p => p.head === head);
-    const all = (got.parts || []).reduce((n, p) => n + p.rows.length + (p.more || 0), 0);
-    if (!part("Today") && !part("Overdue")) return plural(all, "open task");
-    const late = (part("Overdue") || { rows: [] }).rows.length, now = (part("Today") || { rows: [] }).rows.length;
-    return [now ? now + " today" : "", late ? late + " late" : "", !now && !late ? plural(all, "open task") : ""].filter(Boolean).join(" · ");
-  } catch (_) { return "Open tasks"; }
+  const got = ask("todoList", {}), part = head => (got.parts || []).find(p => p.head === head);
+  const all = (got.parts || []).reduce((n, p) => n + p.rows.length + (p.more || 0), 0);
+  if (!part("Today") && !part("Overdue")) return plural(all, "open task");
+  const late = (part("Overdue") || { rows: [] }).rows.length, now = (part("Today") || { rows: [] }).rows.length;
+  return [now ? now + " today" : "", late ? late + " late" : "", !now && !late ? plural(all, "open task") : ""].filter(Boolean).join(" · ");
 }
 /* Home as Find (the owner, 19 November 2026: "is it possible to make it more like find from plugin?"). One panel that finds,
    narrows and walks, as the plugin's Find does, from the plugin's browse:
@@ -644,10 +643,13 @@ function homeAnswerFind(words, st, lit, note) {
   try { got = ask("browse", asked); }
   catch (error) { return redOn("hCount", error); }
   const lines = [], rows = [];
-  let tab = "", tabLabel = "", count = "";
+  let tab = "", tabLabel = "", count = "", refused = "";
   if (!st.kind) {
     if (!typed) {
-      lines.push(doLine(todoCounts()));
+      // The Todo press carries its count only when the list was read; a refusal is said in the foot, in red.
+      let todo = "";
+      try { todo = todoCounts(); } catch (error) { refused = "The tasks could not be read: " + messageFrom(error); }
+      lines.push(doLine(todo));
     }
     const kinds = (got.kinds || []).map(k => ({ text: k.title + "  " + k.count, what: "kind:" + k.id + ":" + k.title, lit: typed && !tab && begins(k.title, typed) && (tab = "kind:" + k.id + ":" + k.title) && (tabLabel = k.title) }));
     if (kinds.length) lines.push(choiceLine("Kind", kinds.slice(0, 6)));
@@ -685,7 +687,7 @@ function homeAnswerFind(words, st, lit, note) {
     } },
     update: { relayout: true, ids: {
       hLine2: { hidden: !lines.length },
-      hCount: { text: note || count, colour: SECONDARY },
+      hCount: refused ? { text: refused, colour: "systemRedColor" } : { text: note || count, colour: SECONDARY },
       hq: { placeholder: st.kind ? "Narrow " + st.kindTitle + " by words, or a choice" : "Find, or write a note" }
     } },
     window: { resize: { height: "auto" } }
