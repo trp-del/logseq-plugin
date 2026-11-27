@@ -4,7 +4,7 @@
 (function () {
 const G = window.PluginDoor;
 G.part({
-  key: 'place', title: 'A page’s place', about: 'Under a page’s title: its tags, each with the tags it sits under.',
+  key: 'place', title: 'A page’s place', about: 'At the right end of a page’s title, and under the title in the sidebar: its tags, each with the tags it sits under.',
   start(base) {
     base.style('place', G.touch.HIDES_TAGS + `
 /* One line that never wraps and gives way with an ellipsis, wherever it stands: at the title's end, under a title, in the sidebar. */
