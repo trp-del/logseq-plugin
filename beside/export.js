@@ -10,7 +10,8 @@ const G = window.PluginDoor, E = G.export;
 const DRAWN_AGAIN = 'The sheet was drawn again from the page, so the words changed in it went';
 const read = () => E.choices(G.setting('exportChoices'));
 const today = () => G.days.number(new Date());
-const why = error => error?.message || 'Logseq refused';
+// A stop is said the one way a refusal is said (ground/write.js): what stopped, why in plain words, and that the notes stand.
+const stopped = error => G.write.refused('The export stopped', error, 'Your notes were not changed.');
 
 const CSS = `
 .lk-xp { position: fixed; inset: 0; z-index: 9998; display: flex; flex-direction: column; background: var(--lk-paper); color: var(--lk-text); font-size: var(--lk-line-size); line-height: var(--lk-line-lead); outline: none; pointer-events: auto; -webkit-app-region: no-drag; }
@@ -158,7 +159,7 @@ function open(sheet, what) {
     next.srcdoc = html;
     desk.appendChild(next);
   }
-  const refresh = () => { describe(); clearTimeout(timer); timer = setTimeout(() => draw().catch(error => { console.error('Logseq Plugin: the preview could not be drawn', error); G.say(`The preview could not be drawn: ${why(error)}`, 'warning'); }), 150); };
+  const refresh = () => { describe(); clearTimeout(timer); timer = setTimeout(() => draw().catch(error => { console.error('Logseq Plugin: the preview could not be drawn', error); G.write.refused('The preview could not be drawn', error); }), 150); };
   const take = change => { chosen = { ...chosen, ...change }; remember(); refresh(); };
 
   async function go(action) {
@@ -175,7 +176,7 @@ function open(sheet, what) {
         root.hidden = true;   // the print window takes its place; it does not say whether it saved, so the export window comes back
         await print(sheet, chosen, body);
       }
-    } catch (error) { console.error(error); G.say(`The export stopped: ${why(error)}. Your notes were not changed.`, 'warning'); }
+    } catch (error) { console.error('Logseq Plugin: the export stopped', error); stopped(error); }
     busy = false;
     if (done) close(); else if (!gone) { root.hidden = false; root.querySelector(`.lk-accent[data-do="${chosen.target}"]`)?.focus({ preventScroll: true }); fit(); }
   }
@@ -241,7 +242,7 @@ function open(sheet, what) {
 
 async function show(asked) {
   try { const found = await gather(asked); if (found) open(found.sheet, found.what); }
-  catch (error) { console.error(error); G.say(`The export stopped: ${why(error)}. Your notes were not changed.`, 'warning'); }
+  catch (error) { console.error('Logseq Plugin: the export stopped', error); stopped(error); }
 }
 // The quick ways: the remembered choices, no window.
 async function quick(action) {
@@ -249,7 +250,7 @@ async function quick(action) {
     const found = await gather();
     if (!found) return;
     if (action === 'md') await copy(markdown(found.sheet, read())); else await print(found.sheet, read());
-  } catch (error) { console.error(error); G.say(`The export stopped: ${why(error)}. Your notes were not changed.`, 'warning'); }
+  } catch (error) { console.error('Logseq Plugin: the export stopped', error); stopped(error); }
 }
 
 G.part({
