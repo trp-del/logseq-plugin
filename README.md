@@ -102,6 +102,9 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   link is the same with a small grey arrow ↗ after it, wherever it stands. This
   holds on Logseq's own pages, in the sidebar and inside an opened node, as in the plugin's lists. On Logseq's own pages a
   property with nothing in it is its name, fainter.
+- A value in words starts on the same edge as every other value: no bullet stands before it, and no room is left for one.
+- Logseq's own list of places for a bullet's property (its name, "UI position") answers a mouse press: the place pressed is
+  saved, as Return saves it.
 - Colour is kept for a change: green for what comes, red struck through for what goes; Delete in a menu is red.
 - After the plugin changes a node shown as a line (a status, a tag, a new task, a tag moved in Ontology), a small faint arrow
   stands right after the line's words: a press takes the change back with Logseq's own Undo, in as many steps as the change

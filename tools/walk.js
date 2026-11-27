@@ -837,6 +837,28 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     await step('exporting wrote nothing to the graph', async () => is(await written(), untouched));
     }
+    // ---- Logseq's own property rows
+    await page.keyboard.press('Escape'); await goto(NORTHGATE);
+    await step('a value in words starts where its box starts, on the page and in the sidebar, as every other value does', async () => {   // seen 26 November 2026: it stuck out 20 to the left
+      await page.evaluate(u => window.logseq.api.open_in_right_sidebar(u), NORTHGATE); await wait(3500);
+      const got = await page.evaluate(() => ['#main-content-container', '#right-sidebar'].map(at => [...document.querySelectorAll(`${at} .property-pair:not(.lk-editor *) .property-block-container`)].map(box => Math.round(box.querySelector('.block-title-wrap').getBoundingClientRect().left - box.closest('.property-value-container').getBoundingClientRect().left))));
+      await page.locator('#right-sidebar .sidebar-item.item-type-page').first().locator('.item-actions button').last().click(); await wait(800);
+      return is(got, [[0], [0]]);
+    });
+    await step('a mouse press on a place in Logseq\'s "UI position" list saves it', async () => {   // the owner, 26 November 2026: "this doesn't seem to work or actually change things when you use it"
+      await goto('6a000000-0000-4000-8000-00000000001b');   // a bullet with its own properties: only there does Logseq offer the list
+      const where = () => box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?v :where [?p :block/title "Date"] [?p :logseq.property/ui-position ?v]]')).flat());
+      const before = await where();
+      await page.locator('#main-content-container a.property-k:not(.lk-editor a)', { hasText: 'Date' }).first().click(); await wait(900);
+      const opener = page.getByRole('menuitem', { name: /UI position/ }).first(); await opener.hover(); await wait(800);
+      const from = await opener.boundingBox(), line = await page.getByRole('menuitem', { name: /End of the block/ }).first().boundingBox();
+      await page.mouse.move(line.x + 75, from.y + from.height / 2, { steps: 4 }); await page.mouse.move(line.x + 75, line.y + line.height / 2, { steps: 4 }); await wait(300);
+      await page.mouse.down(); await page.mouse.up(); await wait(1500);
+      const after = await where();
+      await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await wait(500);
+      if (after.join() !== before.join()) { await page.keyboard.press('Meta+z'); await wait(1300); }
+      return is([before, after, await where()], [[], ['block-right'], []]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

@@ -23,7 +23,7 @@ async function main() {
   logseq.beforeunload(async () => { for (const base of bases.splice(0).reverse()) await base.stop(); });
   // What stands whichever parts run: the look's ground, the pieces of the node, and Logseq's editor asked for.
   const root = G.base('ground'); bases.push(root);
-  root.style('look', G.look.faces(String(logseq.baseInfo?.lsr || '')) + G.look.TOKENS + G.look.PRESS + G.menu.CSS + G.undo.CSS + G.ask.CSS + G.line.CSS + G.node.CSS + G.listview.CSS + G.adding.CSS + G.pick.CSS + G.timeline.CSS + G.table.CSS + G.touch.OPENED + G.touch.MARKS);
+  root.style('look', G.look.faces(String(logseq.baseInfo?.lsr || '')) + G.look.TOKENS + G.look.PRESS + G.menu.CSS + G.undo.CSS + G.ask.CSS + G.line.CSS + G.node.CSS + G.listview.CSS + G.adding.CSS + G.pick.CSS + G.timeline.CSS + G.table.CSS + G.touch.OPENED + G.touch.MARKS + G.touch.MENDS);
   if (!(await graphReady())) G.say('Logseq Plugin needs a DB graph open. It starts its parts anyway; if they stay empty, reload the plugin once the graph is open.', 'warning');
   // A promise the plugin let fall is said in the console with the plugin's name, never as a red box over the page.
   root.listen(window, 'unhandledrejection', event => { console.error('Logseq Plugin: a step failed', event.reason); event.preventDefault(); });

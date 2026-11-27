@@ -1241,6 +1241,14 @@ a.external-link:hover { text-decoration-color: currentColor !important; }
 a.external-link:not(:has(img))::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }   /* the small arrow after it, as in the plugin's own lists */
 ${OWN} .ls-page-properties:not(.lk-editor *) { margin-left: 10px; }   /* a page's property names and Add property on the edge its title and its bullets stand on */
 ${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
+${OWN} .property-pair .property-block-container:not(.lk-editor *) { margin-left: 0 !important; }   /* and none of the 20 Logseq pulls a value in words back by, to make room for that bullet */
+`;
+/* Where one of Logseq's own controls does not do what it offers, set right with as little as will do it; Logseq still does the
+   work. A property's "UI position" list reads the choice from the very element pressed, and a mouse press always lands on a
+   piece inside the line, which carries none: with those pieces letting the press through, the line gets it and Logseq saves
+   the choice (the owner, 26 November 2026: "this doesn't seem to work or actually change things when you use it"). */
+const MENDS = `
+.ls-property-ui-position-sub-pane [data-value] * { pointer-events: none !important; }
 `;
 /* On a page, a link to that same page is its words alone: it leads nowhere (the owner's marked page, 26 November 2026). */
 function here() {
@@ -1693,5 +1701,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();
