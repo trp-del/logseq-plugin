@@ -594,6 +594,23 @@ test('a dose or a count is no day: only a month\'s own name, whole or cut short,
   // A short weekday that is only a word does not stop a real one later in the words from being read.
   assert.deepEqual(dayIn('Mom sat with nurse, call back friday'), { day: 20261204, words: 'Mom sat with nurse, call back' });
 });
+test('a year said with the day in a new task is the day\'s year and leaves the words with it', () => {
+  // 27 November 2026 is a Friday.
+  const dayIn = words => todo.dayIn(words, 20261127);
+  assert.deepEqual(dayIn('Renew passport 3 december 2027'), { day: 20271203, words: 'Renew passport' });
+  assert.deepEqual(dayIn('File taxes on apr 15 2028'), { day: 20280415, words: 'File taxes' });
+  assert.deepEqual(dayIn('Call Sam by nov 20, 2026'), { day: 20261120, words: 'Call Sam' });   // this year said: the day that has just passed, not next year's
+  assert.deepEqual(dayIn('Book the scan dec 4 2026, then call'), { day: 20261204, words: 'Book the scan, then call' });
+  assert.deepEqual(dayIn('Scan on 3 dec. 2027'), { day: 20271203, words: 'Scan' });
+  // With no year the words are left as they were: this year, or the next when the day has passed.
+  assert.deepEqual(dayIn('Renew passport 3 december'), { day: 20261203, words: 'Renew passport' });
+  assert.deepEqual(dayIn('Call Sam on nov 20'), { day: 20271120, words: 'Call Sam' });
+  // A number that would put a task's day in a year gone by is not taken for its year: it stays in the words.
+  assert.deepEqual(dayIn('Order masks nov 20 2000'), { day: 20271120, words: 'Order masks 2000' });
+  assert.deepEqual(dayIn('Summarise the visit of 3 december 2024'), { day: 20261203, words: 'Summarise the visit of 2024' });
+  assert.deepEqual(dayIn('Order nov 20 5000 masks'), { day: 20271120, words: 'Order 5000 masks' });
+  assert.equal(dayIn('Leap day feb 29 2027'), null);
+});
 test('every reader of a typed day asks the one piece: the same words are a day, or no day, wherever they are typed', () => {
   const today = 20261127;
   for (const words of ['decadron 4', 'mark 2', 'octreotide 20', '4 decadron', '2026-13-45', '2026-02-31', 'feb 30'])

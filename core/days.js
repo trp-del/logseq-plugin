@@ -51,7 +51,7 @@ function said(words, i, any = false) {
   if (m) { if (/^\.?$/.test(end(i)) && dateOf(key(i + 1))) { d = dateOf(key(i + 1)); len = 2; } }   // only a full stop may stand between a month and its day
   else if (dateOf(key(i)) && !end(i) && monthOf(key(i + 1))) { d = dateOf(key(i)); m = monthOf(key(i + 1)); len = 2; }
   else return null;
-  const y = /^[.,]?$/.test(end(i + len - 1)) ? yearOf(key(i + len), any) : 0;
+  const y = /^\.?,?$/.test(end(i + len - 1)) ? yearOf(key(i + len), any) : 0;   // "dec. 4, 2027", "4 dec., 2027"
   return { len: y ? len + 1 : len, bare: len, y, m, d };
 }
 function yearFor(m, d, today, lean = 'this') {

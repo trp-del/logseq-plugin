@@ -35,7 +35,9 @@ function by(what, tasks, today, name, order = [], sort = 'day') {
 /* A day said in a task's words, read before the task is made: dayIn("Call Sam by friday", today) -> { day, words: "Call Sam" },
    or null when the words name no day. Read: today, tomorrow; a weekday ("friday", "by friday", "next friday": the coming one,
    or the one after it when "next" is said of a day still in this week); "next week" (its Monday); "nov 20", "20 november"
-   (this year, or the next when that day has passed). A short weekday ("fri", "sun") counts only after by, on, due or next,
+   (this year, or the next when that day has passed); "3 december 2027", "nov 20, 2026": a year said with the day is its
+   year and leaves the words with it, but a number that would put the day in a year gone by is no task's year and stays in the
+   words ("Order masks nov 20 2000"). A short weekday ("fri", "sun") counts only after by, on, due or next,
    so "the sun" stays words. The phrase is taken out of the words.
    What a month and a day of it are is asked of core/days.js, the one reader of a day said in words: "Decadron 4 mg" and
    "Mark 2 times" hold no day, and stay in the words whole. */
@@ -57,13 +59,14 @@ function dayIn(text, today) {
   ];
   // Each place a phrase could stand is tried, so a word that only looks like one ("sat with") does not hide a day said later.
   for (const [pattern, read] of tries) for (const m of words.matchAll(pattern)) { const day = read(m); if (day) return without(m.index, m.index + m[0].length, day); }
-  // A month and a day of it: "nov 20" wherever it stands, then "20 november". A year said after it is left in the words, as it always was.
+  // A month and a day of it: "nov 20" wherever it stands, then "20 november"; with the year said after it, this one or a later one.
   const typed = [...words.matchAll(/\S+/g)].map(m => ({ at: m.index, end: m.index + m[0].length, key: m[0] }));
   for (const monthFirst of [true, false]) for (let i = 0; i < typed.length; i++) {
-    const got = !!D.monthOf(typed[i].key) === monthFirst && D.said(typed, i), day = got && got.d ? D.real(D.yearFor(got.m, got.d, today, 'coming'), got.m, got.d) : 0;
+    const got = !!D.monthOf(typed[i].key) === monthFirst && D.said(typed, i), year = got && got.y >= Math.floor(today / 10000) ? got.y : 0;
+    const day = got && got.d ? D.real(year || D.yearFor(got.m, got.d, today, 'coming'), got.m, got.d) : 0;
     if (!day) continue;
-    const first = typed[i > 0 && /^(by|on|due)$/i.test(typed[i - 1].key) ? i - 1 : i], last = typed[i + got.bare - 1], marks = (last.key.match(/[.,;:!?]+$/) || [''])[0];
-    return without(first.at, last.end - marks.length + (!monthFirst && marks[0] === '.' ? 1 : 0), day);   // the marks after the phrase stay, but for the full stop of a month cut short ("3 dec.")
+    const first = typed[i > 0 && /^(by|on|due)$/i.test(typed[i - 1].key) ? i - 1 : i], last = typed[i + (year ? got.len : got.bare) - 1], marks = (last.key.match(/[.,;:!?]+$/) || [''])[0];
+    return without(first.at, last.end - marks.length + (!monthFirst && !year && marks[0] === '.' ? 1 : 0), day);   // the marks after the phrase stay, but for the full stop of a month cut short ("3 dec.")
   }
   return null;
 }

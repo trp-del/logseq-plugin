@@ -369,8 +369,10 @@ The same list stands on a page of its own, in the middle of the window, at a rea
 or g then d outside a bullet. **Todo in the sidebar** and the corner open the section.
 
 A day said in the words of a new task becomes its Deadline and leaves the words: today, tomorrow, a weekday ("friday", "by
-friday", "next friday"), "next week" (its Monday), "nov 20", "20 november". It is said at the line's right before Return
-("Nov 27"). A short weekday ("fri", "sun") counts only after by, on, due or next.
+friday", "next friday"), "next week" (its Monday), "nov 20", "20 november" (this year, or the next when that day has passed),
+and with its year, "20 november 2027". It is said at the line's right before Return ("Nov 27"). A short weekday ("fri",
+"sun") counts only after by, on, due or next; a word that only begins like a month ("Decadron 4 mg") is no day, and a number
+that would put the day in a year gone by is not its year: both stay in the words.
 
 A task carries its bullet and its status circle before its words, and one day, its own. Under its words stands the page it sits on
 when that page is not a journal day; a press goes there. Under a page's or a
