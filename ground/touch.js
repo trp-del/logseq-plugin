@@ -1245,7 +1245,12 @@ const openUrl = url => logseq.App.openExternalLink(url);
    property tabs. Only where the plugin's stand (:has), so a plugin that failed to draw leaves Logseq's in place. */
 const HIDES_TAGS = `.ls-page-title .ls-block:has(> .lk-place:not(:empty)) > .is-page-title-row .block-tags, .ls-block-right:has(> .lk-place:not(:empty)) > .block-tags { display: none !important; }
 .ls-block-right > .lk-place { align-self: flex-start; }
-.ls-page-title-container:has(.lk-place-end) { column-gap: 14px !important; }   /* the space before the path is the row's gap: when the path drops under the title it starts on the title's edge */`;
+/* The title and the path at its right end stand on one level, the path's middle on the title's, for as long as both fit (the
+   owner, 27 November 2026); where they do not, the path drops under the title and starts on its edge. Logseq stacks the row by
+   the window's width: here it stacks by what fits. The space before the path is the row's gap, so none of it goes under. */
+.block-row:has(> .ls-block-right > .lk-place-end) { flex-direction: row !important; flex-wrap: wrap !important; column-gap: 14px !important; row-gap: 0 !important; }
+.block-row:has(> .ls-block-right > .lk-place-end) > :not(.ls-block-right) { flex: 1 1 auto !important; width: auto !important; min-width: 0; }
+.block-row > .ls-block-right:has(> .lk-place-end) { align-self: center !important; max-width: 100%; margin-left: 0 !important; gap: 0 !important; }`;
 const HIDES = `
 ${PAGE}:has(.lk-relpage) .references, ${PAGE}:has(.lk-relpage) .ls-bidirectional-properties { display: none !important; }
 .lk-open ${PAGE} .references, .lk-open ${PAGE} .unlinked-references, .lk-open ${PAGE} .ls-bidirectional-properties { display: none !important; }`;
@@ -1548,6 +1553,9 @@ const PLAIN_SIDE = '#right-sidebar:not([data-lk-split]) .sidebar-item.item-type-
 const PILLS = `${AREA} .ls-block .positioned-properties.block-below`;
 const TOASTS = '.ui__toaster-viewport', TOAST = `${TOASTS} .ui__toast`;
 const CALM = {
+  /* Logseq's two lists under a journal day: today's queries (DOING) and Scheduled and Deadline (the owner, 27 November 2026). */
+  today: `
+#today-queries, .scheduled-or-deadlines { display: none !important; }`,
   /* A notice, Logseq's own or the plugin's, where Logseq draws a large card under the toolbar at the top right: a capsule as
      wide as its words at the bottom centre of the window, 48 up, the next ones peeking above it, fading in and out where it
      stands (the owner, 3 November 2026: it "gets in the way a lot"; 6 November: "make it capsule size", "do it at bottom";

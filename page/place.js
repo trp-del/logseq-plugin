@@ -16,7 +16,7 @@ G.part({
 .lk-parent > button:hover, .lk-parent > button:focus-visible { background: var(--lk-wash); outline: none; }
 .lk-parent > button::after { content: ""; width: 5px; height: 5px; margin: -3px 2px 0 2px; border: solid var(--lk-quiet); border-width: 0 1.2px 1.2px 0; transform: rotate(45deg); }
 /* At the right end of the title's line on the main page: one line that never wraps, a step smaller, giving way with an ellipsis. */
-.lk-place.lk-place-end { margin: 17px 0 0; padding-left: 0; max-width: 24em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--lk-words-size); line-height: 24px; letter-spacing: normal; }
+.lk-place.lk-place-end { margin: 4px 0; padding-left: 0; max-width: min(24em, 100%); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--lk-words-size); line-height: 24px; letter-spacing: normal; }
 .lk-place a { color: inherit; cursor: pointer; white-space: nowrap; }   /* a name never breaks in two: a narrow place breaks between names */
 .lk-place a:hover { color: var(--lk-text); }
 .lk-place .lk-up { color: var(--lk-off); margin: 0 .4em; }

@@ -41,6 +41,9 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 - a tag every row of a list shares is said once, beside the list's name;
 - the lists stand under the quiet word **Relations** and a hairline, each list's name on that word's edge; its fold arrow, as
   a bullet's, shows under the pointer; the find line under it says **Search**;
+- a second hairline closes the section under its last row, running on under the word. A press on the word rolls the lists up
+  and the line draws up and fades with them, leaving the one line; pressed again, they roll out (no motion where less motion
+  is asked for);
 - rows carry their day right after the bullet, in a column of its own before the words (a Date property, else the journal day they were written on), newest first; in a narrow place the day stands under the words;
 - a long list shows ten rows, then **Show 43 more**, saying how many wait;
 - what a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads; the
@@ -150,6 +153,7 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
   all are), the pictures, PDFs and files right under it, each an icon with its number, and the nearest day a task is due ("due
   Oct 19", "was due Oct 12"). Only while it is folded.
 - **Add property** is quiet words, a little apart from the rows.
+- A journal day has no **DOING** list and no **Scheduled and Deadline** list of Logseq's under it.
 - A bullet's properties under its words are one quiet line of names and values, wrapping, with no outline; the one being
   written has a capsule round it; one with nothing in it stays out of the line.
 - The right sidebar is flat, as before 0.9: no row of Logseq's own on top (Contents, Page graph, Help), no grey ground, no
@@ -197,7 +201,8 @@ written to the graph. The part has its own switch in the plugin's settings (**Fo
 ### A page's place (`page/place.js`)
 
 On the main page, at the right end of the title's line: each of the page's tags with the tags it sits under, up to the top, on
-one line that gives way with an ellipsis. In the sidebar and in a page opened in a row, the same line stands under the title.
+one line that gives way with an ellipsis, its middle level with the title's. Where the title and the line do not both fit,
+the line drops under the title and starts on its edge. In the sidebar and in a page opened in a row, the same line stands under the title.
 Each name opens its tag. On a tag's own page a line above the title says **Parent** and the tag it stands under; a press lists
 your tags as an outline (not the tag itself, nor a tag under it) and **None (at the top)**, and the one taken is where the tag
 goes, with the Undo arrow at the bottom right.

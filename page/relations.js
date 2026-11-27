@@ -20,7 +20,8 @@ G.part({
    inside a head, 32 from a head to what it heads, and 54 from one section to the next. */
 .lk-relwrap { margin: 27px 0 20px; padding-left: 18px; font-size: 1rem; font-weight: 400; line-height: 24px; letter-spacing: normal; color: var(--lk-text); cursor: auto; }
 .lk-relwrap:not(:has(.lk-relpage > .lk-list)) { display: none; }
-.lk-relpage { gap: 28px; margin: 28px 0 0 -10px; }   /* a list's name on the edge of the word Relations and of the page's property names (26 November 2026); its rows stay one step in under it */
+.lk-relpage { gap: 28px; margin: 0 0 0 -30px; padding-left: 20px; }   /* the padding keeps what hangs left of the rows in view while the section rolls */
+.lk-relpage > :first-child { margin-top: 28px; }   /* the room above the first list is inside the section, so it rolls with it */   /* a list's name on the edge of the word Relations and of the page's property names (26 November 2026); its rows stay one step in under it */
 .lk-relpage > .lk-list > .lk-list-head[data-one] > .lk-list-via { margin-left: calc(var(--lk-mark-box) + var(--lk-mark-gap)); }   /* a head with no arrow keeps the arrow's room */
 .lk-relpage > .lk-list > .lk-rows { margin-left: -7px; }
 .lk-relpage > .lk-list > .lk-more { position: relative; left: -7px; }   /* Show more on its rows' words' edge */   /* a row's dot one step in from its list's name, as Logseq sets a child under its parent */
@@ -33,8 +34,15 @@ G.part({
 .lk-relsec > .lk-relhead .lk-fold { opacity: 0; margin-top: 0; }
 .lk-relsec > .lk-relhead:hover .lk-fold, .lk-relsec > .lk-relhead:focus-visible .lk-fold, .lk-relsec > .lk-relhead[aria-expanded="false"] .lk-fold { opacity: 1; }
 .lk-relsec > .lk-relhead[aria-expanded="true"] .lk-fold svg { transform: rotate(90deg); }
-.lk-relsec:has(> .lk-relhead[aria-expanded="false"]) + .lk-rel, .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) > .lk-relfind { display: none; }
-.lk-relfind { display: flex; align-items: center; margin: 6px 0 0; }
+.lk-relsec:has(> .lk-relhead[aria-expanded="false"]) + .lk-rel:not(.lk-folding), .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) > .lk-relfind:not(.lk-folding) { display: none; }
+/* The line that closes the section, the same as the one after the word, running on under the word (the owner, 27 November 2026),
+   as far under the last row as the first list stands under the word's line: 54 from the middle of the row.
+   Folded, it draws up and fades with the lists, and one line is left. */
+.lk-relwrap::after { content: ""; display: block; height: 1px; margin: 40px 0 0 -8px; background: var(--lk-hair); transition: margin-top ${G.look.MOTION.roll}ms ease-out, opacity ${G.look.MOTION.roll}ms ease-out; }
+.lk-relwrap:has(> .lk-relsec > .lk-relhead[aria-expanded="false"])::after { margin-top: 0; opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .lk-relwrap::after { transition: none; } }
+.lk-relfind { display: flex; align-items: center; }
+.lk-relfind > * { margin-top: 6px; }
 .lk-relfind[hidden] { display: none; }
 .lk-relfind .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
 .lk-relfind .lk-field:focus, .lk-relfind .lk-field:not(:placeholder-shown) { border-bottom-color: var(--lk-line); }
@@ -60,7 +68,20 @@ G.part({
         lists.find(field.value); onDay(); field.focus();
       });
       const lists = G.node.related(foot, uuid);
-      const fold = () => line.setAttribute('aria-expanded', String(!shut.flip(uuid)));
+      // The section folds as a list does: what is under the word rolls up and then it is shut; opened, it rolls out. A press
+      // while it moves turns it round from where it stands.
+      let turn = 0;
+      const fold = () => {
+        const open = !shut.flip(uuid), now = ++turn, under = [find, foot];
+        const from = under.map(el => el.classList.contains('lk-folding') ? el.offsetHeight : 0);
+        const rest = el => { el.classList.remove('lk-folding'); for (const name of ['height', 'overflow', 'transition']) el.style.removeProperty(name); };
+        if (!open) for (const el of under) el.classList.add('lk-folding');
+        line.setAttribute('aria-expanded', String(open));
+        under.forEach((el, i) => {
+          if (open) { rest(el); G.node.roll(el, from[i]); }
+          else G.node.rollUp(el).then(() => { if (now === turn) rest(el); });
+        });
+      };
       const onLine = event => { if (event.type === 'click' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fold(); } };
       // A journal day has its lists at the foot of the day, after its bullets; every other page under its title and properties.
       const onDrawn = () => { if (lists.rows() >= 20 || field.value) find.hidden = false; if (lists.day() && !page.feed) { const at = G.touch.pageFoot(page.el, 'lk-relfoot'); if (wrapOf(foot).parentElement !== at) at.appendChild(wrapOf(foot)); } };
