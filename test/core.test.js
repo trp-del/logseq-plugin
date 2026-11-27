@@ -153,7 +153,7 @@ test('tasks stand under Overdue, Today, Coming up and Any time; an overdue one s
   assert.deepEqual([got[0].rows.map(r => r.late), got[1].rows.map(r => r.late)], [[true], [false]], 'a task past its day is late, one due today is not');
   assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
 });
-const { sure, addresses } = require('../core/sure.js'), { above, folds, found } = require('../core/tags.js');
+const { sure, addresses, links } = require('../core/sure.js'), { above, folds, found } = require('../core/tags.js');
 test('a folded tag hides the tags under it, and only those', () => {
   const list = [{ depth: 0, name: 'a' }, { depth: 1, name: 'b' }, { depth: 2, name: 'c' }, { depth: 1, name: 'd' }, { depth: 0, name: 'e' }];
   const at = shut => folds(list, name => shut.includes(name)).map(one => (one.hidden ? 'h' : '') + (one.kids ? 'k' : '') + (one.shut ? 's' : ''));
@@ -177,6 +177,12 @@ test('what only looks like an address is left alone', () => {
   for (const words of ['notes.md and node.js and run.sh', 'e.g. 3.14 and $1.5k', 'mail me@chen.com or first.last@x.org', 'done.It was fine', 'open Logseq.app',
     'https://vanguard.com and http://a.org/b', '[the site](https://vanguard.com)', '[vanguard.com](https://vanguard.com)', 'in `vanguard.com` code', '```\nvanguard.com\n```',
     '[[vanguard.com]] page', '{{video youtube.com/x}}', 'file:///Users/a/b.com', 'no address here']) assert.equal(addresses(words), null, words);
+});
+test('the pages a bullet\'s words link by name are told from its box, each once, so a save of plain words asks the graph nothing', () => {   // rundown-070, F75
+  assert.deepEqual(links('The rates were lower than in the spring'), []);
+  assert.deepEqual(links('Seen by [[Dr. Mei Chen]] at [[ Northgate ]], then [[Dr. Mei Chen]] again'), ['Dr. Mei Chen', 'Northgate']);
+  assert.deepEqual(links('a link being typed [[]] and one not closed [[Zzdoc'), []);
+  assert.deepEqual(links(null), []);
 });
 // Doctor(1) < Person(2) < Entity(3); Consultation(4) < Occurrence(5); Hospital(7) < Entity(3)
 const INDEX = new Map([[1, { id: 1, parents: [2] }], [2, { id: 2, parents: [3] }], [3, { id: 3, parents: [] }], [4, { id: 4, parents: [5] }], [5, { id: 5, parents: [] }], [7, { id: 7, parents: [3] }]]);

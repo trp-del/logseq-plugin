@@ -72,7 +72,10 @@ function addresses(words) {
   out += text.slice(at).replace(ADDRESS, linkOne);
   return out === text ? null : out;
 }
-const api = { sure, addresses };
+/* The pages a bullet's words link by name, as they stand in its box while it is written: [[A name]]. links(words) answers the
+   names in their order, each once; a link still empty or not yet closed is none. */
+const links = words => [...new Set([...String(words == null ? '' : words).matchAll(/\[\[([^\[\]\n]+)\]\]/g)].map(found => found[1].trim()).filter(Boolean))];
+const api = { sure, addresses, links };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).sure = api;
 })(typeof window !== 'undefined' ? window : globalThis);

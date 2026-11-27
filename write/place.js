@@ -40,12 +40,23 @@ G.part({
 G.part({
   key: 'kind', title: 'A new page asks what it is', about: 'A page made while writing: a list of your tags opens at the line to say what kind of thing it is.',
   start(base) {
-    let since = Date.now(), turn = 0;
-    const asked = new Set();
+    let since = Date.now(), turn = 0, at = { box: null, names: new Set() };   // at: the box being written in, and the names it links that are settled
+    const asked = new Set(), known = new Set();   // known: the pages a reading has already been made for
+    /* This runs at every save, so a save of plain words asks the graph nothing. A page made while writing is one the bullet's
+       words link, so only a name the box links and that is not settled yet is looked up, by that name alone; and only when a
+       page of that name stands which no reading was made for are the new pages read. */
     const look = async () => {
       const box = G.touch.writing();
       if (!box) { since = Date.now(); return; }   // only what is made while a bullet is being written
-      const mine = ++turn, pages = (await G.read.newPages(since - 1000)).filter(page => !asked.has(page.id));
+      if (at.box !== box) at = { box, names: new Set() };
+      const here = at, open = G.sure.links(box.value).filter(name => !here.names.has(name));
+      if (!open.length) return;
+      const mine = ++turn, found = await Promise.all(open.map(name => G.read.pageNamed(name)));
+      if (mine !== turn) return;
+      let unread = false;
+      open.forEach((name, i) => { if (!found[i]) return; here.names.add(name); if (!known.has(found[i].uuid)) { known.add(found[i].uuid); unread = true; } });
+      if (!unread) return;   // a name still being typed, or a page already read for
+      const pages = (await G.read.newPages(since - 1000)).filter(page => !asked.has(page.id));
       for (const page of pages) asked.add(page.id);   // each is asked about once, or not at all when several came at once
       if (mine !== turn || pages.length !== 1 || G.touch.writing() !== box) return;
       const made = pages[0];
