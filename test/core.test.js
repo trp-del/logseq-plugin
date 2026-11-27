@@ -389,6 +389,10 @@ test('the key sheet gives Cmd-K back to Logseq\'s search when Search does not ta
   assert.deepEqual(finding({ takesKey: false }), ['Logseq’s search ⌘K']);
   assert.deepEqual(finding(null), ['Logseq’s search ⌘K']);
 });
+test('the key sheet gives Cmd-Shift-P to the corner\'s commands while the corner takes it', () => {
+  const got = sheet.groups([cmd('command-palette/toggle', '⌘⇧P')], null, { takesKey: true })[0].lines.map(l => `${l.words} ${l.keys.join()}`);
+  assert.deepEqual(got, ['Commands ⌘⇧P']);
+});
 test('typed words find a line that holds every one, and say where', () => {
   assert.deepEqual(sheet.found('Undo, redo', 'RE un'), [{ text: 'Un', hit: true }, { text: 'do, ', hit: false }, { text: 're', hit: true }, { text: 'do', hit: false }]);
   assert.equal(sheet.found('Undo, redo', 'undo indent'), null);

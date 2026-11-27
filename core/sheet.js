@@ -1,16 +1,17 @@
 /* What stands on the key sheet, and how typed words find among its lines. No Logseq here.
      groups(commands, search)  commands: every command with the key it has now, { id, label, key } (key as the Mac's marks,
                                '' for none), Logseq's and the plugin's; search: null while Search does not run, else
-                               { takesKey }: whether Cmd-K is its own. Answers [{ head, lines: [{ words, keys }] }] in the
+                               { takesKey }: whether Cmd-K is its own;
+                               corner the same for the corner and Cmd-Shift-P. Answers [{ head, lines: [{ words, keys }] }] in the
                                order a person meets them; a line with no key is left out, and so is a group with no line.
      found(words, typed)       the words cut for showing, [{ text, hit }], when they hold every word typed; else null. */
 (function (root) {
 const TWO = /^⇧?[^\s⌘⌥⌃⇧] ⇧?[^\s⌘⌥⌃⇧]$/;   // two keys pressed one after the other: "g j", "g ⇧G"
-function groups(commands = [], search = null) {
+function groups(commands = [], search = null, corner = null) {
   const by = new Map(commands.map(one => [one.id, one.key || '']));
   const the = (...ids) => ids.map(id => by.get(id) || '');
   // While Cmd-K opens the plugin's Search, a command of Logseq's that says Cmd-K never hears it.
-  const theirs = key => search?.takesKey && key === '⌘K' ? '' : key;
+  const theirs = key => (search?.takesKey && key === '⌘K') || (corner?.takesKey && key === '⌘⇧P') ? '' : key;
   const two = commands.filter(one => TWO.test(one.key || '')).sort((a, b) => a.key.replace(/⇧/g, '').localeCompare(b.key.replace(/⇧/g, '')) || a.label.localeCompare(b.label));   // by their letters, a Shift not counted
   return [
     ['Writing', [
@@ -26,7 +27,8 @@ function groups(commands = [], search = null) {
     ['Finding', [
       ['Search', [search?.takesKey ? '⌘K' : '']],
       ['Logseq’s search', [theirs(by.get('go/search') || '')]],
-      ['Logseq’s commands', the('command-palette/toggle')],
+      ['Commands', [corner?.takesKey ? '⌘⇧P' : '']],
+      ['Logseq’s commands', the('command-palette/toggle').map(theirs)],
     ]],
     ['Moving around', [
       ['Back, forward', the('go/backward', 'go/forward')],

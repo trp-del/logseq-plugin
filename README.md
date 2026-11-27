@@ -147,7 +147,7 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
   hairline at its edge (still the handle for its width) and a thin line between one section and the next. What a section
   holds is Logseq's own. A page in it reads as a page: its place first, its properties open ("Open properties" is pressed
   for you and left out), then its Relations; its name in the section's head is a link that opens the page. Every line of
-  it starts on one edge, 32 from the sidebar's edge, and the marks (a fold arrow, a list's mark, the + of Add property, a
+  it starts on one edge, about as far from the sidebar's left edge as the right ends are from its right, and the marks (a fold arrow, a list's mark, the + of Add property, a
   value's bullet) stand in the gutter before that edge.
 - Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
   it does in a word beside its icon; a tag's own table leaves out its Tags column.
@@ -213,8 +213,12 @@ setting gives Cmd-K back to Logseq's own search). It does what Find did (the own
 
 ### The corner (`beside/corner.js`)
 
-The bottom right corner holds commands, out of the way of what you read and write. Nothing shows there until the pointer
-comes near; then a quiet ···, and a press opens a list to type into, as Logseq's own command palette: the plugin's commands
+The bottom right corner holds commands, out of the way of what you read and write. **Cmd-Shift-P** opens them, in place of
+Logseq's palette (a setting gives the key back), and the same key or Escape lets go. Nothing shows in the corner until the
+pointer comes near; then a quiet ···, and a press opens the same list. The list stands in the corner at one size, which does
+not change while the words narrow it. Ontology and Todo stand in Logseq's own top right menu too, over Settings (pressed with the pointer). It
+is a list to type into, as Logseq's own command palette, and a quick search of everything: under the commands, **In your
+notes** lists up to eight pages, bullets, tags and properties the words find, each going there. The commands: the plugin's commands
 first (Search, Todo, Ontology, New page…, Recycle, Update plugins and the rest), then every command of Logseq's own with its
 key. Letters narrow it, the closest line first; Enter does the lit line; words no command has offer a new page of that name.
 What is done to a node stays on its right-click.

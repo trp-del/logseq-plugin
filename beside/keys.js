@@ -47,7 +47,8 @@ G.part({
     function body() {
       const all = G.touch.logseqCommands().concat(G.touch.commands().map(one => ({ id: one.name, label: one.label, key: one.key })));
       const search = G.started.some(part => part.key === 'search') ? { takesKey: G.setting('searchTakesSearchKey') !== false } : null;
-      return G.sheet.groups(all, search).map(group => `<section class="lk-sheet-group${group.lines.length > 12 ? ' lk-long' : ''}"><div class="lk-sheet-head">${G.esc(group.head)}</div>${group.lines.map(lineHtml).join('')}</section>`).join('');
+      const corner = G.started.some(part => part.key === 'corner') ? { takesKey: G.setting('cornerTakesCommandKey') !== false } : null;
+      return G.sheet.groups(all, search, corner).map(group => `<section class="lk-sheet-group${group.lines.length > 12 ? ' lk-long' : ''}"><div class="lk-sheet-head">${G.esc(group.head)}</div>${group.lines.map(lineHtml).join('')}</section>`).join('');
     }
     // It fades out as it came, and is gone from the page once faded.
     function hide() {

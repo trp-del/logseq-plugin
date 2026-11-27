@@ -204,6 +204,13 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       return is([on, await list.locator('.lk-tab.on').count()], [1, 0]);
     });
     // ---- Arriving: Todo
+    await step('Cmd-Shift-P opens the corner\'s commands, in the corner at one size while words narrow them, and again lets go', async () => {   // the owner, 26 November 2026: "make it have a set height and not shrink"
+      const box = () => page.evaluate(() => { const m = document.querySelector('.lk-menu'); if (!m) return null; const r = m.getBoundingClientRect(); return [Math.round(innerWidth - r.right), Math.round(innerHeight - r.bottom), Math.round(r.height), !!document.querySelector('.cp__cmdk')]; });
+      await page.keyboard.press('Meta+Shift+p'); await wait(700); const open = await box();
+      await page.keyboard.type('show', { delay: 30 }); await wait(400); const narrowed = await box();
+      await page.keyboard.press('Meta+Shift+p'); await wait(400);
+      return is([open?.slice(0, 2), open?.[3], narrowed, await box()], [[12, 12], false, open, null]);
+    });
     await step('the corner opens Todo in the sidebar, under its own name', async () => {
       await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
       await page.locator('.lk-menu .lk-item', { hasText: /^Todo$/ }).click(); await wait(2200);

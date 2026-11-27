@@ -27,7 +27,7 @@ G.part({
   settings: [{ key: 'searchTakesSearchKey', type: 'boolean', default: true, title: 'Search opens on Cmd-K', description: 'Off: Cmd-K stays Logseq’s own search, and the plugin’s opens from the command palette.' }],
   start(base) {
     base.style('search', `
-.lk-search { padding: 4px 4px 16px 22px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
+.lk-search { padding: 4px 4px 16px 10px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-search .lk-add { flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .lk-search .lk-add > .lk-field { flex: 1 1 8rem; min-width: 8rem; }
 .lk-search-piece { flex: none; padding: 0; border: 0; background: none; color: var(--lk-text); font: inherit; cursor: pointer; }
@@ -52,6 +52,8 @@ G.part({
 .lk-choice-more { padding: 1px 4px; border: 0; background: none; color: var(--lk-quiet); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .lk-choice-more:hover { color: var(--lk-text); }
 .lk-search .lk-list { margin-top: 0; }
+.lk-search .lk-row > .lk-open { --lk-open-shift: 0px; }   /* an opened row's words exactly where its line's stood */
+.lk-search .lk-rows { margin-left: -12px; }   /* the dots out near the edge of the line and the group's name */
 .lk-search .lk-list-name { font-size: var(--lk-small); font-weight: 600; }
 .lk-search-choices + .lk-search-none, .lk-search-choices:not([hidden]) ~ .lk-rel { margin-top: 8px; }
 .lk-search .lk-search-none { color: var(--lk-quiet); padding: 8px 0 0; }

@@ -51,6 +51,7 @@
                               reorder(ids); openProps(); until(fn, ms), mainLeft(), mainSized(fn), headIcons(), mainPage()
      touch.SPLIT              the stylesheet for the sidebar as the right half
      touch.menuItem(label, run)       an item in a bullet's right-click menu and in a page's: run({ uuid }) or run({ page })
+     touch.topMenu(lines)             lines { word, take } in Logseq's menu at the top right
      touch.keep(settings)     settings of the plugin's own, kept by Logseq
      touch.copy(text)         words put on the clipboard; answers whether they are there
      touch.save(name, text, folder)   a file written where the person picks, in Logseq's folder window (opened at folder); a file
@@ -873,6 +874,26 @@ async function open(to, side = false) {
 }
 
 /* Out of Logseq: the right-click items, the clipboard, a file, the print window, the graph's pictures. */
+/* Lines of the plugin's own in Logseq's menu at the top right, over Settings, drawn as its own lines are. Gives back what
+   stops it. */
+function topMenu(lines) {
+  const doc = host();
+  const add = () => {
+    for (const menu of doc.querySelectorAll('.ui__dropdown-menu-content')) {
+      if (menu.querySelector('.lk-topitem')) continue;
+      const rows = [...menu.querySelectorAll(':scope > [role="menuitem"]')], settings = rows.find(one => one.textContent.trim() === 'Settings');
+      if (!settings || !rows.some(one => one.textContent.trim() === 'Plugins')) continue;   // the top right menu is the one with both
+      for (const line of lines) {
+        const el = settings.cloneNode(false); el.removeAttribute('id'); el.classList.add('lk-topitem'); el.innerHTML = `<span class="flex items-center gap-1 w-full">${icon(line.icon, 16)}<div>${doc.createTextNode(line.word).textContent}</div></span>`;
+        el.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); menu.dispatchEvent(new (doc.defaultView.KeyboardEvent)('keydown', { key: 'Escape', code: 'Escape', bubbles: true })); line.take(); });
+        settings.before(el);
+      }
+    }
+  };
+  const watch = new (doc.defaultView.MutationObserver)(add);
+  watch.observe(doc.body, { childList: true, subtree: true });
+  return () => { watch.disconnect(); for (const el of doc.querySelectorAll('.lk-topitem')) el.remove(); };
+}
 function menuItem(label, run) {
   logseq.Editor.registerBlockContextMenuItem(label, event => run({ uuid: event?.uuid }));
   logseq.App.registerPageMenuItem?.(label, event => run({ page: event?.page }));
@@ -1050,7 +1071,7 @@ const OPENED = `
 @container lk-list (max-width: 300px) {
   .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) { grid-template-columns: minmax(0, 1fr) !important; }
   .lk-editor :is(.bottom-property-pill, .property-pair) .property-key-inner { max-width: none; }
-  .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) > :last-child { padding-left: 16px !important; }   /* the values one step in under their name, so a value's arrow stands inside the node, clear of the guide line it was dug from (the reset of the value's padding above had cancelled it) */
+  .lk-editor :is(.bottom-property-pill, .property-pair.property-panel-row) > :last-child { padding-left: 0 !important; }   /* a value on its own line starts on its name's edge (26 November 2026: "the text must be aligned"); a node's arrow hangs before it, clear of the line, which stands further out here (node.js) */
 }
 /* A task opened from its line keeps the line's start (the owner, 26 November 2026, fault 31-33): its bullet, status circle and words
    stay where they stood ("there should be bullets before tasks circles", 26 November 2026), no priority mark added (the priority is set from the right-click, as on the line),
@@ -1081,6 +1102,9 @@ const OPENED = `
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref { overflow: hidden; text-overflow: ellipsis; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref::before { content: ""; display: inline-block; width: 12px; height: 14px; margin: 0 4px 0 0; vertical-align: -2px; background: var(--lk-off); -webkit-mask: ${ARROW} center / 8px 11px no-repeat; mask: ${ARROW} center / 8px 11px no-repeat; transition: transform .14s ease; cursor: pointer; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner[data-type="node"] a.page-ref:hover::before { background: var(--lk-text); }
+@container lk-list (max-width: 300px) {
+  .lk-editor .ls-page-blocks .blocks-list-wrap[data-level="0"] > .ls-block > .block-main-container > .block-control-wrap { transform: translateX(-8px); }   /* the node's own dot, with the row's (node.js) */
+}
 /* A node dug into: its name already stands on the value's line, so only what it holds is shown under it. */
 .lk-dugopen > .lk-editor .is-page-title-row { display: none !important; }
 .lk-dugopen > .lk-editor .ls-page-title, .lk-dugopen > .lk-editor .ls-page-title .ls-block > div { margin: 0 !important; padding: 0 !important; min-height: 0 !important; }
@@ -1134,6 +1158,12 @@ const OPENED = `
    is moved or taken away. */
 const IN = ':is(#main-content-container, #right-sidebar, .lk-editor)', OWN = ':is(#main-content-container, #right-sidebar)';
 const MARKS = `
+/* A tag that moves to a line of its own starts on the words' edge: the # and the × Logseq keeps room for before it hang there
+   instead (26 November 2026: "the text must be aligned"). */
+${IN} .block-tag { padding-left: 0 !important; margin-left: 0 !important; }
+${IN} .block-tag > div { position: relative; }
+${IN} .block-tag .hash-symbol { position: absolute !important; right: 100%; }
+${IN} .block-row > .ls-block-right { margin-left: 0 !important; }
 /* A task says it is one by its status circle: the word Task after it is left out (the owner, 26 November 2026). */
 ${IN} .ls-block:has(> .block-main-container .block-left.positioned-properties [class*="ls-icon-"]) > .block-main-container .block-tag:has(a.tag[data-ref="task"]) { display: none !important; }
 ${IN} .ls-block:has(> .block-main-container .block-left.positioned-properties [class*="ls-icon-"]) > .block-main-container .ls-block-right:has(a.tag[data-ref="task"]):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }   /* no empty line where it stood */
@@ -1301,15 +1331,17 @@ ${SIDE_PAGE} .ls-sidebar-page-properties > hr { display: none !important; }
 /* One edge in the sidebar: the words of every line of a page start where its properties' names start, and the marks (a fold
    arrow, a list's mark, the + of "Add property", a value's bullet) stand in the gutter before that edge (the owner, 25
    November 2026: "I see a lot of problems with alignment of elements"). */
-${PLAIN_SIDE} .lk-relwrap { padding-left: 0; margin-left: -2px; }
-${PLAIN_SIDE} .ls-sidebar-page-properties .ls-new-property { margin-left: -20px; }
+${PLAIN_SIDE} .lk-relwrap { padding-left: 0; margin-left: 18px; }
+${PLAIN_SIDE} .lk-place { margin-left: 10px !important; padding-left: 0 !important; }
+${PLAIN_SIDE} .sidebar-panel-content > .page { margin-left: 0 !important; }   /* as much room on the left as on the right (26 November 2026: "the margins on right and left are not even") */
+${PLAIN_SIDE} .ls-sidebar-page-properties .ls-new-property { margin-left: -2px; }
 /* Where the sidebar is narrow a property has its name on one line and its values under it, as before 0.9: beside a name
    150 wide a value would be broken into pieces. Wider, a property reads as it does on the page. */
 ${SIDE_PAGE} .sidebar-panel-content { container: lk-side / inline-size; }
 @container lk-side (max-width: 420px) {
   ${SIDE_PAGE} .ls-sidebar-page-properties .property-pair.property-panel-row { display: block !important; padding-right: 0 !important; }
   ${SIDE_PAGE} .ls-sidebar-page-properties .property-key-panel { width: auto !important; min-width: 0 !important; }
-  ${PLAIN_SIDE} .ls-sidebar-page-properties .property-value-container { margin-left: -22px; }
+  ${PLAIN_SIDE} .ls-sidebar-page-properties .property-value-container { margin-left: 0; }   /* a value on its own line starts on its name's edge */
   ${PLAIN_SIDE} .ls-sidebar-page-properties .properties-panel { overflow: visible !important; }   /* Logseq clips the panel at its edge, which would hide a value's bullet in the gutter */
 }`,
   /* Logseq's tables: the page's own ground under the column names, no lines between columns, a hairline under each row, the
@@ -1329,6 +1361,9 @@ ${AREA} .ls-table :is(.text-muted-foreground, .text-gray-500) { color: var(--lk-
 ${AREA} .ls-table-cell .page-reference > .bracket { display: none; }
 ${AREA} .table-block-title > .absolute button { background: transparent !important; border-radius: var(--lk-corner-round) !important; }
 ${AREA} .table-block-title > .absolute button:hover { background: var(--lk-wash) !important; }
+/* They stand over the row's words: on the page's paper with a hairline round them, so the two never run into each other (26
+   November 2026: "no background so they blend in with the text"). */
+${AREA} .ls-table-row:is(:hover, :focus-within) .table-block-title > .absolute { background: var(--lk-paper) !important; border-radius: var(--lk-corner-round) !important; box-shadow: 0 0 0 1px var(--lk-line), -8px 0 8px var(--lk-paper); }
 ${AREA} .table-block-title > .absolute button:first-child { width: auto !important; padding: 0 6px !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); }
 ${AREA} .table-block-title > .absolute button:first-child svg { display: none; }
 ${AREA} .table-block-title > .absolute button:first-child::before { content: "Open"; }
@@ -1600,5 +1635,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

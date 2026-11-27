@@ -487,6 +487,14 @@ G.node.CSS = `
    column beside them that would leave the words a few letters wide (the owner, 25 November 2026: "This is a sidebar and you
    need to account for that especially with indentation"). */
 @container lk-list (max-width: 300px) {
+  /* Names and values stack here, each node value with its arrow before it: a row's arrow, its dot and the line under the dot
+     stand a step further out than the words, so that arrow has room of its own (26 November 2026: "this is not aligned with
+     lines and chevron and the bullets start too far in"). */
+  .lk-row > .lk-line > .lk-bul { position: relative; left: -8px; }
+  .lk-row > .lk-fold { position: relative; left: -8px; }
+  .lk-row > .lk-open { margin-left: calc(var(--lk-open-shift) - 8px); }
+  .lk-rows > .lk-row > .lk-open, .lk-list[data-viewed][data-viewed][data-viewed] > .lk-rows > .lk-row > .lk-open { padding-left: 8px; }   /* the band and its line stand out; what is in it stays on the words' edge */
+  .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { left: 15px; }
   .lk-list[data-viewed] > .lk-rows { margin-left: -18px; }
   .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line { flex-wrap: wrap; }
   .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-words { flex: 1 1 0; }

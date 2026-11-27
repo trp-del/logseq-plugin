@@ -11,7 +11,7 @@ G.part({
        task's day at the right end and red once it has passed, the line on top with a + that adds a task and narrows the list
        to what is typed. */
     base.style('todo', `
-.lk-todo { padding: 4px 4px 16px 22px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
+.lk-todo { padding: 4px 4px 16px 10px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-todo .lk-list-name { font-size: var(--lk-small); font-weight: 600; }
 .lk-todo .lk-list { margin-top: 14px; }
 .lk-todo > .lk-time { margin: 0 0 2px; }
