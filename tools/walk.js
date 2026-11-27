@@ -211,6 +211,16 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Meta+Shift+p'); await wait(400);
       return is([open?.slice(0, 2), open?.[3], narrowed, await box()], [[12, 12], false, open, null]);
     });
+    await step('a right-click on a line of Logseq\'s menu offers Hide and takes nothing; Plugin settings brings the line back', async () => {   // the owner, 26 November 2026: "bring back a simple settings and a hide menu items"
+      const dots = async () => { await page.locator('.toolbar-dots-btn').first().click(); await wait(800); }, line = () => page.locator('.ui__dropdown-menu-content [role=menuitem]', { hasText: 'Import' });
+      await dots(); await line().click({ button: 'right' }); await wait(500); await page.locator('.lk-menu .lk-item', { hasText: 'Hide' }).click(); await wait(700);
+      await page.keyboard.press('Escape'); await wait(400); await dots(); const hidden = await line().filter({ visible: true }).count(); await page.keyboard.press('Escape'); await wait(400);
+      const hash = await page.evaluate(() => location.hash);
+      await page.keyboard.press('Meta+Shift+p'); await wait(600); await page.keyboard.type('plugin settings', { delay: 20 }); await wait(500); await page.keyboard.press('Enter'); await wait(1500);
+      await page.locator('.lk-set-line', { hasText: 'Import' }).locator('[data-back]').click(); await wait(900); const left = await count('.lk-set-page [data-back]');
+      await page.evaluate(h => { location.hash = h; }, hash); await wait(1500); await dots(); const back = await line().filter({ visible: true }).count(); await page.keyboard.press('Escape'); await wait(400);
+      return is([hidden, left, back], [0, 0, 1]);
+    });
     await step('the corner opens Todo in the sidebar, under its own name', async () => {
       await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
       await page.locator('.lk-menu .lk-item', { hasText: /^Todo$/ }).click(); await wait(2200);

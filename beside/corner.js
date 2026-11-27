@@ -43,7 +43,7 @@ G.part({
       const add = (name, word, value = '') => { if (have.has(name) && !used.has(name)) { used.add(name); items.push({ word, value, also: have.get(name).label, take: run(name) }); } };   // found by its command's name too
       add('lk-search', 'Search', G.setting('searchTakesSearchKey') === false ? '' : '⌘K'); add('lk-todo-side', 'Todo'); add('lk-ontology', 'Ontology');
       items.push({ word: 'New page…', take: () => G.menu(press, [], { find: 'The new page’s name', enter: make, dock: true }) });
-      add('lk-recycle', 'Recycle'); add('lk-update-plugins', 'Update plugins');
+      add('lk-recycle', 'Recycle'); add('lk-update-plugins', 'Update plugins'); add('lk-settings', 'Plugin settings');
       for (const one of mine) if (!/^(lk-todo|lk-ontology-side)$/.test(one.name)) add(one.name, one.label);   // Todo and Ontology stand once, where they open
       const theirs = G.touch.logseqCommands().filter(one => !(taken() && one.id === 'command-palette/toggle')).sort((a, b) => a.id.localeCompare(b.id));   // the ones of a kind together: editor, go, graph, ui
       if (theirs.length) items.push({ gap: true });
@@ -59,7 +59,7 @@ G.part({
     G.touch.command('lk-corner', 'Commands (the corner)', () => { open(); });
     base.onStop(G.touch.key('mod+shift+p', () => { if (!taken()) return false; if (isOpen()) shut?.(); else open(); }));
     // Logseq's own menu at the top right offers the plugin's two places too.
-    base.onStop(G.touch.topMenu([{ word: 'Ontology', icon: 'sitemap', take: run('lk-ontology') }, { word: 'Todo', icon: 'checkbox', take: run('lk-todo-side') }].filter(line => G.parts.some(part => G.on(part.key) && part.key === line.word.toLowerCase()))));
+    base.onStop(G.touch.topMenu([{ word: 'Ontology', icon: 'sitemap', take: run('lk-ontology') }, { word: 'Todo', icon: 'checkbox', take: run('lk-todo-side') }, { word: 'Plugin settings', icon: 'adjustments', key: 'settings', take: run('lk-settings') }].filter(line => G.parts.some(part => G.on(part.key) && part.key === (line.key || line.word.toLowerCase())))));
   },
 });
 })();

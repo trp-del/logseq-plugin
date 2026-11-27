@@ -377,6 +377,13 @@ test('a sentence reads a kind, a value of its nodes, a page and a time', () => {
 
 const sheet = require('../core/sheet.js');
 const cmd = (id, key, label = id) => ({ id, key, label });
+test('hidden menu lines are kept in one setting, once each, and brought back by name', () => {
+  const H = require('../core/hidden.js');
+  const words = H.add(H.add('', '··· menus', 'Publish page'), '··· menus', 'publish page');
+  assert.equal(words, '··· menus: Publish page');
+  assert.deepEqual([H.has(H.list(words), '··· menus', 'Publish Page'), H.has(H.list(words), 'The / menu', 'Publish page'), H.has(H.list('Import'), 'The / menu', 'import')], [true, false, true]);
+  assert.equal(H.drop(words, '··· menus: Publish page'), '');
+});
 test('the key sheet lists each key as it is now, and leaves out a line with none', () => {
   const got = sheet.groups([cmd('editor/undo', '⌘Z'), cmd('editor/redo', ''), cmd('editor/indent', ''), cmd('go/search', '⌘K'), cmd('go/journals', 'g j', 'Go to journals'), cmd('lk-todo', 'g d', 'Todo'), cmd('go/all-graphs', 'g ⇧G', 'Go to all graphs'), cmd('sidebar/clear', '⌘C ⌘C')], { takesKey: true });
   assert.deepEqual(got.map(g => g.head), ['Writing', 'Finding', 'Two letters, outside a bullet']);

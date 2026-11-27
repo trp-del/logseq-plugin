@@ -51,6 +51,7 @@
                               reorder(ids); openProps(); until(fn, ms), mainLeft(), mainSized(fn), headIcons(), mainPage()
      touch.SPLIT              the stylesheet for the sidebar as the right half
      touch.menuItem(label, run)       an item in a bullet's right-click menu and in a page's: run({ uuid }) or run({ page })
+     touch.menuLines(base, isHidden, offer)   Logseq's menus' lines, hidden ones left out; a right-click on one is offered
      touch.topMenu(lines)             lines { word, take } in Logseq's menu at the top right
      touch.keep(settings)     settings of the plugin's own, kept by Logseq
      touch.copy(text)         words put on the clipboard; answers whether they are there
@@ -894,11 +895,67 @@ function topMenu(lines) {
   watch.observe(doc.body, { childList: true, subtree: true });
   return () => { watch.disconnect(); for (const el of doc.querySelectorAll('.lk-topitem')) el.remove(); };
 }
+/* Logseq's own menus, a line at a time: where a line stands, what it says, and leaving hidden ones out. isHidden(where, name)
+   says which; offer(at, where, name) is asked for a right-click on a line. A right press on a line is kept from Logseq, which
+   would take it as choosing the line. Gives back { again() }, to look once more after the list of hidden lines changed. */
+const MENUS = [
+  { where: 'Right-click menus', box: '.ls-context-menu-content, .ui__context-menu-content', row: '[role="menuitem"], [role="menuitemcheckbox"]' },
+  { where: '··· menus', box: '.ui__dropdown-menu-content:not(.ls-context-menu-content), .ui__dropdown-menu-sub-content', row: '[role="menuitem"], [role="menuitemcheckbox"]' },
+  { where: 'The / menu', box: '#ui__ac', row: '.menu-link-wrap' },
+];
+const KEYS_SHOWN = '.shui-shortcut-combo, .ui__dropdown-menu-shortcut, .ui__context-menu-shortcut, .keyboard-shortcut, kbd, svg';
+const RULES = '.ui__dropdown-menu-separator, .ui__context-menu-separator';
+function menuLines(base, isHidden, offer) {
+  const doc = host(), win = doc.defaultView;
+  const nameOf = row => { const copy = row.cloneNode(true); for (const el of copy.querySelectorAll(KEYS_SHOWN)) el.remove(); return (copy.textContent || '').replace(/\s+/g, ' ').trim(); };
+  const mark = (el, out) => { if (out !== el.hasAttribute('data-lk-hidden')) el.toggleAttribute('data-lk-hidden', out); };
+  const found = target => {
+    for (const place of MENUS) {
+      const box = target.closest?.(place.box), row = box && target.closest(place.row);
+      if (!row || !box.contains(row) || row.closest('.lk-menu')) continue;
+      const name = nameOf(row); if (name && name.length <= 80) return { where: place.where, name, row };
+    }
+    return null;
+  };
+  // A menu's dividing lines: one between two groups that still show, none at the top or the foot, never two together.
+  const rules = holder => { let seen = false, last = null; for (const child of holder.children) { if (child.matches(RULES)) { const out = !seen || !!last; mark(child, out); if (!out) last = child; continue; } if (child.hasAttribute('data-lk-hidden')) continue; seen = true; last = null; } if (last) mark(last, true); };
+  const pass = () => {
+    for (const place of MENUS) for (const box of doc.querySelectorAll(place.box)) {
+      for (const row of box.querySelectorAll(place.row)) mark(row, isHidden(place.where, nameOf(row)));
+      for (const holder of new Set([...box.querySelectorAll(RULES)].map(one => one.parentElement))) rules(holder);
+    }
+    // The / menu lights its own line: never one left out, so Enter cannot take it.
+    const lit = doc.querySelector('#ui__ac .chosen');
+    if (lit?.closest('[data-lk-hidden]') && doc.querySelector('#ui__ac .menu-link-wrap:not([data-lk-hidden])')) arrow('ArrowDown');
+  };
+  let walked = 0;
+  const arrow = key => { if (Date.now() - walked < 120) return; walked = Date.now(); const code = key === 'ArrowDown' ? 40 : 38; (doc.activeElement || doc.body).dispatchEvent(new win.KeyboardEvent('keydown', { key, code: key, keyCode: code, which: code, bubbles: true })); };
+  const onArrow = event => { if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && event.isTrusted && doc.querySelector('#ui__ac')) win.setTimeout(() => { if (doc.querySelector('#ui__ac .chosen')?.closest('[data-lk-hidden]')) { walked = 0; arrow(event.key); } }, 60); };
+  const onRight = event => { if (event.button !== 2 || !found(event.target)) return; event.preventDefault(); event.stopImmediatePropagation(); };
+  const onMenu = event => {
+    const line = found(event.target); if (!line) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    offer({ x: event.clientX, y: event.clientY, from: line.row }, line.where, line.name);
+    [...doc.querySelectorAll('.lk-menu')].pop()?.classList.add('lk-over');   // over Logseq's menu, which keeps the pointer to itself
+  };
+  base.style('hidden', '[data-lk-hidden] { display: none !important; } .lk-menu.lk-over { pointer-events: auto !important; z-index: 2147483000 !important; }');
+  for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup']) base.listen(doc, type, onRight, true);
+  base.listen(doc, 'contextmenu', onMenu, true);
+  base.listen(doc, 'keydown', onArrow, true);
+  base.onStop(watch(pass));
+  const observer = new win.MutationObserver(pass); observer.observe(doc.body, { childList: true, subtree: true });
+  base.onStop(() => { observer.disconnect(); for (const el of doc.querySelectorAll('[data-lk-hidden]')) el.removeAttribute('data-lk-hidden'); });
+  return { again: pass };
+}
 function menuItem(label, run) {
   logseq.Editor.registerBlockContextMenuItem(label, event => run({ uuid: event?.uuid }));
   logseq.App.registerPageMenuItem?.(label, event => run({ page: event?.page }));
 }
-const keep = settings => logseq.updateSettings(settings);
+const keep = settings => {
+  const done = logseq.updateSettings(settings);
+  try { Object.assign(logseq.settings, settings); } catch (error) { /* Logseq's own copy follows a moment later */ }   // what is read next is what was just kept
+  return done;
+};
 async function copy(text) {
   try { await host().defaultView.navigator.clipboard.writeText(text); return true; } catch (error) { console.warn('Logseq Plugin: the clipboard could not be reached', error); return false; }
 }
@@ -1179,8 +1236,9 @@ ${IN} a.tag { font-family: var(--lk-tag-face) !important; font-size: var(--lk-ta
 ${IN} a.tag:hover { color: var(--lk-text) !important; }
 ${IN} .block-tag a.hash-symbol { opacity: 0; }
 ${IN} .block-tag:hover a.hash-symbol { opacity: .6; }
-${IN} a.external-link { color: var(--lk-text) !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; }   /* a web link is a link: the ink, underlined, never Logseq's blue */
-${IN} a.external-link:hover { text-decoration-color: currentColor !important; }
+a.external-link { color: var(--lk-text) !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; border-bottom: none !important; }   /* a web link is a link: the ink, underlined, never Logseq's blue, wherever Logseq draws it (a card over a link too); one line under it, not Logseq's second */
+a.external-link:hover { text-decoration-color: currentColor !important; }
+a.external-link:not(:has(img))::after { content: "\\2197"; display: inline-block; margin-left: .2em; color: var(--lk-quiet); text-decoration: none; }   /* the small arrow after it, as in the plugin's own lists */
 ${OWN} .ls-page-properties:not(.lk-editor *) { margin-left: 10px; }   /* a page's property names and Add property on the edge its title and its bullets stand on */
 ${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
 `;
@@ -1635,5 +1693,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

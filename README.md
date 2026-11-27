@@ -98,7 +98,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 - A node's bullet is Logseq's own, with Logseq's ring round it where the node holds lines that are folded away. A tick box
   is a small rounded square with a short check.
 - A tag is written in Commissioner, quiet grey, with no # and no box. A property's name is written in Fragment Mono, quiet grey,
-  with no small picture before it. A link to a node is the ink with a faint underline, never blue, never in brackets. This
+  with no small picture before it. A link to a node is the ink with a faint underline, never blue, never in brackets. A web
+  link is the same with a small grey arrow ↗ after it, wherever it stands. This
   holds on Logseq's own pages, in the sidebar and inside an opened node, as in the plugin's lists. On Logseq's own pages a
   property with nothing in it is its name, fainter.
 - Colour is kept for a change: green for what comes, red struck through for what goes; Delete in a menu is red.
@@ -222,6 +223,14 @@ notes** lists up to eight pages, bullets, tags and properties the words find, ea
 first (Search, Todo, Ontology, New page…, Recycle, Update plugins and the rest), then every command of Logseq's own with its
 key. Letters narrow it, the closest line first; Enter does the lit line; words no command has offer a new page of that name.
 What is done to a node stays on its right-click.
+
+### Hidden menu items and Plugin settings (`beside/hidden.js`, `beside/settings.js`)
+
+A right-click on a line of one of Logseq's menus (a bullet's or a page's right-click menu, a ··· menu, the / menu) offers
+**Hide**: the line is left out from then on. Only the screen changes; a hidden line's key still works. **Plugin settings** (in
+the corner's commands, Logseq's top right menu, or g then , outside a bullet) is one short page: the hidden items, each with
+**Bring back**; a tick for each of the two keys the plugin takes; and a tick for each part, a change taking effect the next
+time the plugin is loaded.
 
 ### Two pages side by side (`beside/split.js`, Logseq's markup in `ground/touch.js`)
 
