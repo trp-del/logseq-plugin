@@ -250,7 +250,8 @@ again: a sidebar the key had opened is shut, and the keys go back to the bullet 
 
 The bottom right corner holds commands, out of the way of what you read and write. **Cmd-Shift-P** opens them, in place of
 Logseq's palette (a setting gives the key back), and the same key or Escape lets go. Nothing shows in the corner until the
-pointer comes near; then a quiet ···, and a press opens the same list. The list stands in the corner at one size, which does
+pointer comes near; then a quiet ···, and a press opens the same list. Only the ··· takes a press: what lies beside it in the
+corner stays the page's. The list stands in the corner at one size, which does
 not change while the words narrow it. Ontology and Todo stand in Logseq's own top right menu too, over Settings (pressed with the pointer). It
 is a list to type into, as Logseq's own command palette, and a quick search of everything: under the commands, **In your
 notes** lists up to eight pages, bullets, files, tags and properties the words find, each going there. A found line's icon
