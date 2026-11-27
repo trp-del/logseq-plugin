@@ -1631,7 +1631,7 @@ ${AREA} .table-block-title > .absolute button:hover { background: var(--lk-wash)
 /* They stand over the row's words: on the page's paper with a hairline round them, so the two never run into each other (26
    November 2026: "no background so they blend in with the text"). The backing comes and goes with the buttons, which Logseq shows only
    while the pointer is on the name (27 November 2026: "only appear when mouse is right there like the native behavior"). */
-${AREA} .table-block-title > .absolute:has(button.opacity-100, button:focus-visible) { background: var(--lk-paper) !important; box-shadow: 0 0 0 1px var(--lk-line), -8px 0 8px var(--lk-paper); }
+${AREA} .table-block-title > .absolute:has(button.opacity-100, button:focus-visible) { background: var(--lk-paper) !important; box-shadow: 0 0 0 1px var(--lk-line); }
 ${AREA} .table-block-title > .absolute button:first-child { width: auto !important; padding: 0 6px !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); }
 ${AREA} .table-block-title > .absolute button:first-child svg { display: none; }
 ${AREA} .table-block-title > .absolute button:first-child::before { content: "Open"; }
