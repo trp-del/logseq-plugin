@@ -72,6 +72,8 @@
      touch.queryShown(uuid)   a query's table as it is drawn on screen: { columns, order } or null
      touch.dragBand()         how tall the band at the window's top is that moves the window, where no press reaches the page
      touch.graphChanged(fn)   fn runs when another graph is opened; gives back what stops it
+     touch.recentGroups(kinds) each line of the left sidebar's Recent marked with what it is, asked of kinds()
+                              (read.recentKinds); the sheet (CALM.left) then stands them in groups. Gives back what stops it
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
 const G = window.PluginDoor;
@@ -252,6 +254,29 @@ function lessColumn(el, title) {
     const at = title ? cells.findIndex(cell => cell.textContent.trim() === title) + 1 : 0;
     if ((table.dataset.lkLess || '0') !== String(at)) { if (at) table.dataset.lkLess = String(at); else delete table.dataset.lkLess; }
   }
+}
+/* The left sidebar's Recent in groups. Logseq's rows are not moved or added to: each is marked with its kind (a row's own
+   picture cannot say it, since a picked icon replaces the tag's or the property's), and the sheet orders them. A row is found
+   in Logseq's list by its place, else by its name. Asked again when the names on screen change, or the graph does. */
+const RECENT = '.left-sidebar-inner li.recent-item';
+function recentGroups(kinds) {
+  let asked = '', stopped = false;
+  const rows = () => [...host().querySelectorAll(RECENT)];
+  const name = row => row.querySelector('.page-title')?.textContent.trim() || '';
+  const pass = async () => {
+    const now = rows(), names = now.map(name).join('\n');
+    if (!now.length || (names === asked && now.every(row => row.dataset.lkKind))) return;
+    asked = names;
+    const list = await kinds().catch(() => []);
+    if (stopped) return;
+    rows().forEach((row, i) => {
+      const said = name(row), found = list[i]?.title.trim() === said ? list[i] : list.find(one => one.title.trim() === said);
+      const kind = found?.kind || 'page';
+      if (row.dataset.lkKind !== kind) row.dataset.lkKind = kind;
+    });
+  };
+  const offs = [watch(pass), changed(() => { asked = ''; pass(); })];
+  return () => { stopped = true; for (const off of offs) off(); for (const row of rows()) delete row.dataset.lkKind; };
 }
 // The nodes an opened node's values name; and the sheet that says, after each of them, what that node is.
 const valued = editor => [...new Set([...editor.querySelectorAll(VALUE)].filter(a => a.closest('.lk-editor') === editor).map(a => a.dataset.uuid.toLowerCase()))];
@@ -1777,11 +1802,24 @@ ${AREA} .ls-view-head .view-actions > button:has(.ls-icon-plus)::after { content
 ${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `${AREA} .ls-table[data-lk-less="${n}"] :is(.ls-table-header, .ls-table-row) > .flex-row:not(.sticky-columns) > :nth-child(${n})`).join(', ')} { display: none !important; }`,
   /* The left sidebar as words alone (the owner, on "A Leaner Logseq", 26 November 2026): no picture before Journals, Pages, a
      favourite or a recent page; no section words (Navigations, Favorites, Recent), a gap between the groups instead; the graph's
-     name alone, its up-down mark under the pointer. The words stand on one edge. */
+     name alone, its up-down mark under the pointer. The words stand on one edge.
+     Recent stands in three groups, Pages, Properties and Tags, each under a small grey word (the owner, 27 November 2026: "we
+     could split up recents by page, property, tag with subtle headers and have no icons"; chosen from pictures: "small grey
+     word"); inside a group Logseq's own order holds. */
   left: `
 .left-sidebar-inner :is(.sidebar-navigations .item, .recent-item, .favorite-item) :is(.ui__icon, svg, .page-icon) { display: none !important; }
 .left-sidebar-inner .sidebar-navigations .item { margin-left: 2px !important; }
-.left-sidebar-inner :is(.recent-item, .favorite-item) > a { margin-left: -4px !important; }
+.left-sidebar-inner :is(.recent-item, .favorite-item) > a { margin-left: 0 !important; }
+.left-sidebar-inner ul:has(> li.recent-item[data-lk-kind]) { display: flex; flex-direction: column; }
+.left-sidebar-inner li.recent-item { order: 1; }
+.left-sidebar-inner li.recent-item[data-lk-kind="property"] { order: 2; }
+.left-sidebar-inner li.recent-item[data-lk-kind="tag"] { order: 3; }
+${['page', 'property', 'tag'].map(kind => `.left-sidebar-inner li.recent-item[data-lk-kind="${kind}"]:not(li.recent-item[data-lk-kind="${kind}"] ~ li)::before`).join(', ')} { display: block; padding: 18px 8px 4px; font-size: var(--lk-label); font-weight: 400; line-height: 16px; color: var(--lk-off); pointer-events: none; cursor: default; }
+.left-sidebar-inner li.recent-item[data-lk-kind="page"]:not(li.recent-item[data-lk-kind="page"] ~ li)::before { content: "Pages"; padding-top: 0; }
+.left-sidebar-inner li.recent-item[data-lk-kind="property"]:not(li.recent-item[data-lk-kind="property"] ~ li)::before { content: "Properties"; }
+.left-sidebar-inner li.recent-item[data-lk-kind="tag"]:not(li.recent-item[data-lk-kind="tag"] ~ li)::before { content: "Tags"; }
+.left-sidebar-inner ul:not(:has(> li[data-lk-kind="page"])) > li.recent-item[data-lk-kind="property"]::before { padding-top: 0; }
+.left-sidebar-inner ul:not(:has(> li:is([data-lk-kind="page"], [data-lk-kind="property"]))) > li.recent-item[data-lk-kind="tag"]::before { padding-top: 0; }
 .left-sidebar-inner .sidebar-content-group > .sidebar-content-group-inner > .hd { display: none !important; }
 .left-sidebar-inner .sidebar-content-group { margin-top: 14px; }
 .left-sidebar-inner .cp__graphs-selector .thumb { display: none !important; }
@@ -2048,5 +2086,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

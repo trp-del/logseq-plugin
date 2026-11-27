@@ -36,6 +36,8 @@
      read.pageNamed(name)     the page of that very name, { uuid, gone } (gone: it lies in Logseq's Recycle), or null
      read.byUuids(uuids)      the nodes of these uuids, in their order: [node]
      read.recent(n)           the pages opened last, newest first: [node] (Logseq's own list of them; else the pages changed last)
+     read.recentKinds()       Logseq's list of the pages opened last, in its order: [{ title, kind }] (kind: 'page', 'property'
+                              or 'tag')
      read.pageNames()         every page of the person's own by name, journal days left out: [{ id, uuid, title }]
      read.folded(uuids)       what each folded node holds under it: uuid -> { task, done, image, pdf, file, due } (tasks open
                               and done at any depth, files right under it, the nearest day an open task is due)
@@ -477,6 +479,13 @@ async function recent(n = 8) {
   const rows = await q(`[:find ?b ?u ?at :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/updated-at ?at] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) (not [?b :block/tags :logseq.class/Property]) (not [?b :block/tags :logseq.class/Tag]) ${LIVE}]`);
   return byUuids(rows.sort((a, b) => Number(b[2]) - Number(a[2])).slice(0, n).map(([, uuid]) => String(uuid).toLowerCase()));
 }
+async function recentKinds() {
+  const got = await Promise.resolve(logseq.App.getCurrentGraphRecent?.()).catch(() => null);
+  return (Array.isArray(got) ? got : []).map(one => {
+    const of = (Array.isArray(one?.tags) ? one.tags : []).map(tag => bare(tag?.ident || ''));
+    return { title: String(one?.title || one?.originalName || one?.name || ''), kind: of.includes('logseq.class/Property') ? 'property' : of.includes('logseq.class/Tag') ? 'tag' : 'page' };
+  });
+}
 const pageNames = () => once('pageNames', async () => (await q(`[:find ?b ?u ?title :where [?b :block/name _] [?b :block/uuid ?u] [?b :block/title ?title] (not [?b :block/journal-day _]) (not [?b :logseq.property/built-in? true]) ${LIVE}]`))
   .map(([id, uuid, title]) => ({ id, uuid: String(uuid).toLowerCase(), title: String(title) })).filter(page => page.title));
 
@@ -696,5 +705,5 @@ async function folded(uuids) {
   return out;
 }
 
-G.read = { files, chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
+G.read = { recentKinds, files, chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
 })();

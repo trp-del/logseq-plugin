@@ -3,7 +3,7 @@
    Stylesheets written in the ground (touch.CALM); beside them only the press that opens a sidebar page's properties and the timing of a notice. */
 (function () {
 const G = window.PluginDoor;
-const SAID = { floats: 'Logseq’s menus, pop-ups and windows on the plugin’s glass', bar: 'The top bar: fewer buttons', title: 'A page’s title: a step smaller', add: '“Add property” as quiet words', pills: 'A bullet’s properties as one quiet line', side: 'The right sidebar flat on the page’s ground, a page in it with its properties open', table: 'Logseq’s tables, quieter' , left: 'The left sidebar as words alone, no section words', chrome: 'Logseq’s search button and its ? left out (Search and the corner stand in)', today: 'A journal day without Logseq’s DOING and Scheduled and Deadline lists', notices: 'A notice as a small capsule at the bottom, gone after four seconds' };
+const SAID = { floats: 'Logseq’s menus, pop-ups and windows on the plugin’s glass', bar: 'The top bar: fewer buttons', title: 'A page’s title: a step smaller', add: '“Add property” as quiet words', pills: 'A bullet’s properties as one quiet line', side: 'The right sidebar flat on the page’s ground, a page in it with its properties open', table: 'Logseq’s tables, quieter' , left: 'The left sidebar as words alone, Recent in Pages, Properties and Tags', chrome: 'Logseq’s search button and its ? left out (Search and the corner stand in)', today: 'A journal day without Logseq’s DOING and Scheduled and Deadline lists', notices: 'A notice as a small capsule at the bottom, gone after four seconds' };
 G.part({
   key: 'calm', title: 'Logseq, quieted', about: 'Logseq’s own top bar, titles, properties and tables drawn more quietly.',
   settings: Object.entries(SAID).map(([key, title]) => ({ key: 'calm-' + key, type: 'boolean', default: true, title, description: '' })),
@@ -12,6 +12,7 @@ G.part({
     // A page in the sidebar shows its properties open, and its name in the section's head opens it.
     if (G.setting('calm-side') !== false) base.onStop(G.touch.sidePages());
     if (G.setting('calm-notices') !== false) base.onStop(G.touch.notices(G.look.NOTICE));
+    if (G.setting('calm-left') !== false) base.onStop(G.touch.recentGroups(G.read.recentKinds));
     if (G.setting('calm-table') === false) return;
     // A tag's own table says the tag on every row: its Tags column is left out.
     let tagUuids = new Set(), asked = false;
