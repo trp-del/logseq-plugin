@@ -869,6 +869,27 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       if (after.join() !== before.join()) { await page.keyboard.press('Meta+z'); await wait(1300); }
       return is([before, after, await where()], [[], ['block-right'], []]);
     });
+    await step('a + under the pointer reaches an empty property, on a bullet and in an opened line, and takes no room at rest', async () => {   // 26 November 2026: nothing reached an empty property of an opened node
+      const BULLET = '6a000000-0000-4000-8000-000000000005', ROW = `#main-content-container .lk-row[data-uuid="${BULLET}"]`;
+      const topic = scope => page.locator(`${scope} .bottom-property-pill:not(.lk-menu *)`, { hasText: 'Topic' }).first();
+      const set = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?v :where [?b :block/uuid #uuid "${u}"] [?b :user.property/topic ?v]]`)).length, BULLET);
+      const got = [];
+      for (const [where, scope] of [[BULLET, '#main-content-container'], ['1a000000-0000-4000-8000-000000000010', `${ROW} .lk-editor`]]) {
+        await page.mouse.move(2, 2); await goto(where);
+        if (scope.startsWith(ROW)) { await page.locator(`${ROW} .lk-words`).click(); await wait(2200); await page.mouse.move(2, 2); await wait(500); }
+        const rest = await page.locator('.lk-empty-plus:visible').count();
+        await page.locator(`${scope} .ls-block .block-title-wrap`).first().hover({ position: { x: 30, y: 8 } }); await wait(500);
+        const shown = await page.locator('.lk-empty-plus:visible').count(), hidden = await topic(scope).isVisible();
+        await page.locator('.lk-empty-plus').click(); await wait(500);
+        const lines = await page.locator('.lk-menu .lk-item').allInnerTexts();
+        await page.keyboard.press('Enter'); await wait(1500);
+        const asked = [await topic(scope).isVisible(), await page.locator('.ui__popover-content .cp__select-input').count()];
+        await page.keyboard.press('Escape'); await page.mouse.move(2, 2); await wait(1800);
+        got.push([rest, shown, hidden, lines, asked, await topic(scope).isVisible(), await set()]);
+        await page.keyboard.press('Escape'); await wait(400);
+      }
+      return is(got, [[0, 1, false, ['Topic'], [true, 1], false, 0], [0, 1, false, ['Topic'], [true, 1], false, 0]]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

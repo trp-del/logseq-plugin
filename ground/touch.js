@@ -8,6 +8,8 @@
      touch.edit(uuid)         the caret put into a node's words
      touch.digs(fn)           fn(editor, uuid) -> true takes a plain press on the arrow before a value that is a node
      touch.seat(editor, uuid) where a node dug into stands under its value's row: { top, left, row, mark } or null
+     touch.emptiesAt(target), touch.fillEmpty(row)   a node's empty properties kept out of sight, found under the pointer and
+                              opened to be filled
      touch.pages()            Logseq's own pages on screen, each { el, uuid, feed }: the main page, a page in the sidebar,
                               a day in the journals feed (feed: true)
      touch.pageFoot(el, name) where, in one of those pages, something of the plugin's may stand under the page's bullets
@@ -1254,6 +1256,70 @@ ${OWN} .property-pair .property-block-container:not(.lk-editor *) { margin-left:
 const MENDS = `
 .ls-property-ui-position-sub-pane [data-value] * { pointer-events: none !important; }
 `;
+/* A node's empty properties where they are kept out of sight: a bullet's quiet line of properties, and the rows of a node
+   opened in place. The rows stay Logseq's own; nothing is put among them.
+     touch.emptiesAt(target)  the node under the pointer, when it keeps empty properties hidden: { uuid, x, y, rows: [{ name,
+                              row }] }, x and y where a mark 22 across can stand after the last property shown (after the
+                              node's words where none is shown); else null
+     touch.fillEmpty(row)     shows that row and opens Logseq's own way of filling it; left empty, the row goes again */
+const PROP_ROW = '.bottom-property-pill, .property-pair.property-panel-row', EMPTY_ROW = ':has(.empty-value), .property-panel-row-empty';
+const drawn = el => el.getClientRects().length > 0;
+// Where what a row shows ends: of its words, links and boxes, the one lowest and farthest along (a row in an opened node is as
+// wide as the node, so its own edge says nothing). A link's box takes in what the plugin says after it.
+function rowEnd(row) {
+  const doc = row.ownerDocument, walk = doc.createTreeWalker(row, 5);   // elements and words
+  let end = null, node;
+  while ((node = walk.nextNode())) {
+    let rects = [];
+    if (node.nodeType === 3) { if (!node.textContent.trim()) continue; const range = doc.createRange(); range.selectNodeContents(node); rects = range.getClientRects(); }
+    else if (node.matches('a, input, textarea, img, [role="checkbox"]')) rects = node.getClientRects();
+    for (const rect of rects) if (rect.width && (!end || rect.top >= end.bottom - 4 || (rect.bottom > end.top + 4 && rect.right > end.right))) end = rect;
+  }
+  return end || row.getBoundingClientRect();
+}
+function emptiesAt(target) {
+  if (!target?.closest?.('#main-content-container, #right-sidebar, .lk-editor')) return null;
+  let block = target.closest('.ls-block[blockid]');
+  while (block?.closest(PROP_ROW)) block = block.closest(PROP_ROW).parentElement.closest('.ls-block[blockid]');   // a value written as bullets is its node's
+  const children = target.closest('.block-children-container');
+  if (!block || (children && block.contains(children))) return null;
+  const own = [...block.querySelectorAll(PROP_ROW)].filter(row => row.parentElement.closest('.ls-block[blockid]') === block);
+  const rows = own.filter(row => row.matches(EMPTY_ROW) && !drawn(row) && drawn(row.parentElement))
+    .map(row => ({ row, name: row.querySelector('.property-k')?.textContent.trim() })).filter(one => one.name);
+  if (!rows.length) return null;
+  const shown = own.filter(drawn), words = [...block.querySelectorAll('.block-title-wrap')].find(el => el.closest('.ls-block[blockid]') === block);
+  const lines = words?.getClientRects(), end = shown.length ? rowEnd(shown[shown.length - 1]) : lines?.[lines.length - 1];
+  if (!end) return null;
+  return { uuid: block.getAttribute('blockid').toLowerCase(), x: Math.round(Math.min(end.right + 6, block.getBoundingClientRect().right - 22)), y: Math.round(end.top + end.height / 2 - 11), rows };
+}
+function fillEmpty(row) {
+  const doc = row.ownerDocument, win = doc.defaultView;
+  row.setAttribute('data-lk-fill', '');
+  const press = row.querySelector('.empty-value button') || row.querySelector('.empty-value :is(.empty-text-btn, .jtrigger)');
+  if (press) {
+    // A button (a day, a number) opens on the click; words open only on the whole press.
+    if (press.tagName !== 'BUTTON') for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) press.dispatchEvent(new (type.startsWith('pointer') ? win.PointerEvent : win.MouseEvent)(type, { bubbles: true, cancelable: true, button: 0 }));
+    press.click();
+  } else row.querySelector('[role="checkbox"], input, [tabindex]')?.focus();
+  // A number's box comes with the press and takes no keys by itself.
+  win.setTimeout(() => { if (!row.contains(doc.activeElement) && !busy()) row.querySelector('input:not([type="checkbox"]), textarea')?.focus({ preventScroll: true }); }, 250);
+  const since = Date.now();
+  let asked = false;   // whether Logseq opened a list or a calendar for it
+  const timer = win.setInterval(() => {
+    if (row.isConnected && busy()) { asked = true; return; }
+    const inside = row.contains(doc.activeElement), empty = !!row.querySelector('.empty-value') || row.classList.contains('property-panel-row-empty');
+    if (row.isConnected && (Date.now() - since < 900 || (inside && !(asked && empty && !doc.activeElement.matches('input, textarea'))))) return;
+    if (inside) doc.activeElement.blur();
+    row.removeAttribute('data-lk-fill');
+    win.clearInterval(timer);
+  }, 250);
+}
+// A row being filled stays in sight: past every rule that keeps an empty one out of it.
+const FILLING = '[data-lk-fill]'.repeat(8);
+const FILL = `
+:is(#lk-none, html) .bottom-property-pill${FILLING} { display: flex !important; }
+:is(#lk-none, html) .lk-editor :is(.bottom-property-pill, .property-pair)${FILLING} { display: grid !important; }
+`;
 /* On a page, a link to that same page is its words alone: it leads nowhere (the owner's marked page, 26 November 2026). */
 function here() {
   const doc = host(), el = doc.createElement('style'); el.id = 'lk-here'; doc.head.appendChild(el);
@@ -1705,5 +1771,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, busy, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

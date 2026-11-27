@@ -356,6 +356,14 @@ Ontology has a line at its top, "New tag": Enter makes a tag of your own at the 
 name that exists is shown instead of made twice. A closed line's right-click menu has "Tags…": your tags as an outline, the
 node's own ticked; a press puts a tag on the node or takes it off. The same line that adds a task in Todo adds the tag here.
 
+### An empty property (`node/empty.js`)
+
+A bullet's empty properties stay out of its line of properties, and a node opened in a row shows none. While the pointer is
+on such a node, a faint + stands after its last property (after its words where it shows none). A press lists the empty
+ones under "Empty here"; the one chosen appears in its place with Logseq's own list, calendar or box open. Left empty, it
+goes again. At rest, and while keys are typed, there is nothing, and the + takes no room. A page's own properties already
+show their empty ones as faint names, so they have no +.
+
 ### An opened node, and digging
 
 A node opened in place is Logseq's own editor for it, laid out one way whatever the node is. A tagged bullet's properties,
