@@ -678,5 +678,5 @@ async function folded(uuids) {
   return out;
 }
 
-G.read = { chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, propertyCounts, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
+G.read = { chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
 })();
