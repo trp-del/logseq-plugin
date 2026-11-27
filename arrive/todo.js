@@ -29,7 +29,7 @@ G.part({
 .lk-todo-view button::after { content: ""; width: 4px; height: 4px; margin-top: -3px; border: solid currentColor; border-width: 0 1.1px 1.1px 0; transform: rotate(45deg); opacity: .8; }
 .lk-todo .lk-add .lk-field { padding-left: 22px; background: linear-gradient(var(--lk-off), var(--lk-off)) no-repeat 3px 50% / 11px 1.2px, linear-gradient(var(--lk-off), var(--lk-off)) no-repeat 8px 50% / 1.2px 11px; }`);
     const PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'];
-    const refused = what => error => G.say(`${what}: ${error?.message || 'Logseq refused'}`, 'warning');
+    const refused = what => error => G.write.refused(what, error, 'The task was not changed.');
     // The one list, drawn the same in the sidebar's section and on the page of its own.
     const draw = holder => {
       const doc = holder.ownerDocument;
