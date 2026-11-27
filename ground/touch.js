@@ -42,7 +42,7 @@
                               by Logseq's own updater)
      touch.section(key, title, draw, path)  a section of Logseq's right sidebar that is the plugin's own: Logseq hosts it and
                               hands draw(el) the element (draw gives back what clears it); path: its icon's line.
-                              Answers { open(), off() }
+                              Answers { open(), close(), off() }; close() takes the section out of the sidebar
      touch.page(key, title, draw)  a page of the plugin's own in Logseq's main view; draw(el) fills it. Answers { open(), at() }
      touch.toolbar(key, title, path, run)   a button in Logseq's toolbar, drawn as Logseq draws its own (path: the icon's line)
      touch.notices({ stay }) -> off()   each of Logseq's notices closed after stay ms, held while pointed at
@@ -864,7 +864,7 @@ const plugins = {
 };
 function section(name, title, draw, path) {
   const E = logseq.Experiments, React = E?.React;
-  if (!React?.createElement || !E.registerSidebarRenderer) return { open() { G.say(`${title} cannot be shown: this Logseq lends plugins no sidebar section`, 'warning'); }, off() {} };
+  if (!React?.createElement || !E.registerSidebarRenderer) return { open() { G.say(`${title} cannot be shown: this Logseq lends plugins no sidebar section`, 'warning'); }, close() {}, off() {} };
   const drawn = new Map();   // the element Logseq gave -> what clears it
   const fill = holder => {
     if (drawn.has(holder)) return;
@@ -899,7 +899,13 @@ function section(name, title, draw, path) {
     return React.createElement('div', { ref, className: 'lk-section' });
   };
   E.registerSidebarRenderer(name, { title, render: () => React.createElement(View) });
-  return { open: () => logseq.Editor.openInRightSidebar('_sidebar.' + name), off() { offWatch(); for (const holder of [...drawn.keys()]) { clear(holder); holder.replaceChildren(); } } };
+  // close: the section taken out of the sidebar by its own ×; answers once it is gone.
+  const close = async () => {
+    const find = () => host().getElementById('_sidebar.' + name);
+    find()?.closest('.sidebar-item')?.querySelector('.item-actions .ls-icon-x')?.closest('button')?.click();
+    await until(() => !find(), 1500);
+  };
+  return { open: () => logseq.Editor.openInRightSidebar('_sidebar.' + name), close, off() { offWatch(); for (const holder of [...drawn.keys()]) { clear(holder); holder.replaceChildren(); } } };
 }
 /* A page of the plugin's own in Logseq's main view, at its own address: Logseq hosts it and draw(el) fills it (and gives back
    what clears it). A page left on screen while the plugin is loaded again keeps the element given to the earlier copy: it is

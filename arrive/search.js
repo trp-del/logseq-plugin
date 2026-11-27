@@ -23,7 +23,7 @@ const G = window.PluginDoor, S = G.search, R = G.sentence;
 const LOOK = 'M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0M21 21l-6 -6';   // a magnifier, as Logseq's own line icons are drawn
 const FEW = { kind: 3, value: 3, month: 4 };   // what a line of choices shows before its "more", as Find did
 G.part({
-  key: 'search', title: 'Search', about: 'A section of the right sidebar to search your notes: kinds, values and months to narrow by, words or a whole sentence in one line, opening in the main view or in place. Cmd-K opens it.',
+  key: 'search', title: 'Search', about: 'A section of the right sidebar to search your notes: kinds, values and months to narrow by, words or a whole sentence in one line, opening in the main view or in place. Cmd-K opens it and closes it.',
   settings: [{ key: 'searchTakesSearchKey', type: 'boolean', default: true, title: 'Search opens on Cmd-K', description: 'Off: Cmd-K stays Logseq’s own search, and the plugin’s opens from the command palette.' }],
   start(base) {
     base.style('search', `
@@ -346,7 +346,11 @@ G.part({
     const section = G.touch.section('lk-search', 'Search', draw, LOOK);
     base.onStop(section.off);
     // Opened with its line ready for words: from the key, the command, the corner, or another place with a kind already taken.
+    const onScreen = () => G.touch.beside.isOpen() && [...boxes].find(one => one.holder.isConnected && one.field.offsetParent);
+    // What the key puts back when it takes Search away again: the sidebar as it was, and the keys where they were.
+    let before = null;
     const focus = async (how = {}) => {
+      if (!onScreen()) before = { shut: !G.touch.beside.isOpen(), keys: G.touch.keepPlace(), at: G.host().defaultView.location.hash };
       section.open();
       for (let tries = 0; tries < 20; tries++) {
         const box = [...boxes].find(one => one.holder.isConnected && one.field.offsetParent);   // on screen: a line not yet shown takes no keys (the sidebar giving up a page shown beside)
@@ -354,10 +358,18 @@ G.part({
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     };
+    const hide = async box => {
+      const doc = box.holder.ownerDocument, keys = doc.activeElement, held = !keys || keys === doc.body || box.holder.contains(keys), was = before;
+      before = null;
+      await section.close();
+      if (was?.shut) G.touch.beside.setOpen(false);
+      if (held && was && was.at === doc.defaultView.location.hash) was.keys();
+    };
     G.touch.command('lk-search', 'Search', () => focus());
     G.arrive = { ...(G.arrive || {}), search: async id => focus({ tag: (await G.read.tags()).get(id) || null }) };
     base.onStop(() => { G.arrive = { ...(G.arrive || {}), search() {} }; });
-    base.onStop(G.touch.key('mod+k', () => { if (G.setting('searchTakesSearchKey') === false) return false; focus(); }));
+    // The key shows Search and, pressed while Search is on screen, takes it away (the owner, 27 November 2026).
+    base.onStop(G.touch.key('mod+k', () => { if (G.setting('searchTakesSearchKey') === false) return false; const box = onScreen(); if (box) hide(box); else focus(); }));
     base.onStop(G.touch.changed(() => { kept.clear(); for (const box of boxes) if (box.holder.isConnected) box.again(); }));
   },
 });

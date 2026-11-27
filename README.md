@@ -198,7 +198,8 @@ goes, with the Undo arrow at the bottom right.
 ### Search (`arrive/search.js`, decided in `core/search.js` and `core/sentence.js`)
 
 Cmd-K, the corner, or **Search** in the command palette opens a section of the right sidebar with the keys in its line (a
-setting gives Cmd-K back to Logseq's own search). It does what Find did (the owner's choices of 26 November 2026).
+setting gives Cmd-K back to Logseq's own search). Cmd-K pressed while Search is on screen takes it out of the sidebar
+again: a sidebar the key had opened is shut, and the keys go back to the bullet they were in. It does what Find did (the owner's choices of 26 November 2026).
 
 - Nothing typed: the kinds in the graph, most held first, each with how many nodes it holds (the kinds under it counted in);
   **more** shows all of them as an outline. Under them the pages opened last.
