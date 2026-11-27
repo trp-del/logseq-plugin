@@ -29,9 +29,6 @@
   "picked_tag": {
    "default": ""
   },
-  "guessed_tag": {
-   "default": ""
-  },
   "last_uuid": {
    "default": ""
   }
@@ -50,9 +47,7 @@
       "args": [
        "{value:words.text}",
        "{value:where.selected.value}",
-       "",
-       "none",
-       "{var:guessed_tag}"
+       ""
       ]
      }
     },
@@ -88,7 +83,7 @@
         {
          "type": "label",
          "id": "tagName",
-         "text": "guessed after four words",
+         "text": "none",
          "colour": "tertiaryLabelColor",
          "font": {
           "size": 18,
@@ -98,7 +93,7 @@
         {
          "type": "label",
          "id": "tagWhy",
-         "text": "",
+         "text": "⌘T for all your tags",
          "colour": "secondaryLabelColor",
          "font": {
           "size": 14
@@ -125,44 +120,7 @@
         "position": "left",
         "stretch": "horizontal"
        },
-       "events": [
-        {
-         "triggers": "typingstopped",
-         "action": {
-          "type": "script",
-          "src": "guess",
-          "args": [
-           "{value:words.text}",
-           "{value:where.selected.value}",
-           "{var:picked_tag}"
-          ],
-          "async": true
-         }
-        }
-       ],
        "background": "#00000000"
-      },
-      {
-       "type": "view",
-       "id": "props",
-       "layout": "form",
-       "spacing": 9,
-       "hidden": true,
-       "components": [],
-       "constraints": {
-        "position": "left"
-       }
-      },
-      {
-       "type": "view",
-       "id": "choices",
-       "layout": "inline",
-       "spacing": 14,
-       "hidden": true,
-       "components": [],
-       "constraints": {
-        "position": "left"
-       }
       },
       {
        "type": "view",
@@ -198,20 +156,6 @@
           {
            "text": "The page open in Logseq",
            "value": "open"
-          }
-         ],
-         "events": [
-          {
-           "triggers": "changed",
-           "action": {
-            "type": "script",
-            "src": "guess",
-            "args": [
-             "{value:words.text}",
-             "{value:where.selected.value}",
-             "{var:picked_tag}"
-            ]
-           }
           }
          ]
         },
@@ -250,9 +194,7 @@
               "args": [
                "{value:words.text}",
                "{value:where.selected.value}",
-               "{var:picked_tag}{var:guessed_tag}",
-               "all",
-               ""
+               "{var:picked_tag}"
               ]
              }
             }
@@ -269,18 +211,10 @@
    "events": [
     {
      "triggers": "launched",
-     "action": [
-      {
-       "type": "script",
-       "src": "guess",
-       "async": true,
-       "args": [
-        "{value:words.text}",
-        "{value:where.selected.value}",
-        "{var:picked_tag}"
-       ]
-      }
-     ]
+     "action": {
+      "type": "script",
+      "src": "start"
+     }
     }
    ]
   },

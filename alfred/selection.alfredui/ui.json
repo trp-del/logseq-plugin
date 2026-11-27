@@ -22,12 +22,6 @@
    "src": "variable",
    "scriptenv": true
   },
-  "picked_tag": {
-   "default": ""
-  },
-  "guessed_tag": {
-   "default": ""
-  },
   "last_uuid": {
    "default": ""
   },
@@ -101,64 +95,6 @@
            "width": 832
           }
          }
-        },
-        {
-         "type": "view",
-         "layout": "inline",
-         "spacing": 8,
-         "constraints": {
-          "position": "left"
-         },
-         "components": [
-          {
-           "type": "label",
-           "text": "Tag",
-           "colour": "secondaryLabelColor",
-           "font": {
-            "size": 14
-           }
-          },
-          {
-           "type": "label",
-           "id": "tagName",
-           "text": "",
-           "colour": "tertiaryLabelColor",
-           "font": {
-            "size": 15
-           }
-          },
-          {
-           "type": "label",
-           "id": "tagWhy",
-           "text": "",
-           "colour": "secondaryLabelColor",
-           "font": {
-            "size": 14
-           }
-          }
-         ]
-        },
-        {
-         "type": "view",
-         "id": "choices",
-         "layout": "inline",
-         "spacing": 14,
-         "hidden": true,
-         "components": [],
-         "constraints": {
-          "position": "left"
-         }
-        },
-        {
-         "type": "view",
-         "id": "props",
-         "layout": "form",
-         "spacing": 9,
-         "hidden": true,
-         "components": [],
-         "constraints": {
-          "position": "left"
-         }
         }
        ]
       },
@@ -228,7 +164,6 @@
             "args": [
              "{var:query}",
              "{value:where.selected.value}",
-             "{var:picked_tag}{var:guessed_tag}",
              "{value:own.text}"
             ]
            }

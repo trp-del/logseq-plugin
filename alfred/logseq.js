@@ -20,7 +20,6 @@ app.includeStandardAdditions = true;
 
 const PLUGIN_ID = "logseq-plugin";
 const plural = (n, word) => n + " " + word + (n === 1 ? "" : "s");
-const PLUGIN_NEEDED = "Install Logseq Plugin 0.3.25 or newer in Logseq: it puts files into the graph.";
 
 function env(name, fallback) {
   try {
@@ -166,18 +165,10 @@ function showPage(page) {
 }
 
 // Files into the graph, by the plugin. `where` is "today", "open" or { page: name }; the answer names what was added, or says
-// the files are still going in ({ pending }) when Logseq's ten seconds for a call from outside ran out first.
-function addFiles(paths, where) {
-  try {
-    return api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", "add", [{ files: paths, where: where }]], 120) || {};
-  } catch (error) {
-    const text = messageFrom(error);
-    const reason = /Error:\s*([^\n]*)$/.exec(text);   // the plugin's own reason, after whatever the server wrapped it in
-    if (reason) throw new Error(reason[1].trim());
-    if (/Postmate|timeout/i.test(text)) return { pending: true };
-    if (/plugin|not found|No matching|undefined|null/i.test(text)) throw new Error(PLUGIN_NEEDED);
-    throw error;
-  }
+// the files are still going in ({ pending }) when Logseq's ten seconds for a call from outside would run out first. A plugin
+// that does not answer, or answers that it added nothing, is an error with its reason: nothing is ever said to be added then.
+function addFiles(paths, where, linkTwins) {
+  return ask("add", { files: paths, where: where, linkTwins: Boolean(linkTwins) }, 120);
 }
 const stillGoing = (answer, names) => answer && answer.pending ? "Still taking " + (names.length === 1 ? names[0] : plural(names.length, "file")) + " into Logseq…" : null;
 
@@ -393,7 +384,7 @@ const fileNames = paths => paths.map(function (p) { return p.split("/").filter(B
 
 function filesToToday(paths) {
   const names = fileNames(paths);
-  const answer = addFiles(paths, "today");
+  const answer = addFiles(paths, "today", false);
   return stillGoing(answer, names) || "Added " + (names.length === 1 ? names[0] : plural(names.length, "file")) + " to Today";
 }
 
@@ -402,7 +393,7 @@ function filesToPages(paths) {
   let pending = false;
   paths.forEach(function (path) {
     const name = nameWithoutExtension(fileNames([path])[0]);
-    if (addFiles([path], { page: name }).pending) pending = true;
+    if (addFiles([path], { page: name }, false).pending) pending = true;
     names.push(name);
   });
   if (pending) return stillGoing({ pending: true }, fileNames(paths));
@@ -431,113 +422,89 @@ function selectionToPage(items) {
 
 /* ---------- The Add panel (add.alfredui, Alfred 6's Alfred UI) ----------
    Each command answers the panel with Alfred UI's JSON actions: what to change in the panel, and the panel's variables.
-     panel-guess <words> <where> <tag>    the tag line, the other tags on ⌘ keys, and the properties the tag brings
-     panel-add <words> <where> <tag> <take> <shown>   the note written; the panel turns to what was written, with Undo
-     panel-undo <uuid>                    the note taken back out; the words come back to try again
+     panel-tags                           ⌘T: your tags in their tree, to pick one
+     panel-pick <tag's uuid> <its name>   the tag picked: it stands on the tag line
+     panel-add <words> <where> <tag>      the note written by the plugin ("note"); the panel turns to what was written, with Undo
+     panel-undo <uuid> <words>            the note taken back out; the words come back to try again
      panel-show <uuid>                    the note shown in Logseq
-   The proposals are the plugin's (Predictive, through its "guess" and "note" from outside). Without the plugin, words alone. */
+   No tag is guessed. Without the plugin, words alone. */
 const SECONDARY = "secondaryLabelColor", TERTIARY = "tertiaryLabelColor";
 // The glass look of macOS 27 (18 November 2026): the one key Enter presses is a glass capsule; a lit row is a soft see-through
 // wash the words keep their colours on, as in Spotlight.
 const GLASS = { bordered: true, bordershape: "capsule", effect: "glass" }, SOFT_ROW = "quaternaryLabelColor";
 const whereOf = value => (value === "open" ? "open" : "today");
 const whereName = value => (value === "open" ? "the open page" : "today");
-function pluginModel(name, request) {
-  return api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", name, [request]], 12);
+function pluginModel(name, request, seconds) {
+  return api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", name, [request]], seconds || 12);
 }
-// A model the running plugin does not have answers null (the plugin off, reloading, or older than this workflow). For what a panel cannot
-// do without, that is said in the panel instead of leaving it waiting (the owner's page view stood at "Reading…", 19 November 2026).
+/* The one way a panel asks the plugin. An answer the running plugin does not have comes back as nothing (the plugin off,
+   reloading, or older than this workflow), and a refusal comes back as { ok: false, said }: both are errors here, with words
+   to show, so no panel ever reads either as done (the owner's page view stood at "Reading…", 19 November 2026). absent marks the
+   error of a plugin that is not there, for the few things the workflow can then do through Logseq itself. */
 const PLUGIN_OLD = "The Logseq Plugin in Logseq did not answer. It may be off, reloading, or older than this workflow. Try again in a moment.";
-function pluginMust(name, request) {
-  const got = pluginModel(name, request);
-  if (got == null) throw new Error(PLUGIN_OLD);
+function ask(name, request, seconds) {
+  const got = pluginModel(name, request, seconds);
+  if (got == null || got.ok === false) {
+    const error = new Error(got == null ? PLUGIN_OLD : got.said || "Logseq refused");
+    error.absent = got == null || /switched off/.test(String(got.said));
+    throw error;
+  }
   return got;
 }
-function tagLine(tag, picked, words) {
-  if (tag) return {
-    tagName: { text: "#" + tag.title, colour: picked ? "labelColor" : SECONDARY },
-    tagWhy: { text: picked ? (tag.fields || []).join(", ") : "guessed " + (tag.why ? "· " + tag.why : "") + " · ↩ takes it" }
-  };
-  return { tagName: { text: words ? "none guessed" : "guessed after four words", colour: TERTIARY }, tagWhy: { text: words ? "pick one below, or ⌘T for all your tags" : "" } };
-}
-function choiceButtons(choices) {
-  return choices.slice(0, 3).map(function (c, i) {
-    return {
-      type: "button", bordered: false, text: "⌘" + (i + 1) + "  #" + c.title, shortcut: "⌘" + (i + 1),
-      contenttintcolour: SECONDARY, tooltip: c.why || "", font: { size: 15 },
-      events: [{ triggers: "actioned", action: { type: "script", src: "guess", args: ["{value:words.text}", "{value:where.selected.value}", String(c.id)] } }]
-    };
-  });
-}
-function propRows(pieces) {
-  const rows = [];
-  pieces.forEach(function (p) {
-    rows.push({ type: "label", text: p.prop, colour: SECONDARY, font: { size: 16 }, constraints: { position: "right" } });
-    rows.push({ type: "label", text: (p.made ? "new page " : "") + p.shown, font: { size: 16 }, colour: p.guess ? SECONDARY : "labelColor" });
-  });
-  return rows;
-}
-function guessAnswer(words, where, tag) {
-  const out = { variables: { picked_tag: tag || "", guessed_tag: "" }, update: { ids: {} }, replace: { ids: {} } };
-  let got = { tag: null, choices: [], pieces: [] };
-  if (words.trim()) {
-    try { got = pluginModel("guess", { words: words, where: whereOf(where), tag: tag ? Number(tag) : null }) || got; }
-    catch (error) { got = { tag: null, choices: [], pieces: [], said: messageFrom(error) }; }
-  }
-  if (got.tag && !tag) out.variables.guessed_tag = String(got.tag.id);
-  Object.assign(out.update.ids, tagLine(got.tag, Boolean(tag), words.trim()));
-  if (got.said) out.update.ids.tagWhy = { text: got.said, colour: "systemRedColor" };
-  const choices = choiceButtons(got.choices || []);
-  out.replace.ids.choices = { type: "view", id: "choices", layout: "inline", spacing: 18, hidden: !choices.length, components: choices, constraints: { position: "left" } };
-  out.replace.ids.props = { type: "view", id: "props", layout: "form", spacing: 9, hidden: !(got.pieces || []).length, components: propRows(got.pieces || []), constraints: { position: "left" } };
-  out.update.relayout = true;
-  out.window = { resize: { height: "auto" } };   // the panel grows and shrinks with what it shows
-  return JSON.stringify(out);
-}
+const redOn = (id, error) => { const ids = {}; ids[id] = { text: messageFrom(error), colour: "systemRedColor" }; return JSON.stringify({ update: { ids: ids } }); };
+// The tag line: the tag picked with ⌘T, or that there is none. Nothing is guessed.
+const tagLine = title => (title ? { tagName: { text: "#" + title, colour: "labelColor" }, tagWhy: { text: "" } }
+  : { tagName: { text: "none", colour: TERTIARY }, tagWhy: { text: "⌘T for all your tags", colour: SECONDARY } });
 function doneView(answer, where) {
-  const filled = (answer.wrote || []).map(function (w) { return w.prop + " " + w.shown; }).join(" · ");
   const button = (text, key, src, args) => ({ type: "button", bordered: false, text: text + "  " + key.toUpperCase(), shortcut: key, contenttintcolour: SECONDARY, font: { size: 15 },
     events: [{ triggers: "actioned", action: { type: "script", src: src, args: args } }] });
-  return { type: "view", id: "body", layout: "inline", direction: "vertical", spacing: 12, components: [
-    { type: "label", id: "doneLine", constraints: { position: "left" }, text: "✓  Added to " + (answer.page || whereName(where)) + (answer.tag ? " as #" + answer.tag : ""), font: { size: 20 } },
-    { type: "label", text: filled || "Words only", colour: SECONDARY, font: { size: 15 }, constraints: { position: "left" } },
-    { type: "view", layout: "inline", spacing: 18, constraints: { position: "right" }, components: [
-      button("Undo", "⌘z", "undo", [answer.uuid, answer.words || ""]),
-      button("Show in Logseq", "⌘o", "show", [answer.uuid]),
-      Object.assign({ type: "button", text: "Add another  ↩", shortcut: "↩",
-        events: [{ triggers: "actioned", action: { type: "json", src: { finish: { args: "again" } } } }] }, GLASS)
-    ] }
-  ] };
+  const parts = [{ type: "label", id: "doneLine", constraints: { position: "left" }, text: "✓  Added to " + (answer.page || whereName(where)) + (answer.tag ? " as #" + answer.tag : ""), font: { size: 20 } }];
+  // What could not be done after the note was written (its tag, the words under it), in plain words.
+  if (answer.said) parts.push({ type: "label", text: answer.said, colour: "systemRedColor", font: { size: 15 }, constraints: { position: "left" } });
+  parts.push({ type: "view", layout: "inline", spacing: 18, constraints: { position: "right" }, components: [
+    button("Undo", "⌘z", "undo", [answer.uuid, answer.words || ""]),
+    button("Show in Logseq", "⌘o", "show", [answer.uuid]),
+    Object.assign({ type: "button", text: "Add another  ↩", shortcut: "↩",
+      events: [{ triggers: "actioned", action: { type: "json", src: { finish: { args: "again" } } } }] }, GLASS)
+  ] });
+  return { type: "view", id: "body", layout: "inline", direction: "vertical", spacing: 12, components: parts };
 }
-function addAnswer(words, where, tag, take, refused) {
+// The panel says added only when the plugin answered that it wrote. A refusal is said in red and the words typed stay.
+function addAnswer(words, where, tag) {
   if (!words.trim()) return JSON.stringify({ update: { ids: { tagWhy: { text: "Type the note first", colour: "systemRedColor" } } } });
-  try {
-    const answer = pluginModel("note", { words: words.trim(), where: whereOf(where), tag: tag ? Number(tag) : null, take: take || "all", refused: refused ? Number(refused) : null });
-    return JSON.stringify({ variables: { last_uuid: answer.uuid, last_words: words }, replace: { ids: { body: doneView(Object.assign({ words: words.trim() }, answer), where) } }, update: { relayout: true }, window: { resize: { height: "auto" } } });
-  } catch (error) {
+  let answer;
+  try { answer = ask("note", { words: words.trim(), where: whereOf(where), tag: tag || "" }); }
+  catch (error) {
+    if (!error.absent) return redOn("tagWhy", error);
     // Without the plugin, the words alone, as the workflow always wrote them.
     try {
-      const page = whereOf(where) === "open" ? openPage() : todayPage(), block = appendTo(page, words.trim());
-      return JSON.stringify({ variables: { last_uuid: nodeUuid(block) || "" }, replace: { ids: { body: doneView({ uuid: nodeUuid(block) || "", page: nodeTitle(page), tag: "", wrote: [] }, where) } }, update: { relayout: true } });
-    } catch (again) {
-      return JSON.stringify({ update: { ids: { tagWhy: { text: messageFrom(again), colour: "systemRedColor" } } } });
-    }
+      const page = whereOf(where) === "open" ? openPage() : todayPage(), uuid = nodeUuid(appendTo(page, words.trim()));
+      if (!uuid) throw new Error("Logseq made no bullet");
+      answer = { uuid: uuid, page: nodeTitle(page), tag: "" };
+    } catch (again) { return redOn("tagWhy", again); }
   }
+  return JSON.stringify({ variables: { last_uuid: answer.uuid, last_words: words }, replace: { ids: { body: doneView(Object.assign({ words: words.trim() }, answer), where) } }, update: { relayout: true }, window: { resize: { height: "auto" } } });
 }
+// Undo: the note taken back by the plugin, in as many steps of Logseq's Undo as it took. A note written without the plugin is
+// removed through Logseq itself. A refusal is said, and the note is not said to be gone.
 function undoAnswer(uuid, words) {
-  try { pluginModel("undo", { uuid: uuid }); }
-  catch (error) { try { api("logseq.Editor.removeBlock", [uuid]); } catch (again) { return JSON.stringify({ update: { ids: { doneLine: { text: messageFrom(again), colour: "systemRedColor" } } } }); } }
+  try { ask("undo", { uuid: uuid }); }
+  catch (error) {
+    if (!error.absent) return redOn("doneLine", error);
+    try { api("logseq.Editor.removeBlock", [uuid]); } catch (again) { return redOn("doneLine", again); }
+  }
   // The words come back in a fresh panel, so nothing typed is lost (the full set, panel 7).
   return JSON.stringify({ finish: { args: "again", variables: { again_words: words || "" } } });
 }
 // ⌘T: every tag of yours in a sheet over the panel, in the tree's order, filtered as you type; ↩ picks the lit one.
-function tagsAnswer(mode) {
+function tagsAnswer() {
   let list = [];
-  try { list = (pluginModel("tags", {}) || {}).tags || []; } catch (error) { return JSON.stringify({ update: { ids: { tagWhy: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  try { list = ask("tags", {}).tags || []; } catch (error) { return redOn("tagWhy", error); }
+  // Each line carries the tag's own id (its uuid, as the plugin answers it) and its name, which the tag line then shows.
   const rows = list.map(function (t) {
-    return { uid: String(t.id), "sheetTag.text": " ".repeat(t.depth) + "#" + t.title, "sheetPath.text": t.depth ? t.path : "", "sheetFields.text": (t.fields || []).join(", "), "sheetId.text": String(t.id), "sheetTitle.text": t.title, "sheetFind.text": t.title + " " + t.path };
+    return { uid: String(t.uuid), "sheetTag.text": " ".repeat(t.depth || 0) + "#" + t.title, "sheetId.text": String(t.uuid), "sheetTitle.text": t.title, "sheetFind.text": t.title };
   });
-  const pick = { type: "script", src: "pick", args: ["{value:words.text}", "{value:where.selected.value}", "{value:sheetList.selected.sheetId.text}"] };
+  const pick = { type: "script", src: "pick", args: ["{value:sheetList.selected.sheetId.text}", "{value:sheetList.selected.sheetTitle.text}"] };
   return JSON.stringify({ sheet: { id: "tagSheet", root: {
     type: "view", layout: "border", padding: 22, spacing: 12, constraints: { size: { width: 760, height: 540 } },
     shortcuts: [
@@ -552,22 +519,21 @@ function tagsAnswer(mode) {
         ] },
       { type: "dataview", id: "sheetList", placeholder: "No tag by that name. New tags are made in Logseq.", constraints: { region: "centre" },
         cell: { height: 44,
-          init: { "sheetRow.background": null, "sheetTag.colour": "labelColor", "sheetFields.colour": SECONDARY },
+          init: { "sheetRow.background": null, "sheetTag.colour": "labelColor" },
           selected: { "sheetRow.background": SOFT_ROW },
           root: { type: "view", id: "sheetRow", layout: "border", padding: 10, cornerradius: 12, components: [
           { type: "label", id: "sheetTag", font: { size: 18, name: "New York" }, constraints: { region: "left" } },
-          { type: "label", id: "sheetFields", colour: SECONDARY, font: { size: 14 }, textalign: "right", linebreak: "truncatetail", constraints: { region: "centre", position: "right" } },
-          { type: "label", id: "sheetPath", hidden: true }, { type: "label", id: "sheetId", hidden: true }, { type: "label", id: "sheetTitle", hidden: true }, { type: "label", id: "sheetFind", hidden: true }
+          { type: "label", id: "sheetId", hidden: true }, { type: "label", id: "sheetTitle", hidden: true }, { type: "label", id: "sheetFind", hidden: true }
         ] } },
-        behaviour: { selection: { wrap: "vertical" } }, select: list.length ? String(list[0].id) : "",
+        behaviour: { selection: { wrap: "vertical" } }, select: list.length ? String(list[0].uuid) : "",
         data: { type: "basic", src: rows, filter: { type: "basic", args: ["sheetFind.text"], match: "{value:sheetFilter.text}" } } },
       { type: "label", text: "↑↓ to move · ↩ uses the tag · esc closes", colour: SECONDARY, font: { size: 14 }, constraints: { region: "bottom" } }
     ] } } });
 }
-function pickAnswer(words, where, tagId) {
-  const answer = JSON.parse(guessAnswer(words, where, tagId));
-  answer.sheet = { close: "tagSheet" };
-  return JSON.stringify(answer);
+// A tag taken in the sheet: it stands on the tag line, and ↩ writes it on the note.
+function pickAnswer(tagId, title) {
+  if (!tagId) return JSON.stringify({});
+  return JSON.stringify({ variables: { picked_tag: tagId }, update: { ids: tagLine(title) }, sheet: { close: "tagSheet" } });
 }
 
 /* ---------- Home (home.alfredui): Home as Find, below the pane ---------- */
@@ -607,9 +573,8 @@ function todoCounts() {
 /* Home as Find (the owner, 19 November 2026: "is it possible to make it more like find from plugin?"). One panel that finds,
    narrows and walks, as the plugin's Find does, from the plugin's browse:
      nothing typed   Add to today (⌘1) and Todo (⌘2) as buttons, your kinds with counts, the pages you came back to
-     letters         pages by name, then Logseq's search; the kinds among them as choices; the letters light a kind
-     a kind taken    it stands before the line; its nodes newest first, the day in the margin; the choices the graph holds for
-                     them (Provider, Topic, When; Status for tasks) as lines above; the letters narrow and light a choice
+     letters         what Logseq's search finds; the kinds whose name holds the letters as choices; the letters light a kind
+     a kind taken    it stands before the line; its nodes newest first, the day in the margin; the letters narrow them
    ⇥ takes the lit choice (the letters that lit it go), a press on a choice takes it, ⌘⌫ or a press on a taken one lets it go;
    ↩ reads the lit row (the page view, walking on from there), ⌘↩ opens it in Logseq. With a task lit, ⌘D done, ⌘G doing, ⌘Z
    takes it back. The state travels in h_state (base64 JSON: kind, picks, month), so every script answers from it.
@@ -644,7 +609,7 @@ function homeListView(rows, lit, withDay) {
 const nodeHomeRow = (r, heading) => ({ uid: "read:" + r.uuid, "hIcon.image": { type: "symbol", src: SYMBOL_OF(r) }, "hDay.text": r.day || "", "hTitle.text": r.title,
   "hSub.text": heading ? [r.kind, r.page].filter(Boolean).join(" · ") : [r.kind, r.page].filter(Boolean).join(" · "), "hSub.font": SUB_FONT, "hGo.text": "read:" + r.uuid });
 const homeHeadRow = text => ({ uid: "h:" + text, "hIcon.image": null, "hDay.text": "", "hTitle.text": "", "hSub.text": text, "hSub.font": HEAD_FONT, "hGo.text": "" });
-const addRow = words => ({ uid: "add:" + words, "hIcon.image": { type: "symbol", src: "plus.circle" }, "hDay.text": "", "hTitle.text": "Add “" + words + "” to today", "hSub.text": "as a note, its tag guessed as you write", "hSub.font": SUB_FONT, "hGo.text": "add:" + words });
+const addRow = words => ({ uid: "add:" + words, "hIcon.image": { type: "symbol", src: "plus.circle" }, "hDay.text": "", "hTitle.text": "Add “" + words + "” to today", "hSub.text": "as a note", "hSub.font": SUB_FONT, "hGo.text": "add:" + words });
 // A line of choices: its name, then its values as presses; the lit one (the letters began it) in a capsule.
 function choiceLine(name, items) {
   return { type: "view", layout: "inline", spacing: 6, constraints: { position: "left" }, components: [
@@ -674,10 +639,10 @@ function picksView(st) {
 }
 function homeAnswerFind(words, st, lit, note) {
   const typed = String(words || "").trim();
-  const ask = { kind: st.kind, picks: st.picks.map(p => p.p), month: st.month, words: typed, limit: 40 };
+  const asked = { kind: st.kind, picks: st.picks.map(p => p.p), month: st.month, words: typed, limit: 40 };
   let got;
-  try { got = pluginMust("browse", ask); }
-  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  try { got = ask("browse", asked); }
+  catch (error) { return redOn("hCount", error); }
   const lines = [], rows = [];
   let tab = "", tabLabel = "", count = "";
   if (!st.kind) {
@@ -704,7 +669,9 @@ function homeAnswerFind(words, st, lit, note) {
       return { text: m.label + "  " + m.count, what: what, lit: on };
     })));
     (got.rows || []).forEach(r => rows.push(nodeHomeRow(r)));
-    count = plural(got.total, got.kind.title === "Task" ? "task" : "node") + (got.cutFrom ? ", the newest of " + got.cutFrom : "");
+    // Read with care: an answer without the kind or its total must never end the script (Tab then did nothing, F51).
+    const total = typeof got.total === "number" ? got.total : (got.rows || []).length;
+    count = plural(total, ((got.kind || {}).title || st.kindTitle) === "Task" ? "task" : "node") + (got.cutFrom ? ", the newest of " + got.cutFrom : "");
   }
   const withDay = rows.some(r => r["hDay.text"]);
   const first = rows.find(r => r["hGo.text"]);
@@ -765,33 +732,34 @@ function homeUntake(words, state, index) {
 function homeStatus(go, status, words, state) {
   if (go.indexOf("read:") !== 0) return JSON.stringify({});
   const uuid = go.slice(5);
-  try { pluginMust("todoStatus", { uuid: uuid, status: status }); }
-  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  try { ask("todoStatus", { uuid: uuid, status: status }); }
+  catch (error) { return redOn("hCount", error); }
   const out = JSON.parse(homeAnswerFind(words, homeState(state), go, (status === "done" ? "Done" : "Set to " + status) + ".   Undo ⌘Z"));
   out.variables.h_last = uuid;
   return JSON.stringify(out);
 }
 function homeUndo(uuid, words, state) {
   if (!uuid) return JSON.stringify({});
-  try { pluginMust("todoUndo", { uuid: uuid }); }
-  catch (error) { return JSON.stringify({ update: { ids: { hCount: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  try { ask("todoUndo", { uuid: uuid }); }
+  catch (error) { return redOn("hCount", error); }
   const out = JSON.parse(homeAnswerFind(words, homeState(state), "read:" + uuid, "Taken back."));
   out.variables.h_last = "";
   return JSON.stringify(out);
 }
-// Where ↩ went: another panel, or a page shown in Logseq.
+/* A node shown in Logseq, a page or a bullet, by the plugin ("show"): Logseq goes to it as a press on its name does there.
+   Logseq 2.0.2 has no call from outside that scrolls to a bullet (the documented scrollToBlockInPage is carried out inside a
+   plugin). Without the plugin Logseq's own pushState shows it. */
+function showInLogseq(uuid) {
+  if (!uuid) return;
+  try { ask("show", { uuid: uuid }); }
+  catch (error) { if (error.absent) { try { api("logseq.App.pushState", ["page", { name: uuid }]); } catch (_) { /* gone */ } } }
+}
+// Where ↩ went: another panel, or a node shown in Logseq.
 function route(where) {
   const at = where.indexOf(":"), kind = at < 0 ? where : where.slice(0, at), arg = at < 0 ? "" : where.slice(at + 1);
-  // ⌘↩: the node itself in Logseq, a page shown, a bullet scrolled to on its page.
-  if (kind === "open") {
-    const uuid = arg.replace(/^[a-z]+:/, "");
-    let node = null;
-    try { node = api("logseq.Editor.getBlock", [uuid]); } catch (_) { /* a page */ }
-    if (node && node.page && node.name == null) { try { api("logseq.Editor.scrollToBlockInPage", [uuid]); } catch (_) { /* gone */ } }
-    else { try { api("logseq.App.pushState", ["page", { name: uuid }]); } catch (_) { /* gone */ } }
-    return "";
-  }
-  if (kind === "block") { try { api("logseq.Editor.scrollToBlockInPage", [arg]); } catch (_) { /* gone */ } return ""; }
+  // ⌘↩: the node itself in Logseq.
+  if (kind === "open") { showInLogseq(arg.replace(/^[a-z]+:/, "")); return ""; }
+  if (kind === "block") { showInLogseq(arg); return ""; }
   if (kind === "page") { try { api("logseq.App.pushState", ["page", { name: arg }]); } catch (_) { /* gone */ } return ""; }
   const trigger = { home: "home", add: "add", todo: "todo", search: "search", read: "read", files: "files" }[kind];
   if (trigger) app.doShellScript("/usr/bin/osascript -e " + shellQuote('tell application id "com.runningwithcrayons.Alfred" to run trigger "' + trigger + '" in workflow "com.openai.alfred.logseq-db" with argument ' + JSON.stringify(arg)) + " >/dev/null 2>&1 &");
@@ -804,7 +772,7 @@ function route(where) {
      panel-todo-list [note]   panel-todo-read <words>   panel-todo-add <words>   panel-todo-status <uuid> <status>   panel-todo-undo <uuid> */
 const STATUS_SYMBOL = { todo: "circle", doing: "circle.lefthalf.filled", "in-review": "circle.dotted", backlog: "circle.dashed", done: "checkmark.circle.fill", canceled: "xmark.circle" };
 function todoRows() {
-  const got = pluginMust("todoList", {}), rows = [];
+  const got = ask("todoList", {}), rows = [];
   (got.parts || []).forEach(function (part) {
     if (!part.rows.length) return;   // an empty group is left out here: the panel is short
     rows.push({ uid: "h:" + part.head, "tIcon.image": null, "tWords.text": "", "tHead.text": part.head, "tDay.text": "", "tUuid.text": "", "tFind.text": "" });
@@ -816,7 +784,7 @@ function todoRows() {
 }
 function todoAnswer(note, lit) {
   let rows;
-  try { rows = todoRows(); } catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  try { rows = todoRows(); } catch (error) { return redOn("tNote", error); }
   const first = rows.find(r => r["tUuid.text"]);
   const out = { update: { relayout: true, ids: { todoList: { data: { src: rows }, select: lit || (first ? first.uid : ""), constraints: { stretch: "horizontal", size: { height: Math.min(rows.length, 10) * 44 + 6 } } } } }, window: { resize: { height: "auto" } } };
   if (note !== undefined) out.update.ids.tNote = { text: note, colour: SECONDARY };
@@ -829,26 +797,33 @@ function todoRead(words) {
 }
 function todoAdd(words) {
   if (!words.trim()) return JSON.stringify({});
+  // The line is emptied only once the plugin answered that the task is written; a refusal is said and the words stay.
   try {
-    const made = pluginMust("todoAdd", { words: words });
+    const made = ask("todoAdd", { words: words });
     const out = JSON.parse(todoAnswer("Added “" + made.words + "”" + (made.day ? ", deadline " + made.day : "") + ".   Undo ⌘Z", made.uuid));
     out.variables = { last_uuid: made.uuid };
     out.update.ids.tq = { text: "" };
     return JSON.stringify(out);
-  } catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  } catch (error) { return redOn("tNote", error); }
 }
 function todoStatus(uuid, status) {
   if (!uuid) return JSON.stringify({});
   try {
-    pluginModel("todoStatus", { uuid: uuid, status: status });
+    ask("todoStatus", { uuid: uuid, status: status });
     const out = JSON.parse(todoAnswer((status === "done" ? "Done" : "Set to " + status) + ".   Undo ⌘Z", uuid));
     out.variables = { last_uuid: uuid };
     return JSON.stringify(out);
-  } catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  } catch (error) { return redOn("tNote", error); }
 }
+// ⌘Z takes back what this panel changed last, and only that: with nothing changed here it does nothing and says nothing.
 function todoUndo(uuid) {
-  try { pluginModel("todoUndo", { uuid: uuid }); return todoAnswer("Taken back.", uuid); }
-  catch (error) { return JSON.stringify({ update: { ids: { tNote: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  if (!uuid) return JSON.stringify({});
+  try {
+    ask("todoUndo", { uuid: uuid });
+    const out = JSON.parse(todoAnswer("Taken back.", uuid));
+    out.variables = { last_uuid: "" };
+    return JSON.stringify(out);
+  } catch (error) { return redOn("tNote", error); }
 }
 
 /* ---------- Search (search.alfredui) and a node whole (read.alfredui) ----------
@@ -858,17 +833,16 @@ function todoUndo(uuid) {
    in its place in the outline, then what points at the node, as Relations lists it. The arrows walk the lines and the node
    is changed here as on its own page, every change through the plugin, so each is the same change with Logseq's own Undo:
      ↩ on a bullet     the bullet becomes a field in its place; ↩ writes the words, esc lets go
-     ↩ on a property   set choices and nodes: a list to pick from, filtered as you type; words, a number, a day: a field in
-                       place; a tick box turns over
+     ↩ on a property   set choices: the Mac's own list of them, the present one ticked; nodes: a list to pick from, filtered
+                       as you type; words, a number, a day: a field in place; a tick box turns over
      ↩ on a node       goes to it here (⌥↩ does on a property's value and on a bullet); ⌘[ steps back
-     ⌘N a new bullet after the lit one · ⇥ ⇧⇥ move a bullet in and out · ⌘T tags · ⌘D done · ⌘G doing · ⌘⌫ deletes a bullet
-     or clears a property · ⌘Z takes the last change back · ⌘C copies the lit bullet with those under it, ⇧⌘C the whole node,
+     ⌘N a new bullet after the lit one · ⇥ ⇧⇥ move a bullet in and out, also while it is written · ⌘T tags · ⌘D done · ⌘G doing · ⌘⌫ deletes a bullet
+     or clears a property · ⌘Z takes back what the panel changed last · ⌘C copies the lit bullet with those under it, ⇧⌘C the whole node,
      as Markdown · ⌘↩ opens the node in Logseq
    No key is written on a panel at rest (the owner, 25 November 2026): while Option is held, the foot names what can be done
    to the lit line. Alfred UI has no event for a held key, so the panel's pulse asks the keyboard (keys, optionheld.swift).
    The common keys (Undo, Copy) work and are never named.
      panel-search <words>   panel-search-pane <uuid>   panel-search-copy <uuid>   panel-node <command> [arguments]          */
-const ask = (name, request) => { const got = pluginMust(name, request); if (got && got.ok === false) throw new Error(got.said || "Logseq refused"); return got; };
 const LINE = 30, MOST = 16, LEAD = 18, EM = " ", MONO = { size: 13, name: "Menlo" }, SERIF = size => ({ size: size, name: "New York" });
 const leadOf = name => { const s = String(name || ""), cut = s.length > LEAD - 2 ? s.slice(0, LEAD - 3) + "…" : s; return cut + " ".repeat(LEAD - cut.length); };
 const markOf = line => (line.task === "done" ? "✓" : line.task ? "○" : "•");
@@ -883,7 +857,7 @@ const GUIDE = {
   node: ["Go to it  ↩", ["Back ⌘[", "In Logseq ⌘↩"].join(GAP)],
   more: ["Open in Logseq  ↩", "Back ⌘["],
   none: ["New bullet  ⌘N", ["Tag ⌘T", "Back ⌘[", "In Logseq ⌘↩"].join(GAP)],
-  words: ["Write  ↩", ["New line ⌥↩", "Let go esc"].join(GAP)],
+  words: ["Write  ↩", ["New line ⌥↩", "Move ⇥ ⇧⇥", "Let go esc"].join(GAP)],
   value: ["Write  ↩", "Let go esc"],
   search: ["Open here  ↩", "Open in Logseq ⌘↩"]
 };
@@ -946,20 +920,38 @@ function footView(note, guide, goAction, red) {
 function nodeBody(node, st) {
   const rows = nodeRows(node), parts = [], lit = "{value:nList.selected.lKey.text}";
   let shortcuts, guide, go;
-  if (!st.edit) {
+  // The keys while the lines are walked: lit names the lit line; up and down are what the two arrows do.
+  const walkKeys = (lit, up, down) => [
+    { shortcut: "↑", action: up }, { shortcut: "↓", action: down },
+    { shortcut: "↩", action: doIt("act", lit) }, { shortcut: "⌥↩", action: doIt("walk", lit) }, { shortcut: "⌘N", action: doIt("new", lit) },
+    { shortcut: "⇥", action: doIt("move", lit, "in") }, { shortcut: "⇧⇥", action: doIt("move", lit, "out") },
+    { shortcut: "⌘T", action: doIt("tags", lit) }, { shortcut: "⌘D", action: doIt("status", lit, "done") }, { shortcut: "⌘G", action: doIt("status", lit, "doing") },
+    { shortcut: "⌘⌫", action: doIt("remove", lit) }, { shortcut: "⌘Z", action: doIt("undo", lit) }, { shortcut: "⌘C", action: doIt("copy", lit) }, { shortcut: "⇧⌘C", action: doIt("copy", "") },
+    { shortcut: "⌘[", action: doIt("back") }, { shortcut: "⌘↩", action: { type: "json", src: { finish: { args: "open:" + node.uuid } } } }
+  ];
+  if (st.menu) {
+    /* A property with set choices, just opened: the Mac's own list of them hangs from its value. Alfred shows such a list at a
+       piece named by its id, never at a line of one of its lists, so the lit line is drawn here as a piece of its own, looking
+       as a lit line does, between the lines before it and the lines after it. Every key does to it what it does while the
+       lines are walked; the arrows step to the line above or below. */
+    const others = rows.filter(r => r.key !== st.menu.key), pos = Math.min(st.menu.at, others.length), from = Math.max(0, pos - 9), to = Math.min(others.length, from + MOST - 1);
+    const before = others.slice(from, pos), after = others.slice(pos, to), key = st.menu.key;
+    if (after.length) after[0].first = st.menu.group !== after[0].group;
+    if (before.length) parts.push(linesView("nList", "l", before, "", false));
+    parts.push({ type: "view", id: "nChoice", layout: "border", padding: 5, cornerradius: 9, background: SOFT_ROW, constraints: { stretch: "horizontal", size: { height: LINE } }, components: [
+      { type: "label", text: st.menu.lead, colour: SECONDARY, font: MONO, constraints: { region: "left", position: "centre" } },
+      { type: "label", id: "nValue", text: st.menu.text, colour: st.menu.colour, font: { size: 16 }, linebreak: "truncatetail", constraints: { region: "centre", position: "left" } }
+    ] });
+    if (after.length) parts.push(linesView("nAfter", "a", after, "", false));
+    guide = GUIDE.prop; go = doIt("act", key);
+    shortcuts = walkKeys(key, doIt("step", key, "up"), doIt("step", key, "down"));
+  } else if (!st.edit) {
     const at = rows.some(r => r.key === st.lit) ? st.lit : rows.length ? rows[0].key : "", litRow = rows.filter(r => r.key === at)[0];
     const list = linesView("nList", "l", rows, at, true);
     if (!rows.length) list.placeholder = "No properties and no bullets yet.";
     parts.push(list);
     guide = GUIDE[litRow ? litRow.kind : "none"]; go = litRow ? doIt("act", lit) : doIt("new", "");
-    shortcuts = [
-      { shortcut: "↑", action: { type: "function", src: "nList", args: "selectup" } }, { shortcut: "↓", action: { type: "function", src: "nList", args: "selectdown" } },
-      { shortcut: "↩", action: doIt("act", lit) }, { shortcut: "⌥↩", action: doIt("walk", lit) }, { shortcut: "⌘N", action: doIt("new", lit) },
-      { shortcut: "⇥", action: doIt("move", lit, "in") }, { shortcut: "⇧⇥", action: doIt("move", lit, "out") },
-      { shortcut: "⌘T", action: doIt("tags", lit) }, { shortcut: "⌘D", action: doIt("status", lit, "done") }, { shortcut: "⌘G", action: doIt("status", lit, "doing") },
-      { shortcut: "⌘⌫", action: doIt("remove", lit) }, { shortcut: "⌘Z", action: doIt("undo", lit) }, { shortcut: "⌘C", action: doIt("copy", lit) }, { shortcut: "⇧⌘C", action: doIt("copy", "") },
-      { shortcut: "⌘[", action: doIt("back") }, { shortcut: "⌘↩", action: { type: "json", src: { finish: { args: "open:" + node.uuid } } } }
-    ];
+    shortcuts = walkKeys(lit, { type: "function", src: "nList", args: "selectup" }, { type: "function", src: "nList", args: "selectdown" });
   } else {
     // Writing: the field stands where the line stood, between the lines before it and the lines after it.
     const others = rows.filter(r => r.key !== st.edit.key), pos = Math.min(st.edit.at, others.length), from = Math.max(0, pos - 9), to = Math.min(others.length, from + MOST - 1);
@@ -974,13 +966,15 @@ function nodeBody(node, st) {
     if (after.length) parts.push(linesView("nAfter", "a", after, "", false));
     guide = GUIDE[st.edit.lines ? "words" : "value"]; go = doIt("write", "{value:nField.text}");
     shortcuts = [{ shortcut: "⎋", action: doIt("letgo") }];
+    // A bullet being written moves in and out as in Logseq: the words are written, the bullet moved, and the field stands again.
+    if (st.edit.lines) shortcuts.push({ shortcut: "⇥", action: doIt("writemove", "{value:nField.text}", "in") }, { shortcut: "⇧⇥", action: doIt("writemove", "{value:nField.text}", "out") });
   }
   parts.push(hairline());
   parts.push(footView(st.note, guide, go, st.red));
   return { type: "view", id: "nBody", layout: "inline", direction: "vertical", spacing: 0, constraints: { stretch: "horizontal" }, shortcuts: shortcuts, components: parts };
 }
 // The panel's state travels in its variables (Alfred hands them to each script): the node shown, the way walked to it, what is
-// being written, and how many steps of Logseq's Undo the last change was.
+// being written, and whether the panel changed anything since this node was opened (n_steps: more than none).
 const nodeState = () => ({ uuid: env("n_uuid", ""), path: listOf(env("n_path", "")), titles: listOf(env("n_titles", "")), from: env("n_from", ""), steps: Number(env("n_steps", "0")) || 0, edit: env("n_edit", "") });
 function nodeAnswer(node, st, vars) {
   const state = Object.assign(nodeState(), vars || {});
@@ -995,7 +989,7 @@ function nodeAnswer(node, st, vars) {
   return JSON.stringify(out);
 }
 const nodeSays = (text, red) => JSON.stringify({ update: { ids: { nNote: { text: text, colour: red ? "systemRedColor" : "labelColor" } } } });
-// A list to pick from, over the panel: a tag, a set choice, or a node for a property. Typing narrows it; ↩ takes the lit one.
+// A list to pick from, over the panel: a tag, or a node for a property. Typing narrows it; ↩ takes the lit one.
 function pickSheet(rows, lit, hint, empty, live) {
   const narrow = live ? [{ triggers: "typingstopped", action: { type: "script", src: "do", async: true, args: ["filter", "{value:vFilter.text}"] } }]
     : [{ triggers: "changed", action: [{ type: "function", src: "vList", args: "filterdata" }, { type: "function", src: "vList", args: "selectfirst" }] }];
@@ -1042,8 +1036,11 @@ function nodePanel(command, args) {
       return nodeAnswer(ask("node", { uuid: to }).node, { lit: "" }, { path: state.path.slice(0, -1), titles: state.titles.slice(0, -1), steps: 0 });
     }
     if (command === "undo") {
-      const got = ask("undo", { node: state.uuid, steps: Math.max(1, state.steps) });
-      return got.node ? nodeAnswer(got.node, { lit: String(args[0] || ""), note: got.said }, { steps: 1 }) : nodeSays("That node is no longer in the graph.", true);
+      // Only what this panel changed, since this node was opened: with nothing changed here ⌘Z does nothing and says nothing.
+      // The plugin counts the steps itself, and refuses when something else changed in the graph since.
+      if (!state.steps) return JSON.stringify({});
+      const got = ask("undo", { node: state.uuid });
+      return got.node ? nodeAnswer(got.node, { lit: String(args[0] || ""), note: got.said }, { steps: 0 }) : nodeSays("That node is no longer in the graph.", true);
     }
     const node = ask("node", { uuid: state.uuid }).node, rows = nodeRows(node), key = String(args[0] || "");
     const line = node.lines.filter(l => l.uuid === key)[0], prop = key.indexOf("p:") === 0 ? node.props.filter(p => "p:" + p.ident === key)[0] : null;
@@ -1062,8 +1059,12 @@ function nodePanel(command, args) {
       if (prop) {
         if (prop.kind === "checkbox") return done(ask("setValue", { node: node.uuid, ident: prop.ident }));
         if (prop.kind === "choice") {
-          const held = prop.values.map(v => String(v.raw));
-          return JSON.stringify(Object.assign({ variables: { n_edit: "p:" + prop.ident } }, pickSheet(prop.choices.map(c => pickRow(c.raw, c.text, "", held.indexOf(String(c.raw)) >= 0)), held[0] || "", prop.name, "No choice by that name.", false)));
+          // The Mac's own list of the choices, the present one ticked, hanging from the value (Alfred UI's popupmenu).
+          if (!prop.choices.length) return nodeSays(prop.name + " has no choices set in Logseq.", true);
+          const held = prop.values.map(v => String(v.raw)), row = rows.filter(r => r.key === key)[0];
+          const out = JSON.parse(nodeAnswer(node, { menu: { key: key, at: rows.indexOf(row), group: row.group, lead: row.lead, text: row.text, colour: row.colour } }, { sheet: "p:" + prop.ident }));
+          out.popupmenu = { src: "nValue", menu: prop.choices.map(c => ({ text: c.text, state: held.indexOf(String(c.raw)) >= 0 ? "on" : "off", action: doIt("pick", String(c.raw), "menu") })) };
+          return JSON.stringify(out);
         }
         if (prop.kind === "node") {
           const held = prop.values.map(v => v.uuid), found = ask("candidates", { ident: prop.ident, words: "" }).nodes || [];
@@ -1074,6 +1075,11 @@ function nodePanel(command, args) {
       if (key.indexOf("n:") === 0) return walkTo(key.split(":")[1]);
       if (key.indexOf("m:") === 0) return JSON.stringify({ finish: { args: "open:" + node.uuid } });
       return JSON.stringify({});
+    }
+    if (command === "step") {
+      // An arrow while a property's own list of choices has been open: the line above or below is lit, as while walking.
+      const keys = rows.map(r => r.key), i = keys.indexOf(key), n = keys.length;
+      return nodeAnswer(node, { lit: n ? keys[(Math.max(0, i) + (args[1] === "up" ? n - 1 : 1)) % n] : "" });
     }
     if (command === "walk") {
       if (line) return walkTo(line.uuid);
@@ -1095,6 +1101,23 @@ function nodePanel(command, args) {
       if (what.indexOf("p:") === 0) { const got = ask("setValue", { node: node.uuid, ident: what.slice(2), text: text }); return nodeAnswer(got.node || node, { lit: what, note: got.said || "" }, { steps: got.steps || state.steps }); }
       return nodeAnswer(node, { lit: "" });
     }
+    if (command === "writemove") {
+      // ⇥ and ⇧⇥ while a bullet is being written: what is typed is kept (a new bullet is made), the bullet is moved, and it is
+      // a field again in its new place. Two changes, as in Logseq: ⌘Z takes back the move.
+      const text = String(args[0] == null ? "" : args[0]), what = state.edit, way = args[1] === "out" ? "out" : "in";
+      let uuid = what.indexOf("b:") === 0 ? what.slice(2) : "", now = node, steps = state.steps;
+      if (uuid) { const wrote = ask("setWords", { node: node.uuid, uuid: uuid, words: text }); now = wrote.node || now; steps = wrote.steps || steps; }
+      else if (what.indexOf("new:") === 0) {
+        if (!text.trim()) return JSON.stringify({});   // nothing is written yet, so there is no bullet to move
+        const made = ask("newBullet", { node: node.uuid, after: what.slice(4), words: text }); now = made.node || now; uuid = made.lit || ""; steps = made.steps || steps;
+      }
+      if (!uuid) return JSON.stringify({});
+      const moved = ask("move", { node: node.uuid, uuid: uuid, way: way }); now = moved.node || now; steps = moved.steps || steps;
+      const at = now.lines.filter(l => l.uuid === uuid)[0];
+      if (!at) return nodeAnswer(now, { lit: "" }, { steps: steps });
+      const order = nodeRows(now).map(r => r.key).indexOf(uuid);
+      return nodeAnswer(now, { edit: { name: "b:" + uuid, key: uuid, at: order, group: "b", lead: EM.repeat(at.depth * 2) + markOf(at) + "  ", mono: false, text: at.words, lines: true, hint: "" } }, { steps: steps });
+    }
     if (command === "letgo") {
       const what = state.edit;
       return nodeAnswer(node, { lit: what.indexOf("b:") === 0 ? what.slice(2) : what.indexOf("new:") === 0 ? what.slice(4) : what });
@@ -1103,7 +1126,7 @@ function nodePanel(command, args) {
     if (command === "status") return done(ask("status", { node: node.uuid, uuid: line ? line.uuid : node.uuid, to: args[1] === "doing" ? "doing" : "done" }));
     if (command === "remove") {
       if (line) return done(ask("remove", { node: node.uuid, uuid: line.uuid }));
-      if (prop) return prop.values.length ? done(ask("setValue", { node: node.uuid, ident: prop.ident, text: "" })) : JSON.stringify({});
+      if (prop) return prop.values.length ? done(ask("setValue", { node: node.uuid, ident: prop.ident, clear: true })) : JSON.stringify({});
       return JSON.stringify({});
     }
     if (command === "copy") {
@@ -1126,7 +1149,7 @@ function nodePanel(command, args) {
       const what = state.edit, id = String(args[0] || "");
       if (!id) return JSON.stringify({});
       if (what.indexOf("t:") === 0) { const got = ask("tag", { node: node.uuid, uuid: what.slice(2), tag: id }); return nodeAnswer(got.node || node, { lit: got.lit || "", note: got.said || "" }, { steps: got.steps || state.steps, closeSheet: true }); }
-      if (what.indexOf("p:") === 0) { const got = ask("setValue", { node: node.uuid, ident: what.slice(2), pick: id }); return nodeAnswer(got.node || node, { lit: what, note: got.said || "" }, { steps: got.steps || state.steps, closeSheet: true }); }
+      if (what.indexOf("p:") === 0) { const got = ask("setValue", { node: node.uuid, ident: what.slice(2), pick: id }); return nodeAnswer(got.node || node, { lit: what, note: got.said || "" }, { steps: got.steps || state.steps, closeSheet: args[1] !== "menu" }); }
       return JSON.stringify({});
     }
     return JSON.stringify({});
@@ -1193,7 +1216,8 @@ function searchCopy(uuid) {
 /* ---------- The files tray (files.alfredui) ----------
    Files from Finder (the Universal Action) or the Open dialog: each with the name its node will have, and the ones already in the
    graph named before anything is added (they are linked, not copied again). While adding, a progress bar the plugin moves; then
-   what went in, with one Undo for all.
+   what went in, with one Undo for all. Everything is the plugin's (check, add, progress, unadd): when it does not answer, or
+   refuses, the tray says so and never that something was added.
      panel-files-show <paths> [more]    panel-files-add <paths> <where>    panel-files-progress    panel-files-undo <made>        */
 function pathsIn(text) {
   const raw = String(text || "").trim();
@@ -1206,8 +1230,9 @@ function filesShow(text, more) {
   const paths = pathsIn(text).concat(pathsIn(more)).filter((p, i, all) => all.indexOf(p) === i);
   if (!paths.length) return JSON.stringify({ update: { ids: { fHead: { text: "Choose files with ⌘O, or send them here from Finder" } } } });
   let got;
-  try { got = pluginModel("check", { files: paths }) || { files: [] }; }
-  catch (error) { return JSON.stringify({ update: { ids: { fHead: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  // A plugin that does not answer is said so: no answer is never read as "nothing new to copy".
+  try { got = ask("check", { files: paths }, 60); got.files = got.files || []; }
+  catch (error) { return redOn("fHead", error); }
   const fresh = got.files.filter(f => !f.twin && !f.said), twins = got.files.filter(f => f.twin), bad = got.files.filter(f => f.said);
   const rows = got.files.map(f => ({ uid: f.path,
     "fIcon.image": /^(PNG|JPE?G|GIF|HEIC|WEBP)$/.test(f.type) ? { type: "file", src: f.path } : { type: "fileicon", src: f.path },
@@ -1229,13 +1254,13 @@ function filesAdd(text, where) {
   const paths = pathsIn(text);
   if (!paths.length) return JSON.stringify({});
   try {
-    const answer = api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", "add", [{ files: paths, where: whereOf(where), linkTwins: true }]], 120) || {};
+    const answer = addFiles(paths, whereOf(where), true);
     return answer.pending ? JSON.stringify({}) : filesProgress();
   } catch (error) { return JSON.stringify({ pulse: { interval: 0 }, update: { ids: { fCard: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
 }
 function filesProgress() {
   let p;
-  try { p = pluginModel("progress", {}) || {}; } catch (error) { return JSON.stringify({}); }
+  try { p = ask("progress", {}); } catch (error) { return JSON.stringify({ pulse: { interval: 0 }, update: { ids: { fCard: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
   const total = Math.max(1, p.total || 0), finished = !p.now && p.done >= (p.total || 0);
   const out = { update: { ids: {
     fBar: { progress: (p.done || 0) / total, hidden: false },
@@ -1251,15 +1276,16 @@ function filesProgress() {
   return JSON.stringify(out);
 }
 function filesUndo(made) {
-  try { pluginModel("unadd", { made: [].concat(made || []).join(",") }); } catch (error) { return JSON.stringify({ update: { ids: { fCard: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  if (![].concat(made || []).join(",")) return JSON.stringify({});   // nothing was added from this tray
+  try { ask("unadd", { made: [].concat(made || []).join(",") }); } catch (error) { return redOn("fCard", error); }
   return JSON.stringify({ update: { ids: { fCard: { text: "Taken back out of the page. The files' copies stay in the graph's assets folder.", colour: "labelColor" }, fUndo: { hidden: true } } } });
 }
 
 /* ---------- A selection, seen before it goes in (selection.alfredui) ----------
    The Universal Action or the hotkey reads the selection first (selection-prepare, as the workflow always has: a quote with its
-   citation, a web page's link, a document), then the panel shows what will be written, where, and the tag it could be.
+   citation, a web page's link, a document), then the panel shows what will be written and where.
    Files go to the files tray instead.
-     selection-prepare <items…>     panel-sel-show <prepared>     panel-sel-add <prepared> <where> <tag> <own words>          */
+     selection-prepare <items…>     panel-sel-show <prepared>     panel-sel-add <prepared> <where> <own words>          */
 function appName() {
   const id = env("source_app", "");
   if (!id) return "";
@@ -1295,32 +1321,29 @@ function selShow(prepared) {
   try { got = unpacked(prepared); } catch (_) { got = { said: "The selection could not be read" }; }
   if (got.files) return JSON.stringify({ finish: { args: "files:" + got.files.join("\t") } });
   if (got.said) return JSON.stringify({ update: { ids: { sSource: { text: got.said, colour: "systemRedColor" } } } });
-  const answer = JSON.parse(guessAnswer(String(got.content || "").split("\n")[0].replace(/^>\s*/, ""), "today", ""));
-  Object.assign(answer.update.ids, {
+  return JSON.stringify({ variables: { s_title: got.title || "" }, update: { relayout: true, ids: {
     sSource: { text: [got.app ? "From " + got.app : "", got.title].filter(Boolean).join(" · ") },
     sText: { text: readable(got.content || "") },
     sGo: { text: (got.hasWords ? "Add quote" : "Add link") + "  ↩" }
-  });
-  answer.variables.s_title = got.title || "";
-  return JSON.stringify(answer);
+  } }, window: { resize: { height: "auto" } } });
 }
-function selAdd(prepared, where, tag, own) {
+// The selection written by the plugin, with the words of your own under it: one change of the plugin's, so one Undo takes all of
+// it back. A refusal is said in red and the panel stays as it was.
+function selAdd(prepared, where, own) {
   let got = {};
   try { got = unpacked(prepared); } catch (_) { /* nothing */ }
   if (!got.content) return JSON.stringify({});
   const target = where === "page" ? { page: got.title || "Untitled" } : whereOf(where);
   try {
-    const answer = pluginModel("note", { words: got.content, where: target, tag: tag ? Number(tag) : null, take: "all" });
-    if (own && own.trim()) api("logseq.Editor.insertBlock", [answer.uuid, own.trim(), { sibling: false }]);
+    const answer = ask("note", { words: got.content, where: target, tag: "", own: String(own || "").trim() });
     return JSON.stringify({ variables: { last_uuid: answer.uuid }, replace: { ids: { body: doneView(Object.assign({ words: "" }, answer), where) } }, update: { relayout: true }, window: { resize: { height: "auto" } } });
-  } catch (error) { return JSON.stringify({ update: { ids: { sSource: { text: messageFrom(error), colour: "systemRedColor" } } } }); }
+  } catch (error) { return redOn("sSource", error); }
 }
 
 function panel(command, items) {
-  if (command === "panel-guess") return guessAnswer(items[0] || "", items[1] || "today", items[2] || "");
-  if (command === "panel-add") return addAnswer(items[0] || "", items[1] || "today", items[2] || "", items[3] || "all", items[4] || "");
+  if (command === "panel-add") return addAnswer(items[0] || "", items[1] || "today", items[2] || "");
   if (command === "panel-sel-show") return selShow(items[0] || "");
-  if (command === "panel-sel-add") return selAdd(items[0] || "", items[1] || "today", items[2] || "", items[3] || "");
+  if (command === "panel-sel-add") return selAdd(items[0] || "", items[1] || "today", items[2] || "");
   if (command === "panel-files-show") return filesShow(items[0] || "", items[1] || "");
   if (command === "panel-files-add") return filesAdd(items[0] || "", items[1] || "today");
   if (command === "panel-files-progress") return filesProgress();
@@ -1343,10 +1366,10 @@ function panel(command, items) {
   if (command === "panel-home-status") return homeStatus(items[0] || "", items[1] || "done", items[2] || "", items[3] || "");
   if (command === "panel-home-undo") return homeUndo(items[0] || "", items[1] || "", items[2] || "");
   if (command === "panel-route") return route(items[0] || "");
-  if (command === "panel-tags") return tagsAnswer(items[0] || "");
-  if (command === "panel-pick") return pickAnswer(items[0] || "", items[1] || "today", items[2] || "");
+  if (command === "panel-tags") return tagsAnswer();
+  if (command === "panel-pick") return pickAnswer(items[0] || "", items[1] || "");
   if (command === "panel-undo") return undoAnswer(items[0] || "", items[1] || "");
-  if (command === "panel-show") { try { api("logseq.Editor.scrollToBlockInPage", [items[0]]); } catch (_) { /* gone */ } return JSON.stringify({ finish: {} }); }
+  if (command === "panel-show") { showInLogseq(items[0] || ""); return JSON.stringify({ finish: {} }); }
   return "";
 }
 
@@ -1408,7 +1431,7 @@ function main(argv) {
     }
     if (command === "picture") {
       const path = clipboardPicture();
-      const answer = addFiles([path], words ? { page: words } : "today");
+      const answer = addFiles([path], words ? { page: words } : "today", false);
       return stillGoing(answer, ["the picture"]) || (words ? "Added the picture to “" + words + "”" : "Added the picture to Today");
     }
     if (command === "today-selection") return selectionToToday(items);

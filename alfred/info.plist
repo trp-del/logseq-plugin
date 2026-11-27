@@ -1080,7 +1080,7 @@ exec /usr/bin/osascript -l JavaScript ./logseq.js panel-route "$1"</string>
 	<key>readme</key>
 	<string>## Setup
 
-Enable Logseq's HTTP API server (Settings → Features), paste its token into Configure Workflow, and keep the DB graph open. For files and pictures, install the Logseq Plugin (0.3.25 or newer) in Logseq.
+Enable Logseq's HTTP API server (Settings → Features), paste its token into Configure Workflow, and keep the DB graph open. For files, pictures and the panels, install the Logseq Plugin in Logseq.
 
 ## Ways in
 
@@ -1584,7 +1584,7 @@ A file put into the graph is a node of its own, as when it is dropped into Logse
 		<string>LOGSEQ_TOKEN</string>
 	</array>
 	<key>version</key>
-	<string>4.1.1</string>
+	<string>4.1.2</string>
 	<key>webaddress</key>
 	<string>https://github.com/trp-del/logseq-plugin</string>
 </dict>

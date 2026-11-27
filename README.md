@@ -662,7 +662,15 @@ and what points at it, as Relations lists it), `candidates` (what a node propert
 with those under it, or a node whole, written by `core/markdown.js`), `append` (a bullet at the end of a page), and one name for each change: `setWords`, `newBullet`,
 `move`, `remove`, `setValue`, `tag`, `status`, `undo`. A property set to "Hide by default" in Logseq is not among a node's
 properties, as it is not on the node's own page. Every change answers the node read afresh and how many steps of
-Logseq's Undo it took. A day typed as words ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot
+Logseq's Undo it took. `note` writes a note from outside at the end of today's journal, of the page open in Logseq or of a page
+by its name (made if there is none), with the tag picked and the person's own words under it; `show` sends Logseq to a node, a
+page or a bullet. `undo` (and Todo's `todoUndo`) takes back only what Alfred changed last on the node it names, in as many
+steps as that change took, and refuses, taking nothing back, once anything else has changed in the graph: Logseq's Undo would
+then take back that later change. `setValue` asked to clear empties a property of any kind. For files the plugin answers
+`check` (each file's name, and the node it already is in the graph), `add` (to today, the open page or a page by its name, a
+file already in the graph linked instead where asked), `progress` and `unadd`; they stand on three pieces of the ground
+(`touch.file`, `read.fileTwin`, `write.addFile`), and while the ground does not give them, `add` and `check` answer in plain
+words that the plugin cannot put files into the graph yet, and add nothing. A day typed as words ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot
 read is refused, never guessed. The part can be switched off in the plugin's settings like any other.
 
 ## What it writes
