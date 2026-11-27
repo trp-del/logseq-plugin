@@ -41,7 +41,8 @@
      unadd({ made })                          the bullets an add made ("uuid,uuid"), taken away again
    A node whole: { uuid, title, isPage, day, task, tags: [{ uuid, title }],
      props: [{ ident, name, kind, many, values: [{ raw, text, uuid }], choices: [{ raw, text }] }],   kind: node, date, choice, number, checkbox, text
-     lines: [{ uuid, depth, words, task, tag, under }],   its bullets; words as written, a link as [[its name]]; under: how many bullets stand under it
+     lines: [{ uuid, depth, words, task, tag, tags: [{ uuid, title }], under }],   its bullets; words as a person reads them, a link as [[its name]];
+                                                          tag: its first tag by name, tags: every tag it has; under: how many bullets stand under it
      lists: [{ name, said, rows: [{ uuid, title, kind, day, isPage }], more }] }   what points at it, as Relations lists it */
 (function () {
 const G = window.PluginDoor, R = G.read, Wr = G.write, W = G.words, D = G.days, T = G.tags, S = G.search;
@@ -81,7 +82,8 @@ async function whole(uuid) {
   const lines = bullets.map((line, i) => {
     let under = 0;
     for (let j = i + 1; j < bullets.length && bullets[j].depth > line.depth; j++) under++;
-    return { uuid: line.uuid, depth: line.depth, words: line.words, task: task(about.get(line.id)?.status), tag: about.get(line.id)?.tag || '', under };
+    const tags = (about.get(line.id)?.tags || []).map(tag => tagIndex.get(tag.id)).filter(Boolean).map(tag => ({ uuid: tag.uuid, title: tag.title }));   // every tag of the person's it has
+    return { uuid: line.uuid, depth: line.depth, words: line.words, task: task(about.get(line.id)?.status), tag: about.get(line.id)?.tag || '', tags, under };
   });
   // The properties its tags give it (those of the tags above them too), then any other it holds; by name, so they never jump.
   // One set to "Hide by default" is left out, as Logseq's own page leaves it out.

@@ -1137,8 +1137,9 @@ function nodePanel(command, args) {
       return nodeSays(got.said || "Copied", false);
     }
     if (command === "tags") {
-      const target = line ? line.uuid : node.uuid, has = line ? [line.tag] : node.tags.map(t => t.title), list = ask("tags", {}).tags || [];
-      const tagRows = list.map(t => pickRow(t.uuid, EM.repeat(t.depth) + t.title, "", has.indexOf(t.title) >= 0, t.title));
+      // Ticked: every tag the bullet (or the node) has, each by its own id, so ↩ on a ticked one takes that one off.
+      const target = line ? line.uuid : node.uuid, has = (line ? line.tags || [] : node.tags).map(t => t.uuid), list = ask("tags", {}).tags || [];
+      const tagRows = list.map(t => pickRow(t.uuid, EM.repeat(t.depth) + t.title, "", has.indexOf(t.uuid) >= 0, t.title));
       return JSON.stringify(Object.assign({ variables: { n_edit: "t:" + target } }, pickSheet(tagRows, "", "Tag", "No tag by that name. New tags are made in Logseq.", false)));
     }
     if (command === "filter") {

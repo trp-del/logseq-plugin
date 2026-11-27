@@ -47,7 +47,7 @@ wrote. When it did not (Logseq refused, the plugin is off or does not answer), t
   | a node that points here | ↩ | Goes to it here. ⌥↩ does the same on a property's value and on a bullet. ⌘[ steps back, at last to Search or Home. |
   | a bullet | ⌘N | A new bullet after it (after the bullets under it), written in place. With no bullet lit, last in the node. |
   | a bullet | ⇥, ⇧⇥ | Moves it in and out, as in Logseq, also while it is being written: what is typed is written, the bullet moves, and it is a field again. |
-  | a bullet, or the node | ⌘T | Your tags in their tree, filtered as you type; ↩ puts the lit one on, or takes it off where it is on. |
+  | a bullet, or the node | ⌘T | Your tags in their tree, filtered as you type, every tag it has ticked; ↩ puts the lit one on, or takes it off where it is on. |
   | a bullet, or the node | ⌘D, ⌘G | Done, doing. |
   | a bullet, a property | ⌘⌫ | Deletes the bullet with those under it; empties the property, whatever its kind (a tick box is emptied, never turned over). |
   | anywhere | ⌘Z | Takes back what the panel changed last, with Logseq's own Undo, in as many steps as the change took. With nothing changed in the panel it does nothing. If something else changed in the graph since, it says so and takes nothing back: use Undo in Logseq. |
