@@ -33,7 +33,7 @@ G.part({
     // The one list, drawn the same in the sidebar's section and on the page of its own.
     const draw = holder => {
       const doc = holder.ownerDocument;
-      holder.classList.add('lk-todo', 'lk-day-end');
+      holder.classList.add('lk-todo');
       holder.innerHTML = '<div class="lk-time" hidden></div><div class="lk-todo-view"><div><button type="button" data-of="show"></button><button type="button" data-of="by"></button></div></div><div class="lk-rel"></div>';
       const timeEl = holder.children[0], viewEl = holder.children[1], store = doc.defaultView.localStorage;
       // A day said in the words ("by friday") becomes the task's Deadline and leaves the words; it is said at the line's right before Return.
@@ -51,6 +51,7 @@ G.part({
       const keep = (key, value) => { try { store.setItem(key, JSON.stringify(value)); } catch (error) { /* this sitting only */ } };
       const BY = { day: 'By day', page: 'By page', parent: 'By parent', tag: 'By tag', priority: 'By priority', status: 'By status' };
       let by = BY[kept('lk.todo-by', 'day')] ? kept('lk.todo-by', 'day') : 'day', sort = kept('lk.todo-sort', 'day') === 'name' ? 'name' : 'day', out = new Set(kept('lk.todo-out', []));
+      let dayAt = kept('lk.todo-date-at', 'end');   // where a task's day stands: 'start' or 'end' of its line
       const plain = words => String(words || '').replace(/\[\[|\]\]/g, '');
       let held = new Set();   // every open task, listed or not
       const read = async () => {
@@ -89,7 +90,7 @@ G.part({
             G.menu(at, [...[['Today', day(0)], ['Tomorrow', day(1)], ['Next week', day(monday)]].map(([word, to]) => ({ word, value: G.days.short(to, day(0)) || '', on: has === to, take: () => change(G.write.setDeadline(uuid, to)).catch(refused('The deadline could not be set')) })),
               ...(has ? [{ gap: true }, { word: 'Remove deadline', take: () => change(G.write.setDeadline(uuid, 0)).catch(refused('The deadline could not be taken off')) }] : [])]); } }];
       };
-      const list = G.node.listing(holder.lastElementChild, read, { few: 30, none: 'No open tasks', more, leaves: uuid => !held.has(uuid) });
+      const list = G.node.listing(holder.lastElementChild, read, { few: 30, none: 'No open tasks', dayStart: () => dayAt === 'start', more, leaves: uuid => !held.has(uuid) });
       const narrow = () => {
         const now = field.value.trim().toLowerCase(), said = G.todo.dayIn(field.value, G.days.number(new Date()));
         hint.textContent = said ? G.days.short(said.day) : '';   // a day is written one way everywhere
@@ -99,7 +100,8 @@ G.part({
       const onView = event => {
         const button = event.target.closest('button'); if (!button) return;
         if (button.dataset.of === 'by') return void G.menu(button, [{ group: 'Group by' }, ...Object.entries(BY).map(([key, word]) => ({ word: word.slice(3, 4).toUpperCase() + word.slice(4), on: key === by, take: () => { by = key; keep('lk.todo-by', by); list.again(); } })),
-          { gap: true }, { group: 'Sort by' }, ...[['day', 'Day'], ['name', 'Name']].map(([key, word]) => ({ word, on: key === sort, take: () => { sort = key; keep('lk.todo-sort', sort); list.again(); } }))]);
+          { gap: true }, { group: 'Sort by' }, ...[['day', 'Day'], ['name', 'Name']].map(([key, word]) => ({ word, on: key === sort, take: () => { sort = key; keep('lk.todo-sort', sort); list.again(); } })),
+          { gap: true }, ...G.listview.dayPlaces(dayAt === 'start', start => { dayAt = start ? 'start' : 'end'; keep('lk.todo-date-at', dayAt); list.again(); })]);
         const open = button.lkOpen || [], flip = title => { if (out.has(title)) out.delete(title); else if (open.filter(status => !out.has(status.title)).length > 1) out.add(title); keep('lk.todo-out', [...out]); list.again(); };   // the last one listed cannot be left out
         G.menu(button, [{ group: 'Show' }, ...open.map(status => ({ word: status.title, icon: G.touch.statusIcon(status.icon), on: !out.has(status.title), take: () => flip(status.title) })),
           ...(open.some(status => out.has(status.title)) ? [{ gap: true }, { word: 'Show all', take: () => { out = new Set(); keep('lk.todo-out', []); list.again(); } }] : [])]);

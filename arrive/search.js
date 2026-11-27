@@ -82,7 +82,7 @@ G.part({
     const shown = (nodes, words) => S.narrow(nodes.map(node => ({ ...node, shown: node.words, words: node.plain })), words).map(node => ({ ...node, words: node.shown }));
     const draw = holder => {
       const doc = holder.ownerDocument, win = doc.defaultView;
-      holder.classList.add('lk-search', 'lk-day-end');
+      holder.classList.add('lk-search');
       holder.innerHTML = '<div class="lk-add"><span class="lk-search-pieces" style="display:contents"></span><input class="lk-field" type="text" placeholder="Search" spellcheck="false" autocomplete="off" aria-label="Search"></div><div class="lk-search-read" hidden></div><div class="lk-time" hidden></div><div class="lk-search-choices" hidden></div><div class="lk-search-none" hidden>Nothing holds these words</div><div class="lk-rel"></div>';
       const field = holder.querySelector('.lk-field'), piecesEl = holder.querySelector('.lk-search-pieces'), readEl = holder.querySelector('.lk-search-read'),
         timeEl = holder.querySelector('.lk-time'), choicesEl = holder.querySelector('.lk-search-choices'), noneEl = holder.querySelector('.lk-search-none'), rel = holder.querySelector('.lk-rel');
@@ -282,7 +282,11 @@ G.part({
         if (got.recent) return got.rows.length ? [{ key: 'search:recent', kind: 'group', name: 'Recently opened', tag: '', rows: got.rows }] : [];
         return groupsOf(got.rows, got.near || []);
       };
-      const list = G.node.listing(rel, read, { few: 8, press: (row, event) => { G.touch.open(row.dataset.uuid, event.shiftKey); return true; },
+      // Where a result's day stands, chosen from a result's right-click and kept on this Mac.
+      const AT = 'lk.search-date-at';
+      const dayStart = () => { try { return win.localStorage.getItem(AT) === 'start'; } catch (error) { return false; } };
+      const more = () => [{ gap: true }, ...G.listview.dayPlaces(dayStart(), start => { try { win.localStorage.setItem(AT, start ? 'start' : 'end'); } catch (error) { /* this sitting only */ } for (const one of boxes) if (one.holder.isConnected) one.again(); })];
+      const list = G.node.listing(rel, read, { few: 8, dayStart, more, press: (row, event) => { G.touch.open(row.dataset.uuid, event.shiftKey); return true; },
         key: (row, event) => { if (event.key !== 'Enter') return false; G.touch.open(row.dataset.uuid, event.shiftKey); return true; } });
       const mark = () => { const want = box.sentence ? R.read(box.text, box.names || {}).words : S.tokens(box.text); for (const words of rel.querySelectorAll('.lk-line > .lk-words')) G.node.hit(words, want); };
       rel.addEventListener('lk-drawn', mark);

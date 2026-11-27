@@ -221,7 +221,7 @@ const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null, offDigs = null;
 function listing(el, read, opts = {}) {
-  const state = { el, read, all: new Set(), turn: 0, hits: 0, draft: null, ticks: opts.ticks || null, press: opts.press || null, leaves: opts.leaves || null, left: new Set(), rolls: false, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
+  const state = { el, read, all: new Set(), turn: 0, hits: 0, draft: null, ticks: opts.ticks || null, press: opts.press || null, leaves: opts.leaves || null, left: new Set(), rolls: false, dayStart: opts.dayStart || null, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
   state.redraw = () => { if (state.last && el.isConnected) draw(state, ...state.last); };
   state.again = () => load(state);
   mounted.set(el, state);
@@ -371,8 +371,10 @@ function draw(state, made, names, statuses) {
     const items = made ? G.listview.items(state, list, made, state.few) : L.shown(list.rows, state.all.has(list.key), state.few).map(row => ({ type: 'row', key: row.uuid, row }));
     const hidden = made ? (items.hidden || 0) : list.rows.length - items.length;
     const dated = items.filter(item => item.type === 'row' && item.row.dayShown), long = dated.some(item => Math.floor(item.row.dayShown / 10000) !== Math.floor(today / 10000));
-    box.style.setProperty('--lk-daycol', dated.length ? (long ? '92px' : '56px') : '0px');   // the day at the line's right end, in every list (the owner, 26 November 2026)
-    box.classList.toggle('lk-day-end', true);
+    // Where a row's day stands, as the place's menu says: at the line's right end (as it comes), or before its words.
+    const front = made ? G.listview.viewOf(list.key).at === 'start' : !!state.dayStart?.();
+    box.style.setProperty('--lk-daycol', !dated.length || (front && made) ? '0px' : long ? '92px' : '56px');   // in front, a list of Relations has the day after the bullet, inside the line
+    box.classList.toggle('lk-day-end', !front);
     box.style.setProperty('--lk-dayin', long ? '90px' : '54px');
     box.toggleAttribute('data-picking', !!made?.picking);
     box.toggleAttribute('data-viewed', !!made);
@@ -400,7 +402,7 @@ function draw(state, made, names, statuses) {
       el.classList.toggle('lk-picked', ticked);
       if (ticking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = ticked; } else tick?.remove();
       const want = made?.finding ? G.search.tokens(state.view.find.words) : [];
-      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
+      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown, day: front && made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
       if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; if (want.length) hit(line.querySelector('.lk-words'), want); }
       G.undo.dress(el);   // the node changed last keeps its arrow through a redraw
@@ -553,17 +555,18 @@ G.node.CSS = `
 /* A list of Relations has the day after the bullet, inside the line. Opened, the node stands where its words stood, and its
    day stays where it was. */
 .lk-list[data-viewed] > .lk-rows > .lk-row { position: relative; }
-.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: flex; align-items: baseline; position: absolute; left: 44px; top: 2px; width: var(--lk-dayin, 54px); padding: 0; color: var(--lk-quiet); z-index: 1; }
+.lk-list[data-viewed]:not(.lk-day-end) > .lk-rows > .lk-row > .lk-day { display: none; }
+.lk-list[data-viewed]:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: flex; align-items: baseline; position: absolute; left: 44px; top: 2px; width: var(--lk-dayin, 54px); padding: 0; color: var(--lk-quiet); z-index: 1; }
 /* On the baseline of the opened node's first line, as on the line's words it stood beside: a strut of the words' line. */
-.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day::before { content: "\\200b"; width: 0; font-size: var(--lk-words-size); line-height: 24px; }
+.lk-list[data-viewed]:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day::before { content: "\\200b"; width: 0; font-size: var(--lk-words-size); line-height: 24px; }
 /* The band of a node opened in a list of Relations starts at the row's dot and holds the dot and the day; the node itself starts
    past the day, where the line's words stood. (The owner, 25 November 2026: "this location of grey box": it started under the day.) */
-.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { --lk-open-shift: 0px; padding-left: calc(var(--lk-dayin, 54px) + 10px); }
+.lk-list[data-viewed]:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row > .lk-open { --lk-open-shift: 0px; padding-left: calc(var(--lk-dayin, 54px) + 10px); }
 /* A node with no day, in a list of dated ones: no empty day before its words. They come after the dated ones, a little apart
    (the owner's marked page, 26 November 2026: "No day, so a wide hole"). */
 .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin:empty { display: none; }
 .lk-list[data-viewed] > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:not(:empty)) + .lk-row:has(> .lk-line > .lk-dayin:empty) { margin-top: 10px; }
-.lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:empty) > .lk-open { padding-left: 0; }
+.lk-list[data-viewed]:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:empty) > .lk-open { padding-left: 0; }
 .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
 .lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
 .lk-list-head[data-thin] > .lk-list-name { align-items: baseline; }
@@ -573,7 +576,7 @@ G.node.CSS = `
 .lk-list[data-picking] .lk-row > .lk-fold { display: none; }
 .lk-row > .lk-tick { grid-column: 2; align-self: start; justify-self: center; position: relative; z-index: 1; }
 .lk-row > input.lk-tick[type=checkbox] { margin: calc(2px + (24px - 14px) / 2) 0 0; }   /* on the middle of the line's first line: its 2 above, its 24, the tick's 14 */
-.lk-day-end .lk-row > .lk-tick { grid-column: 1; grid-row: 1; }   /* where the day is at the right, the box takes the arrow's place before the line (it had a row of its own under it) */
+.lk-day-end > :where(.lk-rows) > .lk-row > .lk-tick { grid-column: 1; grid-row: 1; }   /* where the day is at the right, the box takes the arrow's place before the line (it had a row of its own under it) */
 /* The tick for all stands in the mark's box where the head's arrow stands, which gives way to it as a row's arrow does. */
 .lk-list-head > .lk-list-name > .lk-tick-all { margin: 0 calc(var(--lk-mark-gap) + (var(--lk-mark-box) - 14px) / 2) 0 calc((var(--lk-mark-box) - 14px) / 2 - var(--lk-mark-box) - var(--lk-mark-gap)); align-self: center; }
 .lk-list[data-picking] > .lk-list-head > .lk-fold { visibility: hidden; }
@@ -588,13 +591,12 @@ G.node.CSS = `
    arrow (.lk-fold svg). */
 /* Where a found node holds the words: the property and its values under its line, on the words' own edge. */
 .lk-row > .lk-found { grid-column: 3; min-width: 0; padding: 0 6px 4px 20px; font-size: 14px; line-height: 21px; }
-.lk-list:has(.lk-row .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: calc(20px + var(--lk-dayin, 54px) + 12px); }
+.lk-list:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: calc(20px + var(--lk-dayin, 54px) + 12px); }
 .lk-row[data-open] > .lk-found { display: none; }
 .lk-found .lk-found-rest { display: block; margin: 0; }
 .lk-rows > .lk-more.lk-more-group { display: block; }
 /* A narrow place (the sidebar, a node opened deep): the indents shrink. A row's arrow stands in the gutter where its list's
-   arrow stands, its bullet on the edge the head's words start on, and its day goes under its words, small, in place of a
-   column beside them that would leave the words a few letters wide (the owner, 25 November 2026: "This is a sidebar and you
+   arrow stands and its bullet on the edge the head's words start on (the owner, 25 November 2026: "This is a sidebar and you
    need to account for that especially with indentation"). */
 @container lk-list (max-width: 300px) {
   /* Names and values stack here, each node value with its arrow before it: a row's arrow, its dot and the line under the dot
@@ -606,13 +608,10 @@ G.node.CSS = `
   .lk-rows > .lk-row > .lk-open, .lk-list[data-viewed][data-viewed][data-viewed] > .lk-rows > .lk-row > .lk-open { padding-left: 8px; }   /* the band and its line stand out; what is in it stays on the words' edge */
   .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { left: 15px; }
   .lk-list[data-viewed] > .lk-rows { margin-left: -18px; }
-  .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line { flex-wrap: wrap; }
-  .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-words { flex: 1 1 0; }
-  .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin { order: 9; flex: 0 0 100%; width: auto; margin: -3px 0 3px 20px; line-height: 16px; font-size: var(--lk-label); }
   .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin:empty { display: none; }
-  .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row > .lk-open { --lk-open-shift: -2px; padding-left: 0; }   /* measured: the opened node's words stand where its line's words stood */
-  .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: none; }
-  .lk-list:has(.lk-row .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: 20px; }
+  .lk-list[data-viewed]:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row > .lk-open { --lk-open-shift: -2px; padding-left: 0; }   /* measured: the opened node's words stand where its line's words stood */
+  .lk-list[data-viewed]:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row[data-open="1"] > .lk-day { display: none; }
+  .lk-list:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: 20px; }
   .lk-list[data-viewed] .lk-draft .lk-dayin { display: none; }
   .lk-list[data-viewed] > .lk-more.lk-more-link, .lk-list[data-viewed] > .lk-rows > .lk-more.lk-more-link { margin-left: calc(var(--lk-mark-box) + var(--lk-mark-gap)); }
   .lk-list[data-viewed] > .lk-draft { margin-left: -18px; }
@@ -625,7 +624,7 @@ G.node.CSS = `
 .lk-list:not(:has(.lk-dayin)) > .lk-more.lk-more-link { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
 .lk-more { margin: 2px 0 0 calc(var(--lk-daycol, 0px) + 18px + var(--lk-mark-box) + var(--lk-mark-gap)); padding: 2px 0; text-align: start; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-more:hover { color: var(--lk-text); text-decoration-color: currentColor; }
-.lk-day-end .lk-more { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
+.lk-day-end > .lk-more, .lk-day-end > :where(.lk-rows) > .lk-more { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
 .lk-add { display: flex; margin: -4px 0 12px -22px; padding: 4px 0 0 22px; position: sticky; top: 0; z-index: 2; background: var(--lk-ground, transparent); }   /* stays in view while the list moves to what was added */
 .lk-add:has(+ .lk-ask) { position: static; }   /* a box open under it: it scrolls away with the rest, and never floats over the box */
 .lk-add .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; line-height: 24px; padding: 2px 0 2px calc(var(--lk-mark-box) + var(--lk-mark-gap) - 18px);   /* the words typed start on the edge of the lists' names below */ box-shadow: none; border-radius: 0; }

@@ -44,7 +44,7 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 - a second hairline closes the section under its last row, running on under the word. A press on the word rolls the lists up
   and the line draws up and fades with them, leaving the one line; pressed again, they roll out (no motion where less motion
   is asked for);
-- rows carry their day right after the bullet, in a column of its own before the words (a Date property, else the journal day they were written on), newest first; in a narrow place the day stands under the words;
+- rows carry their day at the line's right end (a Date property, else the journal day they were written on), newest first; View, then Date, puts it at the **Beginning of the line** instead, right after the bullet in a column of its own (in a narrow place too), kept for the property on every page;
 - a long list shows ten rows, then **Show 43 more**, saying how many wait;
 - what a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads; the
   chosen kind is underlined across its word and count, and the span of the list's days ("Jul 8 to Aug 20") stands at the head's
@@ -81,7 +81,7 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | The word Relations | Click | Folds the whole section, kept for the page. Right-click: the lists hidden where they point, to show again |
 | The find line (from twenty nodes up, or **Relations: find in them**) | Type words | Every list narrows to them, ten nodes and then **Show more**, as any list. A node found by what it holds under a property says so under its line: the property, its values with the words marked, and **Show the rest**, which opens the node (from three letters; twenty nodes at most). "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the lists back to that day, the later nodes faint under a "since" line; a week earlier, a week later and Today step the day. Enter opens the first node found, Down goes to it, Escape empties the line |
 | A list's head | Click a kind | A list whose nodes hold different tags names its three most held kinds, each with its count, All first; a kind narrows the list to it, "and 2 more" lists the rest. "2 new" narrows to the nodes made since the page was last open, which also carry a darker dot |
-| The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole; a group shows twelve nodes, then **Show more**), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
+| The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole; a group shows twelve nodes, then **Show more**), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none; and **Date position**, the beginning or the end of the line), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
 | | Reads back as… | How the property reads on the pages it points to. By grammar unless you type a name: "Prescribed by" reads "Prescribed", "Symptom of" reads "Symptoms", "Provider" reads "Provider of", a plain noun keeps its name |
 | | Hide where it points | The list is no longer shown on the pages the property points to |
 | | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first. One line then says what was done, with an Undo |
@@ -235,7 +235,7 @@ again: a sidebar the key had opened is shut, and the keys go back to the bullet 
 | Down from the line | Walks the lines |
 | Tab | Takes the lit choice; with none lit, steps into the choices (arrows walk them, Escape goes back) |
 | A click on a piece, or Backspace on an empty line | Takes that piece, or the last, off |
-| Right-click | The line's own menu, as everywhere |
+| Right-click | The line's own menu, and under it **Date position**: a result's day at the beginning or the end of its line (the end as it comes), kept for Search on this Mac |
 | Cmd-Enter | Makes a page of the words typed and goes to it |
 | Escape | Empties the words, then lets go of the pieces |
 
@@ -330,7 +330,7 @@ set: Logseq's keyboard settings set them. The part can be switched off in the pl
 
 The corner, or **Todo** in the command palette, opens a section of the right sidebar: your open tasks under **Overdue** (past
 its day), **Today**, **Coming up** and **Any time**, each under a small bold word, the words a size smaller
-than a page's. A task's day stands at the right end of its line, red once it has passed. The line at the top, **Add or find a
+than a page's. A task's day stands at the right end of its line, red once it has passed; **Date position** in the grouping's menu (the second word on the top line) puts it at the beginning of the line instead. The line at the top, **Add or find a
 todo**, narrows the list to the tasks holding every word typed, and Return adds what is typed as a task on today's journal. A task set Done or Canceled shows its circle ticked, waits a
 moment, then leaves the list, the lines under it closing up; Undo rolls it back.
 
@@ -553,7 +553,7 @@ Relations the day stands after the bullet, before the words.
 
 ### In a narrow place
 
-In the right sidebar a list gives its words the whole width: a line's day stands under its words, an outline steps in less, and
+In the right sidebar a list gives its words the whole width: a line's day stays at the end (or the beginning) of its line, an outline steps in less, and
 a node opened in place takes the width of the list. A list of Relations does the same wherever it is narrower than 300: a
 row's arrow stands in the gutter, its bullet on the edge its head's words start on, its day under its words; a property of a
 node opened there, and of a page in a narrow sidebar, has its name on one line and its values under it. Where a list is

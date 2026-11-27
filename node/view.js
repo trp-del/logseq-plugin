@@ -4,6 +4,7 @@
    that is not the default is said quietly before the days. What is set is kept for the list's property on every page; the order
    of a page's lists is kept for that page.
      G.listview.state(uuid)                 what a place keeps for its lists while it stands
+     G.listview.dayPlaces(start, take)      a menu's two lines for where a row's day stands
      G.listview.shape(state, list, names, today), head(...), items(...), paint(el, item), act(state, event)   used by the listing */
 (function () {
 const G = window.PluginDoor, V = G.view, D = G.days, W = G.words;
@@ -87,6 +88,8 @@ function paint(el, item, today) {
   if (item.type === 'group') { el.setAttribute('role', 'button'); el.tabIndex = 0; el.setAttribute('aria-expanded', String(!item.shut)); el.dataset.group = item.group.key; el.lkGroup = item.group; }
   if (el.lkHtml !== html) { el.innerHTML = html; el.lkHtml = html; }
 }
+// Where a row's day stands, the same two lines in every list's menu: before the words, or at the line's right end.
+const dayPlaces = (start, take) => [{ group: 'Date position' }, ...[[true, 'Beginning of the line'], [false, 'End of the line']].map(([value, word]) => ({ word, on: value === start, take: () => take(value) }))];
 // View: what a list goes by, as an ordinary menu: a line per setting, its choices in a menu beside it, the one in force ticked.
 function viewItems(state, box) {
   const list = box.lkList, key = list.key, now = viewOf(key), offers = V.offers(list.rows), view = state.view;
@@ -105,7 +108,8 @@ function viewItems(state, box) {
     { word: 'Group by', sub: choose('Group by', 'group', [['', 'None'], ...offers.groups.map(name => [name, name, name === 'Tag' || name === 'Month' ? '' : 'prop'])]) },
     { word: 'Sort by', sub: choose('Sort by', 'sort', [['', 'Day'], ...offers.sorts.map(name => [name, sortWord[name]])]) },
     timeline,
-    { word: 'Date', sub: choose('Date', 'date', [['', 'Date or journal'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]) },
+    { word: 'Date', sub: [...choose('Date', 'date', [['', 'Date or journal'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]),
+      { gap: true }, ...dayPlaces(now.at === 'start', start => set({ at: start ? 'start' : '' }))] },
     { gap: true },
     { word: picking ? 'Stop picking' : 'Pick nodes', take: () => { if (picking) { view.picking.delete(key); view.picked.delete(key); } else view.picking.add(key); state.redraw(); } },
     ...(at0 > 0 || (at0 >= 0 && at0 < keys.length - 1) ? [{ gap: true }] : []),
@@ -197,7 +201,7 @@ async function hiddenMenu(at, again) {
   G.menu(at, [{ group: 'Hidden where they point. A press shows one again' }, ...idents.map(ident => ({ word: props.get(ident)?.title || ident, face: 'prop', take: () => { oneEnd.set(oneEnd.get().filter(one => one !== ident)); again(); } }))]);
   return true;
 }
-G.listview = { state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED, hiddenMenu, drags, named: () => reads.get(), hidden: () => oneEnd.get() };
+G.listview = { dayPlaces, state, order, shape, head, items, paint, act, menu, viewOf, setView, VIEWED, hiddenMenu, drags, named: () => reads.get(), hidden: () => oneEnd.get() };
 G.listview.CSS = `
 /* The kinds, the + and the ⋯ and the days are one run of words that wraps where it must: the + and the ⋯ follow the last kind
    on whichever line it stands, and the days close that line at its right end (the owner, 25 November 2026, of kinds wrapped one

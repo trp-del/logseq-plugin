@@ -130,19 +130,20 @@ function act(event, row, more) {
 G.line = { html, act, menu, mark, ended, addProperty, pickTags };
 G.line.CSS = `
 /* A row: its day, the fold arrow, the line. A list of Relations says the day inside the line, after the bullet (lk-dayin), and
-   keeps no column for it. A place whose view puts the day at the right end says so on a box round its rows (lk-day-end: Find,
-   and Todo, where a day that has passed is red); the line then reaches under the day, so its wash holds both. */
+   keeps no column for it. A list whose day stands at the right end says so on its box (lk-day-end; each list's menu puts the
+   day there or in front); the line then reaches under the day, so its wash holds both. A day that has passed is red. */
 .lk-row { display: grid; grid-template-columns: var(--lk-daycol, 0px) 18px minmax(0, 1fr); align-items: start; padding-left: calc(var(--lk-depth, 0) * 18px); }
 .lk-row > .lk-day { grid-column: 1; overflow: hidden; white-space: nowrap; font-size: var(--lk-small); color: var(--lk-quiet); font-variant-numeric: tabular-nums; line-height: 24px; padding-top: 2px; }
+.lk-row > .lk-day.lk-late { color: var(--lk-going); }
 .lk-row > .lk-fold { grid-column: 2; position: relative; z-index: 1; }   /* above the opened node, whose own margin reaches under it */
 .lk-row > .lk-line, .lk-row > .lk-open { grid-column: 3; min-width: 0; }
-.lk-day-end .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
-.lk-day-end .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
-.lk-day-end .lk-row > .lk-day { grid-column: 3; grid-row: 1; z-index: 1; text-align: right; padding: 2px 6px 0 0; align-self: baseline; }
-.lk-day-end .lk-row > .lk-day.lk-late { color: var(--lk-going); }
-.lk-day-end .lk-row > .lk-day:empty, .lk-day-end .lk-row[data-open="1"] > .lk-day { display: none; }
-.lk-day-end .lk-row > .lk-line { grid-column: 2 / -1; grid-row: 1; align-self: baseline; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
-.lk-day-end .lk-row > .lk-open { grid-column: 2 / -1; }
+.lk-day-end > :where(.lk-rows) > .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
+.lk-day-end > :where(.lk-rows) > .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
+.lk-day-end > :where(.lk-rows) > .lk-row > .lk-day { grid-column: 3; grid-row: 1; z-index: 1; text-align: right; padding: 2px 6px 0 0; align-self: baseline; }
+.lk-day-end > :where(.lk-rows) > .lk-row > .lk-day.lk-late { color: var(--lk-going); }
+.lk-day-end > :where(.lk-rows) > .lk-row > .lk-day:empty, .lk-day-end > :where(.lk-rows) > .lk-row[data-open="1"] > .lk-day { display: none; }
+.lk-day-end > :where(.lk-rows) > .lk-row > .lk-line { grid-column: 2 / -1; grid-row: 1; align-self: baseline; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
+.lk-day-end > :where(.lk-rows) > .lk-row > .lk-open { grid-column: 2 / -1; }
 .lk-row[data-open="1"] > .lk-line { display: none; }
 .lk-row[data-open="soon"] > .lk-open { height: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole */
 .lk-fold { display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
@@ -188,19 +189,16 @@ a.lk-tag:hover { color: var(--lk-text); }
 .lk-sits a.lk-step { color: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--lk-hair); text-underline-offset: 3px; }
 .lk-sits a.lk-step:hover { color: var(--lk-text); text-decoration-color: var(--lk-line); }
 .lk-num { flex: none; line-height: 1; margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); font-variant-numeric: tabular-nums; }
-/* In a narrow place (the sidebar) the words get the whole width: the day stands under them, an outline steps in less, and an
-   opened node takes the width of the list. */
+/* In a narrow place (the sidebar) an outline steps in less, and an opened node takes the width of the list. A day put at the
+   beginning of the line stays there, and gives up its room while the node is open. */
 @container lk-list (max-width: 300px) {
-  .lk-row { grid-template-columns: 18px minmax(0, 1fr); padding-left: calc(var(--lk-depth, 0) * 12px); }
-  .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
-  .lk-row > .lk-line, .lk-row > .lk-open { grid-column: 2; grid-row: 1; }
-  .lk-row > .lk-day { grid-column: 2; grid-row: 2; padding: 0 0 4px 20px; margin-top: -3px; line-height: 16px; font-size: var(--lk-label); }
-  .lk-row[data-status]:not([data-status=""]) > .lk-day { padding-left: 44px; }
+  .lk-row { padding-left: calc(var(--lk-depth, 0) * 12px); }
+  .lk-row[data-open="1"] { grid-template-columns: 0 18px minmax(0, 1fr); }
   .lk-row > .lk-day:empty, .lk-row[data-open="1"] > .lk-day { display: none; }
   /* Where the day stands at the right end it stays there, narrow or not. */
-  .lk-day-end .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
-  .lk-day-end .lk-row > .lk-line { grid-column: 2 / -1; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
-  .lk-day-end .lk-row.lk-row > .lk-day.lk-day { grid-column: 3; grid-row: 1; padding: 2px 6px 0 0; margin-top: 0; line-height: 24px; font-size: var(--lk-small); }   /* said twice over, past the rule that steps a task's day in under its circle */
+  .lk-day-end > :where(.lk-rows) > .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
+  .lk-day-end > :where(.lk-rows) > .lk-row > .lk-line { grid-column: 2 / -1; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
+  .lk-day-end > :where(.lk-rows) > .lk-row.lk-row > .lk-day.lk-day { grid-column: 3; grid-row: 1; padding: 2px 6px 0 0; margin-top: 0; line-height: 24px; font-size: var(--lk-small); }   /* said twice over, past the rule that steps a task's day in under its circle */
   .lk-row[data-open="1"] { padding-left: 0; }
   .lk-more { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
   .lk-open > .lk-rel { margin-left: 8px; }
