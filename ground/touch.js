@@ -73,6 +73,9 @@
      touch.queryShown(uuid)   a query's table as it is drawn on screen: { columns, order } or null
      touch.dragBand()         how tall the band at the window's top is that moves the window, where no press reaches the page
      touch.graphChanged(fn)   fn runs when another graph is opened; gives back what stops it
+     touch.search(words, limit)   Logseq's own search: the ids of what it finds, in its order; null where it does not answer
+     touch.makeProperty(name, type, many), touch.makeTag(name)   a property, a tag of the person's own, made by the calls
+                              Logseq's documentation leaves out (ground/write.js newProperty and newTag are what a part calls)
      touch.recentGroups(kinds) each line of the left sidebar's Recent marked with what it is, asked of kinds()
                               (read.recentKinds); the sheet (CALM.left) then stands them in groups. Gives back what stops it
      touch.graphs             Logseq's graphs: list() their addresses, current() the open one's, open(url) opens one by
@@ -753,6 +756,24 @@ function tableBar(word, run) {
   });
   return () => { off(); for (const button of doc.querySelectorAll('.lk-table-word')) button.remove(); };
 }
+/* Three calls that Logseq's documentation leaves out, each tried in the running Logseq (2.0.2, 27 November 2026).
+   search: Logseq's own search, asked for the ids of what it finds, in its order; it answered { blocks: [{ id, … }], … }. null
+   where it does not answer.
+   makeProperty: a property of the person's own, as Logseq's own "new property" makes it (the documented upsertProperty makes one
+   that belongs to the plugin): "upsert nodes" made a user.property/…; answers { ident, uuid }, or null where none was made.
+   makeTag: a tag of the person's own. Logseq's createTag makes one that belongs to the plugin (plugin.class/…); a page made
+   with the option class, which createPage's documentation does not list, is the person's (user.class/…), the same as "New
+   tag" in Logseq's own list. Answers its uuid. */
+async function search(words, limit = 40) {
+  try { const found = await logseq.App.search(String(words), { limit, 'search-limit': limit }); return (found?.blocks || []).map(block => block.id); }
+  catch (error) { console.warn('Logseq Plugin: Logseq’s search did not answer', error); return null; }
+}
+async function makeProperty(name, type, many) {
+  await logseq.Editor.upsertNodes([{ operation: 'add', entityType: 'property', id: `lk-new-${Date.now()}`, data: { title: name, 'property-type': type, ...(many ? { 'property-cardinality': 'many' } : {}) } }], {});
+  const found = (await G.read.q(`[:find ?i ?u ?c :where [?p :block/title ?t] [(= ?t ${JSON.stringify(name)})] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/uuid ?u] [?p :block/created-at ?c]]`)).sort((a, b) => b[2] - a[2])[0];
+  return found ? { ident: String(found[0]).replace(/^:/, ''), uuid: String(found[1]) } : null;
+}
+const makeTag = async name => String((await logseq.Editor.createPage(name, {}, { redirect: false, class: true }))?.uuid || '');
 // A command in Logseq's palette and a line of Logseq's keyboard settings (Keymap), where its key is given or changed. Logseq
 // lists there only a command that names its keys, so one without any names none: it reads "Unset".
 const said = new Map();   // the plugin's own commands, for a place that lists them (the corner)
@@ -2159,5 +2180,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

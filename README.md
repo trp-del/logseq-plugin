@@ -37,7 +37,7 @@ checked against that one file.
 On every page Logseq shows (the main page, a page in the right sidebar):
 
 - one list for each of your properties that points at the page, named by the property; on a journal day, Logseq's Scheduled
-  and Deadline; then **Mentioned in**;
+  and Deadline; then **Mentioned in**, where a node that names the page inside the words of one of its values stands too;
 - a tag every row of a list shares is said once, beside the list's name;
 - the lists stand under the quiet word **Relations** and a hairline, each list's name on that word's edge; its fold arrow, as
   a bullet's, shows under the pointer; the find line under it says **Search**;

@@ -3,11 +3,13 @@
      read.node(uuid)          { id, uuid, day } of a node by its uuid (day: the journal day, when it is one), or null
      read.opened(to)          the node a link leads to, by its uuid or a page's name: { id, uuid, title, isPage, kind }
                               (kind: 'tag' or 'property' for the page of one, else ''), or null
-     read.describe(ids)       id -> the node as a line shows it: { id, uuid, words, tag, day, dayFrom, status, isPage, written, dates, made, changed }
+     read.describe(ids)       id -> the node as a line shows it: { id, uuid, words, tag, tags, day, dayFrom, status, isPage, written, dates, made, changed }
                               written: the journal day it is written on; dates: { name: day } every day it holds; made, changed: times
-                              tag: its first tag of the person's own (or Task) by name; day: its Date property (the one named
+                              tag: its first tag of the person's own (or Task) by name; tags: every one of them, [{ id, title }],
+                              by name; day: its Date property (the one named
                               Date first, else the earliest), else the journal day it is written on; status: the id of its Status
      read.pointingAt(id)      { links: [{ prop, node }], mentions: [node] }   what holds this node as a value, what names it
+                              (in its own words, or in the words of a value it holds under one of the person's properties)
      read.dues(day)           [{ which, node }]   what Logseq's Scheduled and Deadline put on a journal day
      read.names(uuids)        uuid -> the node's name as plain words
      read.properties()        ident -> { ident, title, uuid, type }   the person's own properties
@@ -19,11 +21,17 @@
      read.holding()           property ident -> [node id]   the nodes that hold something under each of the person's properties
      read.relations()         [[tag id, property ident, tag id, n]]   n nodes of the first tag hold, under the property, a node of the second
      read.holders(ident)      the nodes holding a value under a property: [{ id, uuid, words, tag, values: [{ raw, text }] }]
+                              raw: a node's, a day's or a file's id; a time in milliseconds; a number; words; true or false.
+                              A value in words that has bullets written under it says how many (under)
+     read.under(uuid, ident)  what one node holds under one property, as the graph keeps it (never kept): { held: [value],
+                              words: [{ id, uuid, words, under }] }, words being the values in words among them, each a
+                              bullet of Logseq's own, with how many bullets it holds
      read.heldUnder(node, value)  the name of the property under which one node holds another (uuids), or ''
      read.graph()             the open graph's name
      read.newPages(since)     the plain, untagged pages made since a time in milliseconds (never kept): [{ id, uuid, title }]
-     read.search(words)       Logseq's own search for the words, its order kept: [node]; before them, every node named exactly the
-                              words (in any case), read from the graph itself, so one Logseq's search misses is still found
+     read.search(words)       Logseq's own search for the words, its order kept: [node]; before them, the page of that name
+                              (in any case) and every node whose words are exactly these, read from the graph itself, so one
+                              Logseq's search misses is still found. Words found in a value a node holds answer that node
      read.files(ids)          id -> the type of the file a node is ('pdf', 'png'), for those that are files
      read.tagged(tagIds)      the nodes holding any of these tags: [node]
      read.values(ids)         id -> [words]   what each node holds under the person's properties
@@ -46,7 +54,10 @@
                               at: where Logseq shows it, 'properties' | 'block-left' | 'block-right' | 'block-below'
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
      read.typed(uuid)         a bullet's words as Logseq keeps them; null for a page, code or maths, and a property's value
-     read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words }], words as a person reads them
+     read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words, raw }], words as a person reads
+                              them (a link as [[the node's name]]), raw as Logseq keeps them (a link as [[its id]])
+     read.asKept(uuid, words) words read from a bullet (outline's words), perhaps changed by the person, made ready to be
+                              written back to it: each link and tag the bullet holds is the link it is again, by its id
      read.chosen(asked)       what an export is asked for: { blocks: [uuid] } (the bullet a menu named, else the bullets picked,
                               else, where asked, the one being written), else { page } (the page named, or the one on screen)
      read.sheet(what, shown)  that page or those bullets as core/export.js takes them, every bullet with its facts, its names
@@ -59,7 +70,8 @@
                               held: [{ uuid, ident, raws }] nodes holding it under one of the person's properties,
                               bullets: [uuid] the bullets on its own page, outermost only, props: [id] the properties it gives
                               its nodes, ranges: [{ uuid, ids }] the node properties whose values must hold it }
-   Deleted nodes, and nodes on deleted pages, are never answered. */
+   Deleted nodes, and nodes on deleted pages, are never answered. (Logseq 2.0.2 keeps only a deleted page, with its bullets, in
+   its Recycle: a deleted bullet is gone from the graph with what was under it. Tried 27 November 2026.) */
 (function () {
 const G = window.PluginDoor, W = G.words, D = G.days;
 const q = async query => { const rows = await logseq.DB.datascriptQuery(query); return Array.isArray(rows) ? rows : []; };
@@ -71,6 +83,10 @@ const amongUuids = (variable, uuids) => `[(ground [${[...new Set(uuids.map(u => 
 const STAMP = 100000000000;   // an id of the graph is small; a time in milliseconds is past this
 const dayOfTime = ms => D.number(new Date(ms));
 const LIVE = '(not [?b :logseq.property/deleted-at]) (not-join [?b] [?b :block/page ?pg] [?pg :logseq.property/deleted-at])';
+const live = variable => LIVE.split('?b').join(variable);   // the same, said of another variable
+const MINE = /^user\.property\/[\w.-]+$/;
+// A time as it reads: its day, then the hour and minute.
+const timeText = ms => { const at = new Date(ms), two = n => String(n).padStart(2, '0'); return `${D.short(dayOfTime(ms))}, ${two(at.getHours())}:${two(at.getMinutes())}`; };
 
 // What is asked once and kept until the graph changes (G.read.forget, called by the ground on every change).
 const kept = new Map();
@@ -113,7 +129,7 @@ const tagPairs = () => once('tagPairs', async () => {
 // node of the first tag holding, under the property, a node of the second. Kept until the graph changes.
 const relations = () => once('relations', async () => {
   const mine = await tagIds();
-  const rows = await q(`[:find ?ta ?a ?tb (count ?b) :where [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b ?a ?v] [?b :block/tags ?ta] [?v :block/tags ?tb]]`);
+  const rows = await q(`[:find ?ta ?a ?tb (count ?b) :where [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b ?a ?v] [?b :block/tags ?ta] [?v :block/tags ?tb] ${LIVE} ${live('?v')}]`);
   return rows.filter(([a, , b]) => mine.has(a) && mine.has(b)).map(([a, ident, b, n]) => [a, bare(ident), b, Number(n) || 0]);
 });
 /* The nodes that hold a value under one of the person's properties, each with what it holds: [{ id, uuid, words, tag, values }],
@@ -121,18 +137,46 @@ const relations = () => once('relations', async () => {
    text is how it reads. Asked afresh each time. */
 async function holders(ident) {
   const prop = (await schema()).props.get(ident);
-  if (!prop || !/^user\.property\/[\w.-]+$/.test(ident)) return [];
+  if (!prop || !MINE.test(ident)) return [];
   const rows = await q(`[:find ?b ?v :where [?b :${ident} ?v] ${LIVE}]`);
   if (!rows.length) return [];
-  const ref = prop.type === 'node' || prop.type === 'date', ids = [...new Set(rows.map(([, v]) => v).filter(isId))];
-  const [nodes, titles, numbers] = await Promise.all([describe(rows.map(([b]) => b)),
-    ids.length ? q(`[:find ?v ?t :where ${among('?v', ids)} [?v :block/title ?t]]`) : [], ids.length ? q(`[:find ?v ?n :where ${among('?v', ids)} [?v :logseq.property/value ?n]]`) : []]);
-  const title = new Map(titles.map(([v, t]) => [v, String(t)])), number = new Map(numbers);
+  // A node, a day and a file are held by their id; a time is a number of its own, never an id (Logseq keeps it so).
+  const ref = ['node', 'date', 'asset'].includes(prop.type), timed = prop.type === 'datetime';
+  const ids = timed || prop.type === 'checkbox' ? [] : [...new Set(rows.map(([, v]) => v).filter(isId))];
+  const [nodes, titles, numbers, kids] = await Promise.all([describe(rows.map(([b]) => b)),
+    ids.length ? q(`[:find ?v ?t :where ${among('?v', ids)} [?v :block/title ?t]]`) : [], ids.length ? q(`[:find ?v ?n :where ${among('?v', ids)} [?v :logseq.property/value ?n]]`) : [],
+    ids.length && !ref ? q(`[:find ?v (count ?c) :where ${among('?v', ids)} [?c :block/parent ?v]]`) : []]);   // a value in words is a bullet of Logseq's own, which can hold bullets
+  const title = new Map(titles.map(([v, t]) => [v, String(t)])), number = new Map(numbers), below = new Map(kids);
   const names = await G.read.names([...nodes.values()].flatMap(node => W.named(node.words)));
-  const value = v => !isId(v) || prop.type === 'checkbox' ? { raw: v, text: String(v) } : ref ? { raw: v, text: title.get(v) || '' } : number.has(v) ? { raw: number.get(v), text: String(number.get(v)) } : { raw: title.get(v) ?? '', text: title.get(v) ?? '' };
+  const value = v => timed && typeof v === 'number' ? { raw: v, text: timeText(v) }
+    : !isId(v) || prop.type === 'checkbox' ? { raw: v, text: String(v) } : ref ? { raw: v, text: title.get(v) || '' } : number.has(v) ? { raw: number.get(v), text: String(number.get(v)) }
+    : { raw: title.get(v) ?? '', text: title.get(v) ?? '', ...(below.get(v) ? { under: Number(below.get(v)) } : {}) };
   const out = new Map();
   for (const [b, v] of rows) { const node = nodes.get(b); if (!node) continue; if (!out.has(b)) out.set(b, { id: b, uuid: node.uuid, words: W.plain(W.firstLine(node.words).line, names), tag: node.tag, values: [] }); out.get(b).values.push(value(v)); }
   return [...out.values()];
+}
+/* What one node holds under one of the person's properties, as the graph keeps it, asked afresh each time: what a write looks at
+   before it changes that. held: each value as kept (the id of a node, a day, a file, a set choice or a value's own bullet; a
+   time; true or false). words: the values in words among them (no set choice, no number), each with how many bullets it holds. */
+async function under(uuid, ident) {
+  if (!UUID.test(String(uuid || '')) || !MINE.test(String(ident))) return { held: [], words: [] };
+  const held = (await q(`[:find ?v :where [?b :block/uuid #uuid "${uuid}"] [?b :${ident} ?v]]`)).map(([v]) => v), ids = held.filter(v => isId(v) && v < STAMP);
+  if (!ids.length) return { held, words: [] };
+  const [mine, kids] = await Promise.all([
+    q(`[:find ?v ?u ?t :where ${among('?v', ids)} [?v :logseq.property/created-from-property _] [?v :block/uuid ?u] [?v :block/title ?t] (not [?v :block/closed-value-property _]) (not [?v :logseq.property/value _])]`),
+    q(`[:find ?v (count ?c) :where ${among('?v', ids)} [?c :block/parent ?v]]`)]);
+  const below = new Map(kids);
+  return { held, words: mine.map(([id, u, t]) => ({ id, uuid: String(u).toLowerCase(), words: String(t ?? ''), under: Number(below.get(id)) || 0 })) };
+}
+/* Who holds a node under one of the person's properties: [[holder id, property ident, holder uuid]]. Each property is asked
+   by its name, so Logseq looks the node up under it and does not go through everything the graph holds; should Logseq not
+   take the question in that form, the plain one is asked. more: further clauses about ?b. */
+async function holdersOf(id, more = '') {
+  if (!isId(id)) return [];
+  const idents = [...(await properties()).keys()].filter(ident => MINE.test(ident));
+  if (!idents.length) return [];
+  try { return await q(`[:find ?b ?attr ?u :where (or-join [?b ?attr] ${idents.map(ident => `(and [?b :${ident} ${id}] [(ground :${ident}) ?attr])`).join(' ')}) [?b :block/uuid ?u] ${more} ${LIVE}]`); }
+  catch (error) { return q(`[:find ?b ?attr ?u :where [?b ?attr ${id}] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")] [?b :block/uuid ?u] ${more} ${LIVE}]`); }
 }
 // The name of the property under which one node holds another, '' when it holds it under none (a link in its words).
 async function heldUnder(node, value) {
@@ -142,7 +186,7 @@ async function heldUnder(node, value) {
 }
 const graph = async () => String((await logseq.App.getCurrentGraph())?.name || '');
 async function newPages(since) {
-  const rows = await q(`[:find ?p ?u ?t :where [?p :block/created-at ?c] [(> ?c ${Number(since) || 0})] [?p :block/tags :logseq.class/Page] [?p :block/uuid ?u] [?p :block/title ?t]]`);
+  const rows = await q(`[:find ?p ?u ?t :where [?p :block/tags :logseq.class/Page] [?p :block/created-at ?c] [(> ?c ${Number(since) || 0})] [?p :block/uuid ?u] [?p :block/title ?t] (not [?p :logseq.property/deleted-at])]`);
   if (!rows.length) return [];
   const [mine, tagged] = await Promise.all([tagIds(), q(`[:find ?p ?t :where ${among('?p', rows.map(([p]) => p))} [?p :block/tags ?t]]`)]);
   const has = new Set(tagged.filter(([, t]) => mine.has(t)).map(([p]) => p));
@@ -184,8 +228,9 @@ async function describe(ids) {
     q(`[:find ?b ?attr ?v :where ${these} [(ground [:logseq.property/deadline :logseq.property/scheduled]) [?attr ...]] [?b ?attr ?v]]`).catch(() => []),
   ]);
   const times = moments[0], dueRows = moments[1];
-  const tagOf = new Map();
-  for (const [b, t] of tagged) { const name = tags.get(t); if (name && (!tagOf.has(b) || name < tagOf.get(b))) tagOf.set(b, name); }
+  const tagOf = new Map(), tagsOn = new Map();
+  for (const [b, t] of tagged) { const name = tags.get(t); if (!name) continue; if (!tagOf.has(b) || name < tagOf.get(b)) tagOf.set(b, name); if (!tagsOn.has(b)) tagsOn.set(b, []); tagsOn.get(b).push({ id: t, title: name }); }
+  for (const all of tagsOn.values()) all.sort((a, z) => (a.title < z.title ? -1 : a.title > z.title ? 1 : a.id - z.id));
   const dayOf = new Map();
   for (const [b, attr, day, name] of dated) {
     if (!/^user\.property\//.test(bare(attr))) continue;
@@ -201,7 +246,7 @@ async function describe(ids) {
   const writtenOn = new Map(written.map(([b, day]) => [b, Number(day)])), timeOf = new Map(times[0].map(([b, c]) => [b, { made: Number(c) || 0, changed: Number(c) || 0 }]));
   for (const [b, u] of times[1]) { const at = timeOf.get(b) || { made: 0, changed: 0 }; at.changed = Number(u) || at.changed; timeOf.set(b, at); }
   const statusOf = new Map(status.map(([b, s]) => [b, Number(s) || 0])), isPage = new Set(pages.map(([b]) => b));
-  for (const [b, uuid, title] of titled) out.set(b, { id: b, uuid: String(uuid).toLowerCase(), words: String(title ?? ''), tag: tagOf.get(b) || '', day: dayOf.get(b)?.day || 0, dayFrom: dayOf.get(b)?.from || '', status: statusOf.get(b) || 0, isPage: isPage.has(b),
+  for (const [b, uuid, title] of titled) out.set(b, { id: b, uuid: String(uuid).toLowerCase(), words: String(title ?? ''), tag: tagOf.get(b) || '', tags: tagsOn.get(b) || [], day: dayOf.get(b)?.day || 0, dayFrom: dayOf.get(b)?.from || '', status: statusOf.get(b) || 0, isPage: isPage.has(b),
     written: writtenOn.get(b) || 0, dates: datesOf.get(b) || {}, made: timeOf.get(b)?.made || 0, changed: timeOf.get(b)?.changed || 0 });
   return out;
 }
@@ -212,12 +257,14 @@ async function pointingAt(id) {
   const targets = [id, ...aliases.map(([a]) => a).filter(isId)];
   // A node's own bullets do not point at it, and it does not point at itself.
   const outside = `[(not= ?b ${id})] (not [?b :block/page ${id}])`;
-  const [held, named, uuids] = await Promise.all([
-    q(`[:find ?b ?attr :where [?b ?attr ${id}] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")] ${outside} ${LIVE}]`),
+  const [held, named, uuids, valued] = await Promise.all([
+    holdersOf(id, outside),
     q(`[:find ?b :where ${among('?t', targets)} [?b :block/refs ?t] [?b :block/page _] ${outside} (not [?b :logseq.property/created-from-property _]) ${LIVE}]`),   // a property's words-value is a block of its own to Logseq: it is no note
     q(`[:find ?u ?n :where ${among('?t', targets)} [?t :block/uuid ?u] [(get-else $ ?t :block/title "") ?n]]`),
+    // ... and what such a value names is named by the node that holds the value (Logseq keeps a value under its node)
+    q(`[:find ?b ?w :where ${among('?t', targets)} [?v :block/refs ?t] [?v :logseq.property/created-from-property ?p] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?v :block/parent ?b] [?v :block/title ?w] ${outside} ${LIVE}]`),
   ]);
-  const nodes = await describe([...held.map(([b]) => b), ...named.map(([b]) => b)]);
+  const nodes = await describe([...held.map(([b]) => b), ...named.map(([b]) => b), ...valued.map(([b]) => b)]);
   const links = [];
   for (const [b, attr] of held) { const prop = props.get(bare(attr)), n = nodes.get(b); if (prop && n) links.push({ prop, node: n }); }
   // Named in the words, and not only as a tag: a link to this node (or to a name it also goes by) with no # before it.
@@ -228,6 +275,7 @@ async function pointingAt(id) {
   // (the owner, 25 November 2026: thirteen rows reading only "City of Hope" on City of Hope's own page).
   const more = words => marks.reduce((text, mark) => text.split(mark).join(''), words.toLowerCase()).replace(/[\s.,;:!?()\[\]–—-]+/g, '') !== '';
   const mentions = named.map(([b]) => nodes.get(b)).filter(n => n && says(n.words) && more(n.words));
+  for (const [b, words] of valued) { const n = nodes.get(b); if (n && says(String(words ?? '')) && !mentions.includes(n)) mentions.push(n); }
   return { links, mentions };
 }
 
@@ -257,20 +305,26 @@ async function names(uuids) {
 }
 
 async function search(words, limit = 40) {
-  const asked = String(words).trim().toLowerCase();
-  // Logseq's search reads an index of its own, which can lack older notes (seen 27 November 2026): the exact name is asked of the graph.
-  const [found, named] = await Promise.all([
-    logseq.App.search(String(words), { limit, 'search-limit': limit }).catch(error => { console.warn('Logseq Plugin: Logseq\'s search did not answer', error); return null; }),
-    asked ? q(`[:find ?b :where [?b :block/title ?t] [(clojure.string/lower-case ?t) ?l] [(= ?l ${JSON.stringify(asked)})] ${LIVE}]`) : []]);
-  const ids = [...new Set([...named.map(([b]) => b), ...(found?.blocks || []).map(block => block.id)].filter(isId))].slice(0, limit);
+  const typed = String(words).trim(), asked = typed.toLowerCase();
+  /* Logseq's search reads an index of its own, which can lack older notes (seen 27 November 2026): the name is asked of the graph
+     too. A page is found by its name in any case, a bullet by its exact words: both are looked up, where putting every node's
+     words in small letters went through the whole graph at each search. */
+  const [found, named] = await Promise.all([G.touch.search(typed, limit),
+    asked ? Promise.all([q(`[:find ?b :where [?b :block/name ${JSON.stringify(asked)}] ${LIVE}]`), q(`[:find ?b :where [?b :block/title ${JSON.stringify(typed)}] ${LIVE}]`)]).then(rows => rows.flat()) : []]);
+  const all = [...new Set([...named.map(([b]) => b), ...(found || [])].filter(isId))].slice(0, limit);
+  if (!all.length) return [];
+  /* A property's value in words is a block of its own to Logseq, kept under the node that holds it: words found in a value of
+     one of the person's properties answer that node; any other value (a tag's description) is no note, and is left out. */
+  const [values, holders] = await Promise.all([q(`[:find ?b :where ${among('?b', all)} [?b :logseq.property/created-from-property _]]`),
+    q(`[:find ?b ?n :where ${among('?b', all)} [?b :logseq.property/created-from-property ?p] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?b :block/parent ?n]]`)]);
+  const value = new Set(values.map(([b]) => b)), holder = new Map(holders);
+  const ids = [...new Set(all.map(id => (value.has(id) ? holder.get(id) : id)).filter(isId))];
   if (!ids.length) return [];
-  // A property's text value (a tag's description) is a block of its own to Logseq: it is no note, and is left out. A tag and a
-  // property found by name say that they are one.
-  const [nodes, values, kinds] = await Promise.all([describe(ids), q(`[:find ?b :where ${among('?b', ids)} [?b :logseq.property/created-from-property _]]`),
-    q(`[:find ?b ?k :where ${among('?b', ids)} [?b :block/tags ?t] [?t :db/ident ?k]]`)]);
-  const value = new Set(values.map(([b]) => b)), kind = new Map();
+  // A tag and a property found by name say that they are one.
+  const [nodes, kinds] = await Promise.all([describe(ids), q(`[:find ?b ?k :where ${among('?b', ids)} [?b :block/tags ?t] [?t :db/ident ?k]]`)]);
+  const kind = new Map();
   for (const [b, k] of kinds) { const name = bare(k) === 'logseq.class/Tag' ? 'Tag' : bare(k) === 'logseq.class/Property' ? 'Property' : ''; if (name) kind.set(b, name); }
-  return ids.filter(id => !value.has(id)).map(id => { const node = nodes.get(id); return node && !node.tag && kind.has(id) ? { ...node, tag: kind.get(id) } : node; }).filter(Boolean);
+  return ids.map(id => { const node = nodes.get(id); return node && !node.tag && kind.has(id) ? { ...node, tag: kind.get(id) } : node; }).filter(Boolean);
 }
 async function files(ids) {
   const list = [...new Set(ids)].filter(isId);
@@ -413,14 +467,16 @@ async function pageNamed(name) {
   const lost = new Set(gone.map(([u]) => String(u))), live = found.map(([u]) => String(u)).find(u => !lost.has(u));
   return live ? { uuid: live.toLowerCase(), gone: false } : { uuid: String(found[0][0]).toLowerCase(), gone: true };
 }
-/* A node's bullets as an outline, in the order they stand: [{ id, uuid, depth, words }]. words are as a person reads them: a link
-   as [[the node's name]], which is also what Logseq takes back when the words are written again. */
+/* A node's bullets as an outline, in the order they stand: [{ id, uuid, depth, words, raw }]. words are as a person reads them: a
+   link as [[the node's name]]. Written back as they are, Logseq would look each name up again (a name that is a bullet's words
+   became a new page, tried in Logseq 2.0.2, 27 November 2026): raw is the words as Logseq keeps them, each link by its id, and
+   asKept, below, makes words a person changed ready to be written back. */
 async function outline(uuid, isPage) {
   if (!UUID.test(String(uuid || ''))) return [];
   let top = [];
   try { top = isPage ? await logseq.Editor.getPageBlocksTree(uuid) : (await logseq.Editor.getBlock(uuid, { includeChildren: true }))?.children; } catch (error) { top = []; }
   const out = [], inOrder = (a, b) => (String(a.order || '') < String(b.order || '') ? -1 : String(a.order || '') > String(b.order || '') ? 1 : 0);
-  const walk = (blocks, depth) => { for (const block of (Array.isArray(blocks) ? blocks : []).filter(one => one && one.uuid && isId(one.id)).sort(inOrder)) { out.push({ id: block.id, uuid: String(block.uuid).toLowerCase(), depth, words: String(block.fullTitle ?? block.title ?? '') }); walk(block.children, depth + 1); } };
+  const walk = (blocks, depth) => { for (const block of (Array.isArray(blocks) ? blocks : []).filter(one => one && one.uuid && isId(one.id)).sort(inOrder)) { out.push({ id: block.id, uuid: String(block.uuid).toLowerCase(), depth, words: String(block.fullTitle ?? block.title ?? ''), raw: String(block.title ?? '') }); walk(block.children, depth + 1); } };
   walk(top, 0);
   if (!out.length) return out;
   // The words a property holds are a block of their own to Logseq, kept under the node: they are a value, not a bullet.
@@ -434,9 +490,36 @@ async function outline(uuid, isPage) {
   }
   return kept;
 }
+const NAMED = /\[\[([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]\]/gi;
+async function asKept(uuid, words) {
+  const text = String(words ?? '');
+  if (!UUID.test(String(uuid || ''))) return text;
+  const [[kept] = []] = await q(`[:find ?t :where [?b :block/uuid #uuid "${uuid}"] [?b :block/title ?t]]`);
+  const held = [...String(kept ?? '').matchAll(NAMED)].map(m => m[1].toLowerCase());   // the bullet's links, in the order they stand
+  if (!held.length) return text;
+  // Each one's name as Logseq writes it out: its words, the links inside them written out in turn.
+  const title = new Map();
+  for (let ask = [...new Set(held)], depth = 0; ask.length && depth < 5; depth++) {
+    for (const [u, t] of await q(`[:find ?u ?t :where ${amongUuids('?u', ask)} [?n :block/uuid ?u] [?n :block/title ?t]]`)) title.set(String(u).toLowerCase(), String(t ?? ''));
+    ask = [...new Set([...title.values()].flatMap(t => [...t.matchAll(NAMED)].map(m => m[1].toLowerCase())))].filter(u => !title.has(u));
+  }
+  const nameOf = (u, depth = 0) => (title.get(u) ?? '').replace(NAMED, (all, inner) => (depth < 5 && title.has(inner.toLowerCase()) ? `[[${nameOf(inner.toLowerCase(), depth + 1)}]]` : all));
+  // The same name may stand for two nodes: the first time it is met it is the first of them, the second time the second.
+  const byName = new Map();
+  for (const u of held) { const name = nameOf(u); if (name) { if (!byName.has(name)) byName.set(name, []); byName.get(name).push(u); } }
+  let out = text;
+  for (const [name, ids] of [...byName].sort((a, z) => z[0].length - a[0].length)) {
+    let met = 0;
+    const next = () => ids[Math.min(met++, ids.length - 1)];
+    out = out.split(`[[${name}]]`).reduce((done, piece, i) => (i ? `${done}[[${next()}]]${piece}` : piece), '');
+    // A tag of one word is read as #Name, with no brackets round it.
+    if (/^[^\s#\[\]]+$/.test(name)) out = out.replace(new RegExp(`#${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![^\\s.,;:!?)\\]])`, 'g'), () => `#[[${next()}]]`);
+  }
+  return out;
+}
 /* What a node holds under each of the person's properties: ident -> [{ raw, text, uuid }]. raw is what is written to give a node
-   the same value (the id of a node, a day or a set choice; a number; words; true or false). uuid is set where the value is a node
-   or a day, so that it can be gone to. (held(ids), above, answers the words alone, by the property's name, for many nodes.) */
+   the same value (the id of a node, a day, a file or a set choice; a time; a number; words; true or false). uuid is set where
+   the value is a node, a day or a file, so that it can be gone to. (held(ids), above, answers the words alone, by the property's name, for many nodes.) */
 async function holds(id) {
   const out = new Map();
   if (!isId(id)) return out;
@@ -450,7 +533,7 @@ async function holds(id) {
     const ident = bare(attr), type = known.props.get(ident)?.type || 'default', it = about.get(v);
     const value = type === 'checkbox' ? { raw: v === true, text: v === true ? 'Yes' : 'No' }
       : type === 'datetime' && typeof v === 'number' ? { raw: v, text: D.short(dayOfTime(v)) }
-      : type === 'node' || type === 'date' ? { raw: v, text: (type === 'date' && it?.day ? D.short(it.day) : '') || it?.title || '', uuid: it?.uuid || '' }
+      : type === 'node' || type === 'date' || type === 'asset' ? { raw: v, text: (type === 'date' && it?.day ? D.short(it.day) : '') || it?.title || '', uuid: it?.uuid || '' }
       : number.has(v) ? { raw: number.get(v), text: String(number.get(v)) }
       : it ? { raw: choice.has(v) ? v : it.title, text: it.title } : { raw: v, text: String(v) };
     if (!out.has(ident)) out.set(ident, []);
@@ -666,8 +749,8 @@ async function reach(id) {
   const [tagged, named, held, bullets, props, ranges] = await Promise.all([
     q(`[:find ?u :where [?b :block/tags ${id}] [?b :block/uuid ?u] ${LIVE}]`),
     q(`[:find ?u ?t :where [?b :block/refs ${id}] [?b :block/page _] [?b :block/title ?t] [?b :block/uuid ?u] ${LIVE}]`),
-    q(`[:find ?u ?attr :where [?b ?attr ${id}] [?prop :db/ident ?attr] [(namespace ?attr) ?ns] [(= ?ns "user.property")] [?b :block/uuid ?u] ${LIVE}]`),
-    q(`[:find ?u ?o :where [?b :block/page ${id}] [?b :block/parent ${id}] [?b :block/uuid ?u] [(get-else $ ?b :block/order "") ?o]]`),
+    holdersOf(id).then(rows => rows.map(([, attr, u]) => [u, attr])),
+    q(`[:find ?u ?o :where [?b :block/page ${id}] [?b :block/parent ${id}] [?b :block/uuid ?u] [(get-else $ ?b :block/order "") ?o] ${LIVE}]`),
     q(`[:find ?p :where [${id} :logseq.property.class/properties ?p]]`),
     q(`[:find ?pu :where [?p :logseq.property/classes ${id}] [?p :block/uuid ?pu]]`),
   ]);
@@ -705,5 +788,5 @@ async function folded(uuids) {
   return out;
 }
 
-G.read = { recentKinds, files, chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
+G.read = { recentKinds, files, chosen, sheet, recent, pageNames, pageNamed, outline, holds, choices, recycled, held, where, withLines, byUuids, schema, typed, writing, search, tagged, values, tasks, journal, q, node, opened, describe, pointingAt, dues, names, properties, statuses, tags, tagIds, tagPairs, relations, holders, under, asKept, heldUnder, graph, newPages, tagsOf, forget: () => kept.clear(), isId, UUID, reach, folded, holding };
 })();
