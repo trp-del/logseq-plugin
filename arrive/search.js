@@ -9,6 +9,7 @@
      after the words), then the rest of what Logseq found; the kinds among them are the choices.
    - A kind taken: its nodes, newest first, and above them what they hold to narrow by, each value with how many hold it (Provider,
      Topic …), then the months. A value or a month pressed or taken by Tab becomes a piece; words then narrow further.
+     Of many nodes the first 120 are given to the list, with how many wait (a group's waits); the list's next(group) brings 120 more.
    - One line, no ways to switch between: "Consultation with Mei Chen around Aug 2026" typed there is read as a kind, a value
      and a time, each said over what it read; the time shows as a strip of months, and the nodes just outside it follow under
      "Near". Words that name no time and no kind with something else are plain words, and so is a sentence that finds nothing.
@@ -24,6 +25,7 @@
 const G = window.PluginDoor, S = G.search, R = G.sentence;
 const LOOK = 'M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0M21 21l-6 -6';   // a magnifier, as Logseq's own line icons are drawn
 const FEW = { kind: 3, value: 3, month: 4 };   // what a line of choices shows before its "more", as Find did
+const STEP = 120;   // the rows of a kind that are read for the list at a time; the rest wait behind the list's own Show more
 G.part({
   key: 'search', title: 'Search', about: 'A section of the right sidebar to search your notes: kinds, values and months to narrow by, words or a whole sentence in one line, opening in the main view or in place. Cmd-K opens it and closes it.',
   settings: [{ key: 'searchTakesSearchKey', type: 'boolean', default: true, title: 'Search opens on Cmd-K', description: 'Off: Cmd-K stays Logseq’s own search, and the plugin’s opens from the command palette.' }],
@@ -90,7 +92,7 @@ G.part({
       holder.innerHTML = '<div class="lk-add"><span class="lk-search-pieces" style="display:contents"></span><input class="lk-field" type="text" placeholder="Search" spellcheck="false" autocomplete="off" aria-label="Search"></div><div class="lk-search-read" hidden></div><div class="lk-time" hidden></div><div class="lk-search-choices" hidden></div><div class="lk-search-none" hidden>Nothing holds these words</div><div class="lk-rel"></div>';
       const field = holder.querySelector('.lk-field'), piecesEl = holder.querySelector('.lk-search-pieces'), readEl = holder.querySelector('.lk-search-read'),
         timeEl = holder.querySelector('.lk-time'), choicesEl = holder.querySelector('.lk-search-choices'), noneEl = holder.querySelector('.lk-search-none'), rel = holder.querySelector('.lk-rel');
-      const box = { holder, field, sentence: false, picks: [], text: '', more: new Set(), lit: null, choices: [], timer: 0, turn: 0 };
+      const box = { holder, field, sentence: false, picks: [], text: '', more: new Set(), lit: null, choices: [], timer: 0, turn: 0, asked: '', upTo: new Map() };
       boxes.add(box);
       const tagOf = () => box.picks.find(pick => pick.kind === 'tag')?.tag || null;
       // The lines of choices, each { key, name, face, items: [{ label, count, take, depth }] }; the lit one is the first that the letters begin.
@@ -171,16 +173,19 @@ G.part({
         return lines;
       };
       const groupsOf = (rows, near = []) => {
-        if (tagOf() || box.sentence) return [...(rows.length ? [{ key: 'search:found', kind: 'group', name: '', tag: '', rows }] : []), ...(near.length ? [{ key: 'search:near', kind: 'group', name: 'Near', tag: '', rows: near }] : [])];
+        if (tagOf() || box.sentence) return [...(rows.length ? [{ key: 'search:found', kind: 'group', name: '', tag: '', rows, waits: rows.waits || 0 }] : []), ...(near.length ? [{ key: 'search:near', kind: 'group', name: 'Near', tag: '', rows: near, waits: near.waits || 0 }] : [])];
         const groups = new Map();
         for (const row of rows) { const name = row.tag || (row.isPage ? 'Pages' : 'Lines'); if (!groups.has(name)) groups.set(name, []); groups.get(name).push(row); }
         const order = name => name === 'Lines' ? 2 : name === 'Pages' ? 1 : 0;
         return [...groups].sort((a, b) => order(a[0]) - order(b[0])).map(([name, list]) => ({ key: `search:${name}`, kind: 'group', name, tag: '', rows: list }));
       };
       // A line found in a note says where it sits, so two lines of the same words are told apart; a journal is the day at the end.
-      const placed = async (rows, tagShown) => {
-        const some = rows.slice(0, 120), sits = await G.read.where(some.filter(node => !node.isPage).map(node => node.id));   // where a bullet sits is asked only of the rows the list is given
-        return some.map(node => ({ ...node, tagShown, dayShown: node.day, where: node.isPage ? [] : (sits.get(node.id) || []).filter(step => !step.day).slice(0, 2) }));
+      // Of many rows the first are read (STEP of them, and STEP more at each Show more past them); how many wait is said with them.
+      const placed = async (rows, tagShown, key = '') => {
+        const some = rows.slice(0, box.upTo.get(key) || STEP), sits = await G.read.where(some.filter(node => !node.isPage).map(node => node.id));
+        const out = some.map(node => ({ ...node, tagShown, dayShown: node.day, where: node.isPage ? [] : (sits.get(node.id) || []).filter(step => !step.day).slice(0, 2) }));
+        out.waits = rows.length - some.length;
+        return out;
       };
       // Plain words, no kind: Logseq's own search; what holds the words first, then what holds them in a value, said after its words.
       const searched = async words => {
@@ -202,7 +207,7 @@ G.part({
           const said = R.read(text, {}), got = S.taken(asRead(base), text, said), time = got.time;
           drawChoices(valueLines(base, rest.concat(time ? [time] : [])), time ? said.trail : want);
           if (time) drawRead([time]);
-          return { rows: await placed(asKept(got.rows), false), near: await placed(asKept(got.near), false) };
+          return { rows: await placed(asKept(got.rows), false, 'search:found'), near: await placed(asKept(got.near), false, 'search:near') };
         }
         const { tags, counts } = await kindCounts();
         if (!text) {
@@ -260,7 +265,7 @@ G.part({
         const dots = [...nodes, ...near].filter(node => node.day).map(node => ({ day: node.day, title: node.plain || '', uuid: node.uuid }));
         paint.push(() => { timeEl.hidden = !time || !dots.length; });
         if (time && dots.length) paint.push(() => G.timeline.strip(timeEl, dots, G.days.number(new Date()), dot => { const line = holder.querySelector(`.lk-row[data-uuid="${dot.uuid}"] > .lk-line`); if (line) { line.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); line.focus({ preventScroll: true }); } }));
-        return { rows: await placed(nodes, !tag), near: await placed(near, !tag) };
+        return { rows: await placed(nodes, !tag, 'search:found'), near: await placed(near, !tag, 'search:near') };
       };
       // One line, no ways to switch between (the owner, 26 November 2026: "one unified search like the original find"): words that
       // name a time together with something else, or a kind with something else, are read as a sentence; the rest as plain words.
@@ -272,6 +277,8 @@ G.part({
       };
       const read = async () => {
         const turn = ++box.turn, mine = paint = [];
+        const asked = JSON.stringify([box.text.trim(), box.picks.map(pick => [pick.kind, pick.tag?.id, pick.prop, pick.label, pick.key])]);
+        if (asked !== box.asked) { box.asked = asked; box.upTo.clear(); }   // other words or pieces: the first rows again
         drawPieces();
         const sentence = await asSentence();
         if (turn !== box.turn) return [];
@@ -288,7 +295,7 @@ G.part({
       const AT = 'lk.search-date-at';
       const dayStart = () => { try { return win.localStorage.getItem(AT) === 'start'; } catch (error) { return false; } };
       const more = () => [{ gap: true }, ...G.listview.dayPlaces(dayStart(), start => { try { win.localStorage.setItem(AT, start ? 'start' : 'end'); } catch (error) { /* this sitting only */ } for (const one of boxes) if (one.holder.isConnected) one.again(); })];
-      const list = G.node.listing(rel, read, { few: 8, dayStart, more, press: (row, event) => { G.touch.open(row.dataset.uuid, event.shiftKey); return true; },
+      const list = G.node.listing(rel, read, { few: 8, dayStart, more, next: group => { box.upTo.set(group.key, (box.upTo.get(group.key) || STEP) + STEP); again(); }, press: (row, event) => { G.touch.open(row.dataset.uuid, event.shiftKey); return true; },
         key: (row, event) => { if (event.key !== 'Enter') return false; G.touch.open(row.dataset.uuid, event.shiftKey); return true; } });
       const mark = () => { const want = box.sentence ? box.want || [] : S.tokens(box.text); for (const words of rel.querySelectorAll('.lk-line > .lk-words')) G.node.hit(words, want); };
       rel.addEventListener('lk-drawn', mark);
