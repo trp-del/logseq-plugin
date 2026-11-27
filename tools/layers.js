@@ -4,7 +4,9 @@
    2. A file uses only what its own layer or a layer under it gives (G.<name>).
    3. The deciding pieces (core/) know nothing of Logseq or of a screen.
    4. Only the ground and the frame call Logseq's plugin API.
-   5. Only ground/touch.js names Logseq's own markup. */
+   5. Only ground/touch.js names Logseq's own markup.
+   6. The one list of writes (G.write in ground/write.js) gives each name once: a name given twice is not an error to
+      JavaScript, the second silently takes the place of the first (newPage stood there twice, 27 November 2026). */
 const fs = require('node:fs'), path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const LAYERS = ['plugin.js', 'core/', 'ground/', 'node/', 'page/', 'arrive/', 'write/', 'tend/', 'beside/', 'main.js'];
@@ -33,5 +35,11 @@ for (const [file, text] of sources) {
   if (!/^(ground\/|plugin\.js$|main\.js$)/.test(file) && /\blogseq\.\w/.test(text)) faults.push(`${file} calls Logseq's API; only the ground may`);
   if (file !== 'ground/touch.js' && /['"`.#\s](ls-[a-z]|cp__|ui__|blockid|block-content|block-control|right-sidebar|main-content-container|journal-item|breadcrumb)/.test(text)) faults.push(`${file} names Logseq's own markup; only ground/touch.js may`);
 }
+// Each write stands at the start of a line of the list, two spaces in: its name, then ( or :.
+{ const lines = fs.readFileSync(path.join(root, 'ground/write.js'), 'utf8').split('\n'), from = lines.findIndex(line => /^G\.write = \{/.test(line)), to = lines.findIndex((line, i) => i > from && /^\};/.test(line)), at = new Map();
+  if (from < 0 || to < 0) faults.push('ground/write.js: the list of writes (G.write = { … };) was not found, so its names could not be checked');
+  for (let i = from + 1; i < to; i++) { const name = (lines[i].match(/^  (?:async\s+)?([A-Za-z_$][\w$]*)\s*[(:]/) || [])[1]; if (name && !/^(if|for|while|switch|return|catch|function)$/.test(name)) at.set(name, [...(at.get(name) || []), i + 1]); }
+  if (from >= 0 && to >= 0 && !at.size) faults.push('ground/write.js: no write was found in the list of writes, so its names could not be checked');
+  for (const [name, where] of at) if (where.length > 1) faults.push(`ground/write.js gives the write ${name} ${where.length} times (lines ${where.join(' and ')}): the last one silently takes the place of the others`); }
 if (faults.length) { console.log('The stack does not hold:\n  ' + [...new Set(faults)].join('\n  ')); process.exit(1); }
 console.log(`The stack holds: ${listed.length} files, each using only what stands under it.`);

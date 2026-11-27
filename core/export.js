@@ -34,6 +34,7 @@
      fileName(sheet), freeName(name, taken)   the file's name; the next free one, "Notes 2.md" */
 (function (root) {
 const W = typeof module !== 'undefined' && module.exports ? require('./words.js') : root.PluginDoor.words;
+const D = typeof module !== 'undefined' && module.exports ? require('./days.js') : root.PluginDoor.days;
 const IMAGE = /^(png|jpe?g|gif|webp|svg|avif|heic|bmp|tiff?)$/i;
 const UUID = '[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}';
 
@@ -66,7 +67,7 @@ function all(nodes, out = []) {
 const everything = sheet => all([...(sheet.nodes || []), ...(sheet.tagged || [])]);
 const headNode = (sheet, n) => sheet.kind === 'blocks' && (sheet.nodes || []).includes(n);
 
-const dayDate = day => new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100);
+const dayDate = D.toDate;
 // A day as the Mac writes it: "4 Oct 2026"; a date with a time says the time too.
 function said(value, locale) {
   if (value.day) return dayDate(value.day).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });

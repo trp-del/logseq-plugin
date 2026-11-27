@@ -16,8 +16,12 @@ async function graphReady() {
   return false;
 }
 async function main() {
+  /* A copy installed through Logseq's "Install plugin from GitHub release" runs on another address than Logseq's own page unless
+     the box named "effect" was ticked in that window: Logseq's installer writes that box into the installed package.json over
+     the "effect" this plugin asks for there (read in Logseq 2.0.2's own code, 27 November 2026), so nothing the plugin does can
+     give it the reach. Without it no part can draw: the one notice says what to do, stays until it is closed, and nothing starts. */
   try { void window.parent.document; } catch (error) {
-    G.say('Logseq Plugin cannot reach Logseq’s page from here. Uninstall it, then install it again with the "effect" box ticked.', 'error');
+    G.say('Logseq Plugin is not running: Logseq installed it without letting it draw on Logseq’s own page. Uninstall it, then install it again with “Install plugin from GitHub release”, and tick the box named “effect” in that window before you press Install.', 'error', true);
     return;
   }
   logseq.beforeunload(async () => { for (const base of bases.splice(0).reverse()) await base.stop(); });

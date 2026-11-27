@@ -4,6 +4,10 @@
 #   sh tools/sync-loaded.sh   (from any copy: it finds the folder in Logseq's preferences)
 # It changes nothing when the folder holds edits of its own or saved changes GitHub lacks: it lists them and stops, because that
 # folder is never edited by hand and anything there may be another thread's work.
+# It ends as failed (not 0) whenever Logseq is running and does not run the new version at the end: the release is then not
+# finished, and the last line says why. 1: the reload went wrong or could not be made. 2: the owner was writing, so the plugin
+# was left alone; run this again later. Only a Logseq that is not running with its debugging port ends as done: it loads the new
+# version when it starts.
 # Everything runs inside main(), read in full before it starts, so the script may update its own file safely.
 main() {
   set -eu
@@ -40,19 +44,19 @@ main() {
     (async () => {
       const browser = await chromium.connectOverCDP("http://localhost:9222");
       const main = browser.contexts().flatMap(c => c.pages()).find(p => p.url().includes("index.html"));
-      if (!main) { console.log("Logseq'"'"'s window was not found: reload the plugin by hand."); process.exit(0); }
+      if (!main) { console.log("Not finished: Logseq'"'"'s window was not found, so the plugin was not reloaded. Reload it by hand, or run this again."); process.exit(1); }
       const said = await main.evaluate(async expect => {
-        if (await logseq.api.check_editing()) return "The owner is writing in Logseq: the plugin was not reloaded. It takes the new version at its next reload.";
+        if (await logseq.api.check_editing()) return [2, "Not finished: the owner is writing in Logseq, so the plugin was not reloaded and Logseq still runs the version before. Run this again later."];
         const plugin = LSPluginCore.registeredPlugins.get("logseq-plugin");
-        if (!plugin) return "Logseq has no plugin called logseq-plugin loaded.";
+        if (!plugin) return [1, "Not finished: Logseq has no plugin called logseq-plugin loaded, so nothing was reloaded."];
         await LSPluginCore.reload("logseq-plugin");
         await new Promise(r => setTimeout(r, 3000));
         const now = LSPluginCore.registeredPlugins.get("logseq-plugin")?.options?.version;
-        return now === expect ? "Logseq reloaded the plugin and runs " + now + "." : "Logseq reloaded the plugin but reports " + now + ", not " + expect + ".";
+        return now === expect ? [0, "Logseq reloaded the plugin and runs " + now + "."] : [1, "Not finished: Logseq reloaded the plugin but reports " + now + ", not " + expect + "."];
       }, process.env.EXPECT);
-      console.log(said);
-      process.exit(0);
-    })().catch(e => { console.log("Reloading the plugin in Logseq failed: " + e.message); process.exit(0); });
+      console.log(said[1]);
+      process.exit(said[0]);
+    })().catch(e => { console.log("Not finished: reloading the plugin in Logseq failed: " + e.message); process.exit(1); });
   '
 }
 main "$@"

@@ -11,13 +11,19 @@
    own: the day of the node itself, when it is a journal day: a row's day is left out where it would only repeat it (dayShown). */
 (function (root) {
 const byRow = (a, b) => (b.day || 0) - (a.day || 0) || String(a.words).localeCompare(String(b.words)) || String(a.uuid).localeCompare(String(b.uuid));
-// A tag's name for several of its kind: "Transfer" -> "Transfers", "Category" -> "Categories", "Bills" stays.
+/* A name for several of its kind, by its last word: "Transfer" -> "Transfers", "Category" -> "Categories", "Bills" stays,
+   "Person" -> "People", "Contact person" -> "Contact people", "Child" -> "Children". The one plural: a list's head (here and
+   in core/view.js) and a property read from the page it points to (core/reads.js) all ask this. */
+const MANY = { child: 'children', person: 'people', man: 'men', woman: 'women', foot: 'feet', tooth: 'teeth', mouse: 'mice' };
 function plural(name) {
-  const word = String(name || '');
-  if (!word || /s$/i.test(word)) return word;
-  if (/[^aeiou]y$/i.test(word)) return word.slice(0, -1) + 'ies';
-  if (/(x|z|ch|sh)$/i.test(word)) return word + 'es';
-  return word + 's';
+  const text = String(name || '').trimEnd(), at = text.search(/\S+$/);
+  if (at < 0) return text;
+  const head = text.slice(0, at), word = text.slice(at), odd = MANY[word.toLowerCase()];
+  if (odd) return head + (word[0] === word[0].toLowerCase() ? odd : odd[0].toUpperCase() + odd.slice(1));
+  if (/s$/i.test(word)) return text;
+  if (/[^aeiou]y$/i.test(word)) return text.slice(0, -1) + 'ies';
+  if (/(x|z|ch|sh)$/i.test(word)) return text + 'es';
+  return text + 's';
 }
 function finish(list, own) {
   const seen = new Set();

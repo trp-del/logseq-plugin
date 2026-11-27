@@ -13,8 +13,9 @@
      kindsAmong(nodes)          the kinds of the nodes found, most first: [{ title, count }]
    A node: { uuid, words, tag, day, values: [name], held: { prop: [words] } } (words as plain text). */
 (function (root) {
+const D = typeof module !== 'undefined' && module.exports ? require('./days.js') : root.PluginDoor.days;
 const tokens = text => String(text == null ? '' : text).toLowerCase().split(/\s+/).filter(Boolean);
-const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const MONTHS = D.FULL.map(name => name.toLowerCase()), SHORT = D.MONTHS;
 const dayWords = day => day ? `${MONTHS[Math.floor(day / 100) % 100 - 1] || ''} ${day % 100} ${Math.floor(day / 10000)}` : '';
 function kinds(tags, words) {
   const want = tokens(words);
@@ -54,7 +55,6 @@ function rank(nodes, words) {
   }
   return out.sort((a, b) => a.page - b.page || a.score - b.score || a.at - b.at).map(one => one.node);
 }
-const SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function choices(nodes) {
   const props = new Map(), months = new Map(), total = nodes.length;
   for (const node of nodes) {

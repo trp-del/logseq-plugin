@@ -3,8 +3,11 @@
 A plugin for Logseq DB graphs (Logseq 2.0 and later, a DB graph open).
 
 **Install.** In Logseq, Settings, Plugins: turn on developer mode, then **Load unpacked plugin** and pick this folder (or
-**Install plugin from GitHub release** with this repository). The plugin needs Logseq's "effect" access to draw on Logseq's
-own page; each part can be switched off in the plugin's settings, and a change there takes effect when the plugin is reloaded.
+**Install plugin from GitHub release** with this repository, ticking the box named **effect** in that window before you
+press Install). The plugin draws on Logseq's own page, and Logseq lets an installed plugin do that only when that box was
+ticked, whatever the plugin itself asks for: installed without it, the plugin starts nothing and says so in one notice that
+stays until you close it. Each part can be switched off in the plugin's settings, and a change there takes effect when the
+plugin is reloaded.
 
 **A note is a node. The plugin shows any node whole, and lets it be changed wherever it appears.**
 Whole means four things: what the node is (its tags), what it says (its words and bullets), its facts (its properties), and
@@ -25,7 +28,9 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. The key sheet: Option held alone shows the keys. Export: a page or some bullets out as a printed page (PDF) or as Markdown, with a preview whose words can be changed first. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
-nothing of Logseq and are checked without it (`node --test test/`).
+nothing of Logseq and are checked without it (`node --test test/`). Each thing is decided in one of them: a day said in words
+("nov 20", "20 november", "2026-11-20") is read by `core/days.js` wherever it is typed, and the word for several of a kind
+("People", "Categories") is made by `core/lists.js`.
 
 `ground/touch.js` is the only file that names Logseq's own markup or uses anything outside its plugin API. A Logseq update is
 checked against that one file.
@@ -364,8 +369,10 @@ The same list stands on a page of its own, in the middle of the window, at a rea
 or g then d outside a bullet. **Todo in the sidebar** and the corner open the section.
 
 A day said in the words of a new task becomes its Deadline and leaves the words: today, tomorrow, a weekday ("friday", "by
-friday", "next friday"), "next week" (its Monday), "nov 20", "20 november". It is said at the line's right before Return
-("Nov 27"). A short weekday ("fri", "sun") counts only after by, on, due or next.
+friday", "next friday"), "next week" (its Monday), "nov 20", "20 november" (this year, or the next when that day has passed),
+and with its year, "20 november 2027". It is said at the line's right before Return ("Nov 27"). A short weekday ("fri",
+"sun") counts only after by, on, due or next; a word that only begins like a month ("Decadron 4 mg") is no day, and a number
+that would put the day in a year gone by is not its year: both stay in the words.
 
 A task carries its bullet and its status circle before its words, and one day, its own. Under its words stands the page it sits on
 when that page is not a journal day; a press goes there. Under a page's or a
@@ -683,4 +690,5 @@ node tools/check.js --quick  the first two only
 ```
 
 `tools/walk.js` starts a test Logseq of its own on a copy of a sample graph and tries the plugin with real presses and keys.
-It is a net, not the proof: a change is proven by hand.
+It is a net, not the proof: a change is proven by hand. A walk that cannot start closes the Logseq it began;
+`node tools/walk.js --keep` leaves the Logseq open to look at, and `node tools/walk.js --stop` closes one left open.

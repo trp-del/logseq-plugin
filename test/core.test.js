@@ -579,3 +579,60 @@ test('the graph switcher puts the graphs opened last first, the rest by name, an
   assert.deepEqual(graphs.opened(['a', 'b'], 'b'), ['b', 'a']);
   assert.deepEqual([graphs.step(3, 1, 4), graphs.step(0, -1, 4), graphs.step(0, 1, 1)], [0, 3, 0]);
 });
+
+// ---- one reader of a day said in words, and one plural, for every part (a round of faults, 27 November 2026)
+test('a dose or a count is no day: only a month\'s own name, whole or cut short, is read as a month', () => {
+  // 27 November 2026 is a Friday.
+  const dayIn = words => todo.dayIn(words, 20261127);
+  for (const words of ['Take Decadron 4 mg with food', 'Octreotide 20 mg injection', 'Call Mark 2 times', 'Ask Maya 3 questions', 'Refill Augmentin 2 boxes', 'Novolog 10 units before dinner', 'Take 4 decadron', 'Give 2 marks'])
+    assert.equal(dayIn(words), null, words);
+  assert.deepEqual(dayIn('Call Sam on nov 20'), { day: 20271120, words: 'Call Sam' });
+  assert.deepEqual(dayIn('Refill on Dec. 4th'), { day: 20261204, words: 'Refill' });
+  assert.deepEqual(dayIn('Scan 3 december, then call'), { day: 20261203, words: 'Scan, then call' });
+  assert.deepEqual(dayIn('Pay the rent by sept 1'), { day: 20270901, words: 'Pay the rent' });
+  assert.equal(dayIn('Remember feb 30'), null);
+  // A short weekday that is only a word does not stop a real one later in the words from being read.
+  assert.deepEqual(dayIn('Mom sat with nurse, call back friday'), { day: 20261204, words: 'Mom sat with nurse, call back' });
+});
+test('a year said with the day in a new task is the day\'s year and leaves the words with it', () => {
+  // 27 November 2026 is a Friday.
+  const dayIn = words => todo.dayIn(words, 20261127);
+  assert.deepEqual(dayIn('Renew passport 3 december 2027'), { day: 20271203, words: 'Renew passport' });
+  assert.deepEqual(dayIn('File taxes on apr 15 2028'), { day: 20280415, words: 'File taxes' });
+  assert.deepEqual(dayIn('Call Sam by nov 20, 2026'), { day: 20261120, words: 'Call Sam' });   // this year said: the day that has just passed, not next year's
+  assert.deepEqual(dayIn('Book the scan dec 4 2026, then call'), { day: 20261204, words: 'Book the scan, then call' });
+  assert.deepEqual(dayIn('Scan on 3 dec. 2027'), { day: 20271203, words: 'Scan' });
+  // With no year the words are left as they were: this year, or the next when the day has passed.
+  assert.deepEqual(dayIn('Renew passport 3 december'), { day: 20261203, words: 'Renew passport' });
+  assert.deepEqual(dayIn('Call Sam on nov 20'), { day: 20271120, words: 'Call Sam' });
+  // A number that would put a task's day in a year gone by is not taken for its year: it stays in the words.
+  assert.deepEqual(dayIn('Order masks nov 20 2000'), { day: 20271120, words: 'Order masks 2000' });
+  assert.deepEqual(dayIn('Summarise the visit of 3 december 2024'), { day: 20261203, words: 'Summarise the visit of 2024' });
+  assert.deepEqual(dayIn('Order nov 20 5000 masks'), { day: 20271120, words: 'Order 5000 masks' });
+  assert.equal(dayIn('Leap day feb 29 2027'), null);
+});
+test('every reader of a typed day asks the one piece: the same words are a day, or no day, wherever they are typed', () => {
+  const today = 20261127;
+  for (const words of ['decadron 4', 'mark 2', 'octreotide 20', '4 decadron', '2026-13-45', '2026-02-31', 'feb 30'])
+    assert.deepEqual([days.typed(words, today), view.dayIn(words, today), todo.dayIn(`Call ${words}`, today), sentence.read(words, {}, new Date(2026, 10, 27)).picks.length], [0, 0, null, 0], words);
+  assert.equal(view.parse('chen until 2026-02-31', today).upTo, 0);
+  assert.deepEqual([days.valid(20260231), days.valid(20261345), days.valid(20260228), days.valid(20240229)], [false, false, true, true]);
+  // What a month is, said once.
+  assert.deepEqual(['nov', 'Nov.', 'november', 'sept', 'no', 'decadron', 'mark', 'maya', 'augmentin', 'novolog'].map(days.monthOf), [11, 11, 11, 9, 0, 0, 0, 0, 0, 0]);
+  // The year of a day said without one is the one difference between the places, and it is decided in the one piece:
+  // a date asked for is this year's, a task's day is coming, a list is turned back to a day that has been.
+  assert.deepEqual([days.typed('dec 4', today), todo.dayIn('Call dec 4', today).day, view.dayIn('dec 4', today)], [20261204, 20261204, 20251204]);
+  assert.deepEqual([days.typed('nov 20', today), todo.dayIn('Call nov 20', today).day, view.dayIn('nov 20', today)], [20261120, 20271120, 20261120]);
+  assert.deepEqual(['this', 'coming', 'past'].map(lean => days.yearFor(12, 4, today, lean)), [2026, 2026, 2025]);
+  assert.equal(sentence.when('7 may', new Date(2026, 10, 27)).label, 'May 7, 2026');
+  assert.equal(sentence.when('aug 5th 2025', new Date(2026, 10, 27)).label, 'Aug 5, 2025');
+  assert.equal(days.typed('November 18th, 1850', today), 18501118);
+});
+test('several of a kind are said one way: the list\'s head, its count and its name agree', () => {
+  assert.deepEqual(['Person', 'Child', 'Contact person', 'person', 'Woman', 'Human', 'Transfer'].map(plural), ['People', 'Children', 'Contact people', 'people', 'Women', 'Humans', 'Transfers']);
+  const node = (uuid, tag) => ({ uuid, words: uuid, day: 0, tag }), prop = { ident: 'p/by', title: 'Attended by', uuid: 'u' };
+  const [people] = lists({ links: [{ prop, node: node('a', 'Person') }, { prop, node: node('b', 'Person') }] });
+  assert.equal(people.said, '2 People');
+  assert.equal(view.shape({ rows: [node('a', 'Child'), node('b', 'Child')] }, {}, {}, 20261127).of, 'Children');
+  assert.deepEqual(['Person of', 'Child of', 'Symptom of'].map(title => reads.back(title)), ['People', 'Children', 'Symptoms']);
+});

@@ -7,6 +7,7 @@
    A task: { uuid, words, day } with day the day it is due (0 for none). Shaped as the lists of what points at a node are, so
    one piece draws both. */
 (function (root) {
+const D = typeof module !== 'undefined' && module.exports ? require('./days.js') : root.PluginDoor.days;
 function groups(tasks, today, sort = 'day') {
   const by = { late: [], today: [], coming: [], any: [] };
   for (const task of tasks) (task.day ? (task.day < today ? by.late : task.day === today ? by.today : by.coming) : by.any).push(task);
@@ -34,38 +35,38 @@ function by(what, tasks, today, name, order = [], sort = 'day') {
 /* A day said in a task's words, read before the task is made: dayIn("Call Sam by friday", today) -> { day, words: "Call Sam" },
    or null when the words name no day. Read: today, tomorrow; a weekday ("friday", "by friday", "next friday": the coming one,
    or the one after it when "next" is said of a day still in this week); "next week" (its Monday); "nov 20", "20 november"
-   (this year, or the next when that day has passed). A short weekday ("fri", "sun") counts only after by, on, due or next,
-   so "the sun" stays words. The phrase is taken out of the words. */
-const WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'], MON = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-const toDate = day => new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100), toDay = d => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+   (this year, or the next when that day has passed); "3 december 2027", "nov 20, 2026": a year said with the day is its
+   year and leaves the words with it, but a number that would put the day in a year gone by is no task's year and stays in the
+   words ("Order masks nov 20 2000"). A short weekday ("fri", "sun") counts only after by, on, due or next,
+   so "the sun" stays words. The phrase is taken out of the words.
+   What a month and a day of it are is asked of core/days.js, the one reader of a day said in words: "Decadron 4 mg" and
+   "Mark 2 times" hold no day, and stay in the words whole. */
+const WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 function dayIn(text, today) {
-  const words = String(text || ''), from = toDate(today), plus = n => toDay(new Date(from.getFullYear(), from.getMonth(), from.getDate() + n));
+  const words = String(text || ''), from = D.toDate(today), plus = n => D.shift(today, n);
+  // The words without the phrase from at to end; a day alone is not a task.
+  const without = (at, end, day) => { const rest = (words.slice(0, at) + ' ' + words.slice(end)).replace(/\s+/g, ' ').replace(/\s+([.,;!?])/g, '$1').trim(); return rest ? { day, words: rest } : null; };
   const tries = [
-    [/(?:^|\s)(?:(?:by|on|due)\s+)?(today|tomorrow)(?=$|[\s.,;!?])/i, m => plus(m[1].toLowerCase() === 'today' ? 0 : 1)],
-    [/(?:^|\s)next\s+week(?=$|[\s.,;!?])/i, () => plus(((8 - from.getDay()) % 7) || 7)],
-    [/(?:^|\s)(?:(by|on|due|next)\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?=$|[\s.,;!?])/i, m => {
+    [/(?:^|\s)(?:(?:by|on|due)\s+)?(today|tomorrow)(?=$|[\s.,;!?])/gi, m => plus(m[1].toLowerCase() === 'today' ? 0 : 1)],
+    [/(?:^|\s)next\s+week(?=$|[\s.,;!?])/gi, () => plus(((8 - from.getDay()) % 7) || 7)],
+    [/(?:^|\s)(?:(by|on|due|next)\s+)?(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|tues|wed|thu|thur|thurs|fri|sat)(?=$|[\s.,;!?])/gi, m => {
       const said = m[2].toLowerCase(), lead = (m[1] || '').toLowerCase();
       if (said.length <= 5 && !WEEK.includes(said) && !lead) return 0;   // a short one alone is a word
       const want = WEEK.findIndex(name => name.startsWith(said.slice(0, 3))), ahead = ((want - from.getDay() + 7) % 7) || 7;
       const toSunday = (7 - from.getDay()) % 7;   // days left in this week, Monday to Sunday
       return plus(lead === 'next' && ahead <= toSunday ? ahead + 7 : ahead);
     }],
-    [/(?:^|\s)(?:(?:by|on|due)\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?=$|[\s.,;!?])/i, m => monthDay(m[1], Number(m[2]))],
-    [/(?:^|\s)(?:(?:by|on|due)\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?(?=$|[\s.,;!?])/i, m => monthDay(m[2], Number(m[1]))],
   ];
-  function monthDay(name, n) {
-    const month = MON.indexOf(name.toLowerCase().slice(0, 3));
-    if (month < 0 || n < 1 || n > 31) return 0;
-    let d = new Date(from.getFullYear(), month, n);
-    if (d.getMonth() !== month) return 0;
-    if (toDay(d) < today) d = new Date(from.getFullYear() + 1, month, n);
-    return toDay(d);
-  }
-  for (const [pattern, read] of tries) {
-    const m = pattern.exec(words); if (!m) continue;
-    const day = read(m); if (!day) continue;
-    const rest = (words.slice(0, m.index) + ' ' + words.slice(m.index + m[0].length)).replace(/\s+/g, ' ').replace(/\s+([.,;!?])/g, '$1').trim();
-    return rest ? { day, words: rest } : null;   // a day alone is not a task
+  // Each place a phrase could stand is tried, so a word that only looks like one ("sat with") does not hide a day said later.
+  for (const [pattern, read] of tries) for (const m of words.matchAll(pattern)) { const day = read(m); if (day) return without(m.index, m.index + m[0].length, day); }
+  // A month and a day of it: "nov 20" wherever it stands, then "20 november"; with the year said after it, this one or a later one.
+  const typed = [...words.matchAll(/\S+/g)].map(m => ({ at: m.index, end: m.index + m[0].length, key: m[0] }));
+  for (const monthFirst of [true, false]) for (let i = 0; i < typed.length; i++) {
+    const got = !!D.monthOf(typed[i].key) === monthFirst && D.said(typed, i), year = got && got.y >= Math.floor(today / 10000) ? got.y : 0;
+    const day = got && got.d ? D.real(year || D.yearFor(got.m, got.d, today, 'coming'), got.m, got.d) : 0;
+    if (!day) continue;
+    const first = typed[i > 0 && /^(by|on|due)$/i.test(typed[i - 1].key) ? i - 1 : i], last = typed[i + (year ? got.len : got.bare) - 1], marks = (last.key.match(/[.,;:!?]+$/) || [''])[0];
+    return without(first.at, last.end - marks.length + (!monthFirst && !year && marks[0] === '.' ? 1 : 0), day);   // the marks after the phrase stay, but for the full stop of a month cut short ("3 dec.")
   }
   return null;
 }
