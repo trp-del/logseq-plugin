@@ -42,8 +42,8 @@ wrote. When it did not (Logseq refused, the plugin is off or does not answer), t
 
   | On | Press | What happens |
   |---|---|---|
-  | a bullet | ↩ | The bullet becomes a field in its place, a link written as `[[its name]]`. ↩ writes the words, ⌥↩ is a new line, esc lets go. |
-  | a property | ↩ | Set choices: the Mac's own list of them, hanging from the value, the present one ticked. Nodes: a list to pick from, filtered as you type, the present one ticked. Words, a number, a day ("nov 18", "2026-11-18", "tomorrow"): a field in place. A tick box turns over. |
+  | a bullet | ↩ | The bullet becomes a field in its place, a link written as `[[its name]]`. ↩ writes the words, ⌥↩ is a new line, esc lets go. A link or a tag the bullet already had stays the link it is, whatever else you change; one typed anew is found by its name, as in Logseq. |
+  | a property | ↩ | Set choices: the Mac's own list of them, hanging from the value, the present one ticked. Nodes: a list to pick from, filtered as you type, the present one ticked. Words, a number, a day ("nov 18", "2026-11-18", "tomorrow"): a field in place. A tick box turns over. A change that would take away a value with bullets written under it is refused, with what to do, and what you typed stays. |
   | a node that points here | ↩ | Goes to it here. ⌥↩ does the same on a property's value and on a bullet. ⌘[ steps back, at last to Search or Home. |
   | a bullet | ⌘N | A new bullet after it (after the bullets under it), written in place. With no bullet lit, last in the node. |
   | a bullet | ⇥, ⇧⇥ | Moves it in and out, as in Logseq, also while it is being written: what is typed is written, the bullet moves, and it is a field again. |

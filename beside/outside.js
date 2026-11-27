@@ -16,7 +16,8 @@
                                               Answered { ok, uuid, page, tag, said }: said names what could not be done after the
                                               bullet was written
      show({ uuid })                           Logseq goes to that node, as a press on its name does there
-     setWords({ node, uuid, words })          a bullet's words
+     setWords({ node, uuid, words })          a bullet's words, as read in the node's lines and changed: a link or a tag the
+                                              bullet already held stays the link it is; what is typed anew is written as typed
      newBullet({ node, after, words })        a new bullet after the bullet `after`, or last in the node when there is none
      move({ node, uuid, way })                way 'in' or 'out', as Tab and Shift-Tab in Logseq
      remove({ node, uuid })                   a bullet deleted, with the bullets under it
@@ -174,7 +175,7 @@ const answers = {
   async setWords(request) {
     const node = await shown(request), line = lineOf(node, request.uuid), words = String(request.words ?? '');
     if (words === line.words) return { ok: true, steps: 0, said: '', lit: line.uuid, node };
-    await Wr.setWords(line.uuid, words);
+    await Wr.setWords(line.uuid, words, { asRead: true });   // the field held the words as read: each link and tag the bullet had goes back by its id
     return changed(node.uuid, 1, '', line.uuid);
   },
   async newBullet(request) {
