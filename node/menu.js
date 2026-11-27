@@ -14,6 +14,8 @@
    so Enter takes the tag lit; in a quiet list the pointer only borrows it, and Enter still takes what an arrow lit. In a quiet list the keys are the bullet's.
    opts.find: a line to type in at the list's head, which narrows it (true, or the words it shows while empty); with it,
    opts.make(words) -> { word, take } offers a line for words no line has, and opts.enter(words) takes the words themselves.
+   opts.alt { word, icon, key, take(words) }: with opts.find, what Option-Enter does with the words typed, whichever line is lit;
+   the list closes. While words are typed a last line, kept in view, says it and its key, and does it when taken.
    opts.rank: with opts.find, the lines closest to the words typed come first (a list of commands).
    opts.search(words) -> items: with opts.find, what the words find elsewhere, listed under the lines under "In your notes".
    A line found may carry item.under { tag, page }, each { name, to }: its tag at the right end of its words, as tags are
@@ -183,6 +185,12 @@ function make(at, items, opts, parent) {
        takes the words themselves where the list has nothing to light. */
     const field = menu.firstElementChild, extra = doc.createElement('button');
     extra.type = 'button'; extra.className = 'lk-item lk-item-make'; extra.hidden = true; menu.appendChild(extra);
+    let hint = null;
+    if (opts.alt) {
+      hint = doc.createElement('button'); hint.type = 'button'; hint.className = 'lk-item lk-item-make lk-item-alt'; hint.hidden = true; menu.classList.add('lk-menu-alt'); menu.appendChild(hint);
+      hint.innerHTML = `<span class="lk-item-icon">${G.touch.icon(opts.alt.icon, 15)}</span><span class="lk-item-word">${G.esc(opts.alt.word)}</span><span class="lk-item-value">${G.esc(opts.alt.key)}</span>`;
+    }
+    const other = () => { const words = field.value.trim(); done(); if (words) opts.alt.take(words); };
     let made = null;
     const first = opts.rank ? [...menu.querySelectorAll('.lk-item:not(.lk-item-make)')] : [], rest = opts.rank ? [...menu.querySelectorAll('.lk-group, .lk-gap')] : [];
     if (opts.rank) { rest.at = new Map(rest.map(el => { let next = el.nextElementSibling; while (next && !next.classList.contains('lk-item')) next = next.nextElementSibling; return [el, first.indexOf(next)]; })); }
@@ -209,6 +217,7 @@ function make(at, items, opts, parent) {
       }
       made = opts.make && field.value.trim() && !exact ? opts.make(field.value.trim()) : null;
       extra.hidden = !made; if (made) extra.innerHTML = `<span class="lk-item-icon">${G.touch.icon('plus', 14)}</span><span>${G.esc(made.word)}</span>`;
+      if (hint) hint.hidden = !field.value.trim();
       walked = entered = false;
       if (opts.search) find(field.value.trim());   // first: it takes away the lines found for the letters before
       lightIn(0);
@@ -238,7 +247,7 @@ function make(at, items, opts, parent) {
         if (entered) press();
       }, 140);
     };
-    const press = () => { entered = false; const row = menu.querySelector('.lk-item.lit:not([hidden])') || seen()[lit]; const words = field.value.trim(); if (row === extra && made) { done(); made.take(); } else if (row) take(row); else if (opts.enter && words) { done(); opts.enter(words); } };
+    const press = () => { entered = false; const row = menu.querySelector('.lk-item.lit:not([hidden])') || seen()[lit]; const words = field.value.trim(); if (row === extra && made) { done(); made.take(); } else if (row && row === hint) other(); else if (row) take(row); else if (opts.enter && words) { done(); opts.enter(words); } };
     offs.push(() => win.clearTimeout(wait));
     if (opts.peek) {
       menu.classList.add('lk-peeks');   // one highlight: the pointer moves the light, so a line merely under it is not lit too
@@ -257,12 +266,15 @@ function make(at, items, opts, parent) {
       if (foldKey(event, seen()[lit], !field.value)) { /* folded */ }
       else if (event.key === 'ArrowDown') { walked = true; lightIn(lit + 1); }
       else if (event.key === 'ArrowUp') { walked = true; lightIn(lit - 1); }
+      else if (event.key === 'Enter' && event.altKey && opts.alt) other();   // the list closes; with no words typed nothing is done, the lit line least of all
       else if (event.key === 'Enter') { if (looking && !walked && seen()[lit] === extra) entered = true; else press(); }
       else if (event.key === 'Escape' && peeks.open) peeks.close();
       else if (event.key === 'Escape') done();
-      else return;
+      // A letter stays in this line: with a bullet being written, Logseq would otherwise take "[" and the like into the bullet.
+      else { if (!event.metaKey && !event.ctrlKey && event.key !== 'Tab') event.stopPropagation(); return; }
       event.preventDefault(); event.stopPropagation();
     }), on(extra, 'click', event => { event.stopPropagation(); if (made) { done(); made.take(); } }));
+    if (hint) offs.push(on(hint, 'click', event => { event.stopPropagation(); other(); }));
     field.focus({ preventScroll: true }); lightIn(Math.max(0, seen().findIndex(row => row.classList.contains('on'))));
     return parent ? self : done;
   }
@@ -303,6 +315,13 @@ G.menu.CSS = `
 .lk-menu .lk-group { padding: 4px 8px 2px; font-size: var(--lk-label); color: var(--lk-quiet); }
 .lk-menu .lk-gap { height: 1px; margin: 4px 8px; background: var(--lk-hair); }
 .lk-menu [hidden] { display: none !important; }
+.lk-menu .lk-item-alt { position: sticky; bottom: -4px; margin-top: 9px; background: var(--lk-paper); }
+.lk-menu .lk-item-alt::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 9px; background: linear-gradient(var(--lk-hair), var(--lk-hair)) center / calc(100% - 16px) 1px no-repeat, var(--lk-paper); pointer-events: none; }   /* set apart by the menu's own hairline, which stays with it over a long list */
+.lk-menu .lk-item-alt .lk-item-icon { color: var(--lk-text); }
+.lk-menu .lk-item-alt:is(:hover, :focus, .lit) { background: linear-gradient(var(--lk-lit), var(--lk-lit)), var(--lk-paper); }
+.lk-menu.lk-peeks .lk-item-alt:hover:not(.lit) { background: var(--lk-paper); }
+.lk-menu-alt .lk-item { scroll-margin-bottom: var(--lk-line-h); }
+.lk-menu .lk-item-alt .lk-item-value { margin-left: auto; }
 .lk-menu-find { display: block; width: 100%; box-sizing: border-box; margin: 0 0 4px; padding: 4px 8px; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); box-shadow: none; border-radius: 0; }
 .lk-menu-find { position: sticky; top: -4px; z-index: 1; background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); }
 .lk-menu-tree .lk-item { position: relative; gap: 0; }

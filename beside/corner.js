@@ -4,7 +4,8 @@
    into, as Logseq's own command palette (the owner, 26 November 2026: "the action in the corner was supposed to be commands
    where you could begin searching for them, not just a menu"): the plugin's commands first (Search, Todo, Ontology, a new
    page, the Recycle list, Update plugins and the rest), then every command of Logseq's own, each with its key. What is done to a node stays on its right-click (the
-   owner: "actions is not meant to replace what can be done with right click"). The Todo and Ontology buttons of the top bar
+   owner: "actions is not meant to replace what can be done with right click"). Option-Enter adds the words typed to today's
+   journal (the owner, 27 November 2026: "can add a bullet to Today with a modifier and enter"). The Todo and Ontology buttons of the top bar
    come here (the owner's answer on "A Leaner Logseq", 26 November 2026). It is the command list: Cmd-Shift-P opens it in
    place of Logseq's palette, it stands in the corner at one size while words narrow it, and Ontology and Todo stand in
    Logseq's own top right menu too (26 November 2026). */
@@ -29,6 +30,17 @@ G.part({
     const press = box.firstElementChild;
     const run = name => () => G.touch.commands().find(one => one.name === name)?.run();
     const make = words => G.write.newPage(words).then(uuid => G.touch.open(uuid)).catch(error => G.say(`The page could not be made: ${error?.message || 'Logseq refused'}`, 'warning'));
+    // The words typed in the list, as a new bullet at the end of today's journal; you stay where you were, and Cmd-Z takes it back.
+    const jot = async words => {
+      let resume = () => {};
+      try {
+        resume = await G.touch.setDown();   // a bullet being written is left for the moment of the write, then opened again
+        const made = await G.write.addBullet(await G.write.day(G.days.number(new Date())), words, { page: true });
+        if (!made) throw new Error('Logseq refused');
+        G.say('Added to Today');
+      } catch (error) { G.say(`“${words}” could not be added to Today: ${error?.message || 'Logseq refused'}`, 'warning'); }
+      finally { await resume(); }
+    };
     const taken = () => G.setting('cornerTakesCommandKey') !== false;
     let shut = null;
     base.onStop(() => shut?.(false));   // the list, and the look beside it, go with the plugin
@@ -63,8 +75,8 @@ G.part({
       for (const one of theirs) items.push({ word: one.label, value: taken() && one.key === '⌘⇧P' ? '' : one.key, take: () => Promise.resolve(one.run()).catch(error => G.say(`“${one.label}” could not be done: ${error?.message || 'Logseq refused'}`, 'warning')) });
       press.setAttribute('aria-expanded', 'true');
       // One list to type into, as Logseq's own command palette: the words narrow it, Enter does the lit line; words no line
-      // has offer a new page of that name.
-      shut = G.menu(at, items, { find: 'Search or type a command', rank: true, height: 420, dock: true, search: notes, peek: (holder, item, shut) => item.uuid ? G.node.peek(holder, item.uuid, shut) : null, make: name => ({ word: `New page “${name}”`, take: () => make(name) }) });
+      // has offer a new page of that name. Option-Enter puts the words on today's journal instead.
+      shut = G.menu(at, items, { find: 'Search or type a command', rank: true, alt: { word: 'Add to Today', icon: 'calendar-plus', key: '⌥↩', take: jot }, height: 420, dock: true, search: notes, peek: (holder, item, shut) => item.uuid ? G.node.peek(holder, item.uuid, shut) : null, make: name => ({ word: `New page “${name}”`, take: () => make(name) }) });
       // The menu stands over the corner, opening up and to the left; the press keeps its look until the menu goes.
       const watch = doc.defaultView.setInterval(() => { if (!doc.querySelector('.lk-menu')) { press.setAttribute('aria-expanded', 'false'); doc.defaultView.clearInterval(watch); } }, 150);
     };

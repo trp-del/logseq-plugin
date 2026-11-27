@@ -254,6 +254,10 @@ own, so it can be written in; no Relations). The arrows move the look along; Shi
 capital does nothing. The commands: the plugin's commands
 first (Search, Todo, Ontology, New page…, Recycle, Update plugins and the rest), then every command of Logseq's own with its
 key. Letters narrow it, the closest line first; Enter does the lit line; words no command has offer a new page of that name.
+**Option-Enter** adds the words typed as a new bullet at the end of today's journal, whichever line is lit. While words are
+typed, a last line **Add to Today ⌥↩**, with a calendar mark and a hairline above it, says so and stays in view; a press on it does the same. The list
+closes, you stay where you were, a notice says **Added to Today**, and Cmd-Z takes the bullet back. With nothing typed the
+list closes and nothing is added.
 What is done to a node stays on its right-click.
 
 **Keys of your own.** Every command of the plugin has a line in Logseq's **Settings → Keymap** (g then s outside a bullet),

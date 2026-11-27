@@ -39,6 +39,7 @@
                               touch.logseqCommands() Logseq's own, { id, label, key, run }; each key is the one in force
                               once touch.keysRead() has read the graph's config
      touch.keepPlace()        where the keys are now; gives back what returns them there
+     touch.setDown()          the bullet being written left, before a write elsewhere; gives back what opens it again
      touch.plugins           the plugins Logseq runs: those from a folder (reloaded) and those from its marketplace (updated
                               by Logseq's own updater)
      touch.section(key, title, draw, path)  a section of Logseq's right sidebar that is the plugin's own: Logseq hosts it and
@@ -317,6 +318,17 @@ function keepPlace() {
   const el = host().activeElement, block = el?.tagName === 'TEXTAREA' ? el.closest('.ls-block[blockid]') : null;
   const uuid = block?.getAttribute('blockid'), at = el?.selectionStart;
   return () => { if (el?.isConnected && el !== host().body) el.focus({ preventScroll: true }); else if (uuid) logseq.Editor.editBlock(uuid, { pos: at }); };
+}
+/* The bullet being written left as Logseq's Escape leaves it, for a write elsewhere: a write while it stands open has Logseq
+   save its box as it reads, and a #tag in it then makes a tag named by an id (tried in Logseq 2.0.2, 27 November 2026).
+   Gives back what opens the bullet again, the caret where it was. */
+async function setDown() {
+  const el = writing(), uuid = el?.closest('.ls-block[blockid]')?.getAttribute('blockid'), at = el?.selectionStart;
+  let held = false; try { held = !!(await logseq.Editor.checkEditing()); } catch (error) { /* not known: the box on screen says */ }
+  if (!uuid && !held) return () => {};   // Logseq can still hold a bullet as being written after its box has gone
+  await logseq.Editor.exitEditingMode(false);
+  await new Promise(done => host().defaultView.setTimeout(done, 200));
+  return uuid ? () => logseq.Editor.editBlock(uuid, { pos: at }) : () => {};
 }
 /* FOCUSING INTO A BULLET AND OUT, where it meets Logseq's screen (beside/glide.js decides which bullet moves, and when). Only
    the main view. Logseq swaps the whole view in one frame, and every way in and out goes through the app's history, so the view
@@ -2036,5 +2048,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();
