@@ -565,3 +565,10 @@ test('a file\'s name is the page\'s, and one that is there is left alone', async
   const there = new Set(['Notes.md', 'Notes 2.md']);
   assert.equal(await X.freeName('Notes.md', async name => there.has(name)), 'Notes 3.md');
 });
+
+test('the graph switcher puts the graphs opened last first, the rest by name, and steps round past either end', () => {
+  const graphs = require('../core/graphs.js'), all = ['logseq_db_Beta', 'logseq_db_Delta', 'logseq_db_Alpha', 'logseq_db_Gamma'];
+  assert.deepEqual(graphs.order(all, graphs.opened(graphs.opened([], 'logseq_db_Gone'), 'logseq_db_Gamma')).map(graphs.name), ['Gamma', 'Alpha', 'Beta', 'Delta']);
+  assert.deepEqual(graphs.opened(['a', 'b'], 'b'), ['b', 'a']);
+  assert.deepEqual([graphs.step(3, 1, 4), graphs.step(0, -1, 4), graphs.step(0, 1, 1)], [0, 3, 0]);
+});

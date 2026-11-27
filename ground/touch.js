@@ -74,6 +74,8 @@
      touch.graphChanged(fn)   fn runs when another graph is opened; gives back what stops it
      touch.recentGroups(kinds) each line of the left sidebar's Recent marked with what it is, asked of kinds()
                               (read.recentKinds); the sheet (CALM.left) then stands them in groups. Gives back what stops it
+     touch.graphs             Logseq's graphs: list() their addresses, current() the open one's, open(url) opens one by
+                              pressing its line in Logseq's own list of graphs; answers whether the line was there
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
 const G = window.PluginDoor;
@@ -1236,6 +1238,33 @@ function dragBand() {
   for (const el of doc.querySelectorAll('.drag-region, #head')) if (doc.defaultView.getComputedStyle(el).webkitAppRegion === 'drag') { const box = el.getBoundingClientRect(); if (box.top < 100 && box.width > 300) bottom = Math.max(bottom, box.bottom); }
   return Math.round(bottom) || 48;
 }
+/* Logseq's graphs. Its plugin API opens none, so the line of Logseq's own list of graphs (the one under the graph's name at the
+   top of the left sidebar) is pressed for the person, with that list unseen while it is open. A bullet being written is closed
+   first, so its words are saved in the graph they were typed in. */
+const graphs = {
+  list() {
+    let all = [];
+    try { all = host().defaultView.logseq.api.get_state_from_store(['me', 'repos']) || []; } catch (error) { all = []; }
+    return (Array.isArray(all) ? [...all] : []).filter(one => one?.url && one.root).map(one => String(one.url));
+  },
+  async current() { try { return String((await logseq.App.getCurrentGraph())?.url || ''); } catch (error) { return ''; } },
+  async open(url) {
+    const doc = host(), view = doc.defaultView, wait = ms => new Promise(resolve => view.setTimeout(resolve, ms));
+    const item = () => doc.querySelector(`.repos-list [role="menuitem"][title="${view.CSS.escape(url)}"]`);
+    // Long enough for what is written on leaving a bullet (write/sure.js) to land before the graph is gone.
+    if (writing()) { await logseq.Editor.exitEditingMode(); await wait(900); }
+    const unseen = doc.createElement('style'); unseen.textContent = '.repos-list { opacity: 0 !important; animation: none !important; }'; doc.head.appendChild(unseen);
+    try {
+      const opener = doc.querySelector('.cp__graphs-selector a');
+      if (!item() && opener) { opener.click(); for (let i = 0; i < 40 && !item(); i++) await wait(25); }
+      const line = item();
+      if (line) line.click();
+      else doc.querySelector('.repos-list')?.dispatchEvent(new view.KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+      for (let i = 0; i < 40 && doc.querySelector('.repos-list'); i++) await wait(25);
+      return !!line;
+    } finally { unseen.remove(); }
+  },
+};
 function graphChanged(fn) {
   const off = logseq.App.onCurrentGraphChanged(() => { read.clear(); fn(); });
   return () => { if (typeof off === 'function') off(); };
@@ -2086,5 +2115,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

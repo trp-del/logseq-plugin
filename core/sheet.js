@@ -2,12 +2,13 @@
      groups(commands, search)  commands: every command with the key it has now, { id, label, key } (key as the Mac's marks,
                                '' for none), Logseq's and the plugin's; search: null while Search does not run, else
                                { takesKey }: whether Cmd-K is its own;
-                               corner the same for the corner and Cmd-Shift-P. Answers [{ head, lines: [{ words, keys }] }] in the
+                               corner the same for the corner and Cmd-Shift-P;
+                               graphs: whether the graph switcher runs, which takes Control-Tab. Answers [{ head, lines: [{ words, keys }] }] in the
                                order a person meets them; a line with no key is left out, and so is a group with no line.
      found(words, typed)       the words cut for showing, [{ text, hit }], when they hold every word typed; else null. */
 (function (root) {
 const TWO = /^⇧?[^\s⌘⌥⌃⇧] ⇧?[^\s⌘⌥⌃⇧]$/;   // two keys pressed one after the other: "g j", "g ⇧G"
-function groups(commands = [], search = null, corner = null) {
+function groups(commands = [], search = null, corner = null, graphs = false) {
   const by = new Map(commands.map(one => [one.id, one.key || '']));
   const the = (...ids) => ids.map(id => by.get(id) || '');
   // While Cmd-K opens the plugin's Search, a command of Logseq's that says Cmd-K never hears it.
@@ -32,6 +33,7 @@ function groups(commands = [], search = null, corner = null) {
     ]],
     ['Moving around', [
       ['Back, forward', the('go/backward', 'go/forward')],
+      ['Switch graph', [graphs ? '⌃⇥' : '']],
     ]],
     ['Two letters, outside a bullet', two.map(one => [one.label, [one.key]])],
   ].map(([head, lines]) => ({ head, lines: lines.map(([words, keys]) => ({ words, keys: keys.filter(Boolean) })).filter(line => line.keys.length) }))

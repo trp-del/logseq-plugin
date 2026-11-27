@@ -328,6 +328,20 @@ A quick Option with a letter, as in typing é, is over before the sheet would co
 brings it, nor does it come over one of Logseq's windows, menus or lists, or one of the plugin's. Keys are told here, not
 set: Logseq's keyboard settings set them. The part can be switched off in the plugin's settings.
 
+### The graph switcher (`beside/graphs.js`, ordered by `core/graphs.js`, Logseq's markup in `ground/touch.js`)
+Hold Control and press Tab, and your graphs stand in a list in the middle of the window, in the look of the plugin's menus, gone through as Cmd-Tab goes through the Mac's apps.
+The open graph is first and the one you were in before it is lit.
+
+- Tab moves down and Shift-Tab up, round past either end; the arrows do the same, and so does the pointer.
+- Let Control go, press Enter or click a name, and that graph opens. A quick Control-Tab goes straight to the graph before,
+  without the list.
+- Escape, leaving the window or a press outside closes the list and nothing changes.
+- “Switch graph” in the corner's commands and Logseq's list of commands opens the same list, which then stays until Enter,
+  a click, Escape or a press outside.
+- The order is the order you last opened them in, kept on this Mac; graphs not opened since the switcher came follow by name.
+- It opens a graph by pressing that graph's line in Logseq's own list of graphs. A bullet being written is closed first.
+- It does not come over one of Logseq's windows or menus, and it writes nothing to a graph. Cmd-Tab itself belongs to the Mac.
+
 ### Todo (`arrive/todo.js`)
 
 The corner, or **Todo** in the command palette, opens a section of the right sidebar: your open tasks under **Overdue** (past
