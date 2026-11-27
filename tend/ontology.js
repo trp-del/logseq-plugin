@@ -40,7 +40,10 @@ G.part({
     base.style('ontology', `
 .lk-ontology { padding: 4px 4px 16px 22px; }
 .lk-ontology > .lk-rel { position: relative; }
-.lk-ontology .lk-row > .lk-fold { visibility: hidden; }   /* nothing opens under a tag or a property here */
+.lk-ontology .lk-row:not([data-kids="1"]) > .lk-fold { visibility: hidden; }   /* nothing opens under a tag or a property here; a tag with tags under it folds, as a bullet does */
+.lk-ontology .lk-row[data-kids="1"]:not([data-shut="1"]) > .lk-fold svg { transform: rotate(90deg); }
+.lk-ontology .lk-row[data-shut="1"] > .lk-fold svg { transform: none; }
+.lk-ontology .lk-row[data-shut="1"] > .lk-line > .lk-bul::before { box-shadow: 0 0 0 4.8px var(--lk-bullet-ring); }   /* folded: the ring Logseq puts round a folded bullet */
 .lk-ontology .lk-row.lk-chosen > .lk-line:is(:focus-visible, :hover) { background: var(--lk-wash); }   /* lit only where the keys or the pointer are: a row left chosen keeps its lines, not a wash (the owner's marked page, 26 Nov) */
 /* A row as Ontology drew it before the rebuild (the owner, 26 November 2026: "I prefer this line style of before and non bold for
    all of these.. there should also be line with bullets like normal"): the name at the small size and in no tag bold, the count in
@@ -182,7 +185,8 @@ G.part({
         const tops = [...new Set(areas.map(area => Math.round(area.getBoundingClientRect().top - at.top)))].sort((x, y) => x - y);
         const seat = row => { const r = (row.querySelector(':scope > .lk-line') || row).getBoundingClientRect(), area = row.parentElement, ar = area.getBoundingClientRect(); return { y: r.top - at.top + 14, l: ar.left - at.left, r: ar.right - at.left, area: areas.indexOf(area), line: tops.indexOf(Math.round(ar.top - at.top)) }; };
         const pairs = new Map();
-        for (const [from, , to] of joins) { if (from === to || !(near.has(from) || near.has(to))) continue; const a = rowOf.get(from), b = rowOf.get(to); if (a && b && a !== b) pairs.set(`${from}>${to}`, { a, b }); }
+        const shown = id => G.tags.path(id, tagIndex).map(tag => rowOf.get(tag.id)).find(Boolean);   // a tag folded away: its lines stop at the nearest tag that shows
+        for (const [from, , to] of joins) { if (from === to || !(near.has(from) || near.has(to))) continue; const a = shown(from), b = shown(to); if (a && b && a !== b) pairs.set(`${from}>${to}`, { a, b }); }
         if (!pairs.size) return;
         let lane = 0;
         const svg = doc.createElementNS(NS, 'svg'); svg.setAttribute('class', 'lk-joins'); svg.setAttribute('width', rel.scrollWidth); svg.setAttribute('height', rel.scrollHeight); svg.setAttribute('aria-hidden', 'true');
@@ -228,6 +232,7 @@ G.part({
       };
       // ---- what each tab lists, and the rows ticked in it
       const picked = { tags: new Set(), props: new Set() };
+      const SHUT = 'lk.ontology-folded', shut = new Set((() => { try { return JSON.parse(doc.defaultView.localStorage.getItem(SHUT) || '[]'); } catch (error) { return []; } })());   // the tags folded, by uuid
       let info = new Map();   // uuid -> { title, id, count, depth, parents, kids } of each row drawn, as last read
       const pickedNow = () => holder.dataset.tab === 'props' ? picked.props : picked.tags;
       const read = async () => {
@@ -238,7 +243,10 @@ G.part({
         const [tagNodes, pairs] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.tagPairs()]);
         const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.tags.counts(tags, pairs);
         joins = await G.read.relations();
-        const tagRows = tagNodes.map(node => ({ ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(ids.get(node.uuid)) || 0 }));
+        const hasKids = new Set([...tags.values()].flatMap(one => one.parents));
+        let cut = Infinity;   // a folded tag hides the tags under it, as a folded bullet hides its children
+        const tagRows = tagNodes.map(node => ({ ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(ids.get(node.uuid)) || 0, shutHere: shut.has(node.uuid) && hasKids.has(ids.get(node.uuid)) }))
+          .filter(row => { if (row.depth <= cut) cut = Infinity; if (row.depth > cut) return false; if (row.shutHere) cut = row.depth; return true; });
         info = new Map(tree.map(({ tag, depth: d }) => [tag.uuid, { title: tag.title, id: tag.id, count: counts.get(tag.id) || 0, depth: d, parents: tag.parents, kids: [...tags.values()].some(one => one.parents.includes(tag.id)) }]));
         for (const uuid of [...picked.tags]) if (!info.has(uuid)) picked.tags.delete(uuid);
         if (!wide) return tagRows.length ? [{ key: 'ontology:tags', kind: 'group', name: '', tag: '', face: 'tag', rows: tagRows }] : [];
@@ -256,6 +264,7 @@ G.part({
         // As in any outline: Tab puts a tag under the tag above it at its level, Shift-Tab takes it out one level. Space ticks.
         key(row, event) {
           if (event.key === ' ') { const set = pickedNow(), uuid = row.dataset.uuid; if (!set.delete(uuid)) set.add(uuid); const tick = row.querySelector(':scope > .lk-tick'); if (tick) tick.checked = set.has(uuid); row.classList.toggle('lk-picked', set.has(uuid)); bar(); return true; }
+          if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowUp' || event.key === 'ArrowDown') && isTag(row) && row.dataset.kids === '1') { fold(row.dataset.uuid, event.key === 'ArrowUp'); return true; }   // Logseq's own keys for folding
           if (event.key === 'Escape' && pickedNow().size) { clear(); return true; }
           if (event.key === 'Enter') { G.touch.open(row.dataset.uuid, event.shiftKey); return true; }   // nothing opens under the row
           if (event.key !== 'Tab' || !isTag(row)) return false;
@@ -320,6 +329,20 @@ G.part({
         press(row, event) { const cell = event.target.closest('.lk-change[data-cell]'); if (!cell) return false; (cell.dataset.cell === 'on' ? onTags : nodeTags)(cell, row.dataset.uuid); return true; } });
       const mount = tab => tab === 'props' ? table() : G.node.listing(rel, read, { ...opts, none: NONE[tab] });
       let list = mount(holder.dataset.tab);
+      // Folding a tag, kept on this Mac: a press on its arrow, or Cmd-Up and Cmd-Down on its row.
+      const fold = (uuid, on = !shut.has(uuid)) => {
+        if (on) shut.add(uuid); else shut.delete(uuid);
+        try { doc.defaultView.localStorage.setItem(SHUT, JSON.stringify([...shut])); } catch (error) { /* kept for this run only */ }
+        list.again();
+        doc.defaultView.setTimeout(() => rel.querySelector(`.lk-row[data-uuid="${uuid}"] > .lk-line`)?.focus({ preventScroll: true }), 120);
+      };
+      const marks = () => { for (const row of rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows > .lk-row')) { const one = info.get(row.dataset.uuid); row.dataset.kids = one?.kids ? '1' : ''; row.dataset.shut = shut.has(row.dataset.uuid) ? '1' : ''; } };
+      rel.addEventListener('lk-drawn', marks);
+      rel.addEventListener('click', event => {
+        const row = event.target.closest?.('.lk-fold')?.closest('.lk-row');
+        if (!row || row.dataset.kids !== '1' || row.closest('.lk-rel') !== rel) return;
+        event.preventDefault(); event.stopImmediatePropagation(); fold(row.dataset.uuid);
+      }, true);
 
       // ---- the tabs
       const tabs = () => {

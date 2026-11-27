@@ -298,7 +298,9 @@ journal without a question.
 
 ### Ontology: counts, moving a tag, the lines between tags
 
-Each tag is a row as before the rebuild: its name at the small size, no tag in bold, the rows close, and a hairline from each
+A tag with tags under it folds as a bullet does: a press on its arrow, or Cmd-Up and Cmd-Down on its row, hides and shows
+the tags under it, its bullet carrying Logseq's ring while folded; what is folded is kept on this Mac, and a line to a tag folded
+away stops at the nearest tag that shows. Each tag is a row as before the rebuild: its name at the small size, no tag in bold, the rows close, and a hairline from each
 tag's bullet down along the tags under it, as Logseq's own outline has. Each tag says in a column at its area's right edge how
 many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
 puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline; its right-click menu has

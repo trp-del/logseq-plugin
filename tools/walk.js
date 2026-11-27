@@ -386,6 +386,18 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       return is([rows.length > 1, new Set(rows.map(r => r[0])).size, new Set(rows.map(r => r[1])).size, rows.every(r => r[2] === 'none')], [true, 1, 1, true]);
     });
     // ---- Ontology: counts, moving a tag with the keys, its lines, its menu
+    await step('a tag with tags under it folds as a bullet does: its arrow hides them and shows them again, Cmd-Up and Cmd-Down too', async () => {   // the owner, 26 November 2026: "you should be able to fold things just like a normal bullet"
+      const names = () => page.evaluate(() => [...document.querySelectorAll('.lk-ontology .lk-list[data-face="tag"] .lk-row .lk-words')].map(w => w.textContent));
+      const row = page.locator('.lk-ontology .lk-row', { hasText: /^Organization/ }).first();
+      await row.hover(); await row.locator('.lk-fold').click(); await wait(1200);
+      const shut = !(await names()).includes('Hospital');
+      await page.keyboard.press('Meta+ArrowDown'); await wait(1200);
+      const open = (await names()).includes('Hospital');
+      await page.keyboard.press('Meta+ArrowUp'); await wait(1200);
+      const again = !(await names()).includes('Hospital');
+      await row.hover(); await row.locator('.lk-fold').click(); await wait(1200);
+      return is([shut, open, again, (await names()).includes('Hospital')], [true, true, true, true]);
+    });
     await step('each tag says how many nodes stand under it', async () => is(await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-ontology .lk-list[data-face="tag"] .lk-row')]; const n = r => Number(r.querySelector('.lk-num')?.innerText || 0); return [n(rows[0]) > 0, n(rows[0]) >= n(rows[1])]; }), [true, true]));
     const shape = () => page.evaluate(() => [...document.querySelectorAll('.lk-ontology .lk-list[data-face="tag"] .lk-row')].slice(0, 5).map(r => [r.querySelector('.lk-words').innerText, Number(r.style.getPropertyValue('--lk-depth')) || 0]));
     await step('Tab puts a tag under the tag above it at its level, Shift-Tab takes it out again, and the keys stay on its row', async () => {
