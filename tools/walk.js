@@ -266,6 +266,22 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await row.locator(':scope > .lk-line').focus(); await page.keyboard.press('Escape'); await wait(700);
       return is(open, closed);
     });
+    await step('a status with an icon picked in Logseq stands at the circles\' size on the line, and the bullet keeps its size opened', async () => {   // the owner, 27 November 2026: "Errorrs with size. also when unfolded, bullet that gets unfolded jumps"
+      const pick = icon => page.evaluate(async icon => { const [[picked]] = await window.logseq.api.datascript_query('[:find (pull ?s [:block/uuid]) :where [?s :block/title "In Review"] [?s :block/closed-value-property ?p] [?p :db/ident :logseq.property/status]]'); await window.logseq.api.upsert_block_property(picked.uuid, 'logseq.property/icon', icon); }, icon);
+      const row = page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' });
+      const give = async status => { await row.locator('.lk-status').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: status }).click(); await wait(1800); };
+      await pick({ type: 'tabler-icon', id: 'CircleArrowUpRight', name: 'CircleArrowUpRight', color: 'inherit' }); await wait(2500);
+      await give('In Review');
+      const looks = () => row.evaluate(el => { const open = el.dataset.open, root = el.querySelector(open ? ':scope > .lk-open > .lk-editor .block-main-container' : ':scope > .lk-line');
+        const icon = root.querySelector(open ? '.block-left.positioned-properties :is(svg, i.ti):not(.iconTablerExtPriorityLvlHigh)' : '.lk-status :is(svg, i.ti)'), box = icon?.getBoundingClientRect(), bul = root.querySelector(open ? '.bullet-container .bullet' : '.lk-bul');
+        return [box && Math.round(box.width), box && Math.round(box.height), icon && getComputedStyle(icon).color, parseFloat(getComputedStyle(bul, open ? null : '::before').width).toFixed(1)]; });
+      const closed = await looks();
+      await row.locator(':scope > .lk-line').focus(); await page.keyboard.press('ArrowRight'); await wait(3000);
+      const open = await looks();
+      await row.locator(':scope > .lk-line').focus(); await page.keyboard.press('Escape'); await wait(700);
+      await give('Todo');
+      return is([closed.slice(0, 2), open[3]], [[18, 18], closed[3]]);   // Logseq draws nothing in an opened node for an icon set by a script: its colour opened is tried by hand
+    });
     await step('a task set Done from its circle leaves the list', async () => {
       const row = page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' });
       await row.locator('.lk-status').click(); await wait(400);

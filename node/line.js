@@ -146,6 +146,7 @@ G.line.CSS = `
 .lk-bul::before { content: ""; width: 6.4px; height: 6.4px; border-radius: 50%; background: var(--lk-bullet); opacity: .8; }
 .lk-bul.lk-folded::before { box-shadow: 0 0 0 4.8px var(--lk-bullet-ring); }   /* it holds lines: the ring Logseq puts round a folded bullet, 16 across (the owner, 26 November 2026: the bullet as before 0.9) */
 .lk-status-icon { display: inline-flex; }
+.lk-status-icon > .ti { font-size: 18px; line-height: 1; }   /* an icon picked in Logseq comes from its icon font, sized as text: the circles' 18 (27 November 2026: "Errorrs with size") */
 /* A task carries one mark before its words, its status circle, standing where the bullet stands; its words keep the edge of every other line. */
 .lk-status { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; padding: 0; border: 0; background: none; color: var(--lk-quiet); cursor: pointer; }
 .lk-words { min-width: 0; overflow-wrap: anywhere; }
