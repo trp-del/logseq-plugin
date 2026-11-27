@@ -69,7 +69,11 @@ function open(sheet, what) {
   shut?.();
   const doc = G.host(), win = doc.defaultView, esc = G.esc, icon = (name, size = 16) => G.touch.icon(name, size);
   let chosen = read(), busy = false, gone = false, drawing = 0, timer = 0, again = 0, frame = null;
-  const edits = {};   // for each destination, the words as changed in the preview: { key, value }
+  /* For each destination, the words as changed in the preview: { key, value }, or { key, live } while the preview that holds
+     them stands. They are read out of a standing preview only when they are needed (the export, a drawing again), never at
+     a key typed: a page with pictures is many million letters long. */
+  const edits = {};
+  const wordsIn = (inner, text) => text ? inner.querySelector('pre').innerText : G.sheets.gather(inner).innerHTML;
   const root = doc.createElement('div');
   root.className = 'lk-xp'; root.tabIndex = -1; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', `Export ${what}`);
   const offered = key => E.OFFERED[key];
@@ -103,7 +107,9 @@ function open(sheet, what) {
   const remember = () => { const words = JSON.stringify(chosen); if (words !== G.setting('exportChoices')) { try { G.touch.keep({ exportChoices: words }); } catch (error) { console.warn('Logseq Plugin: the export’s choices could not be kept', error); } } };
   // What decides the words in the preview. Anything else (the paper, the footer, the size) leaves changed words where they are.
   const keyOf = target => JSON.stringify([chosen.tags, chosen.tasks, chosen.hiddenHead, chosen.hiddenNodes, chosen.askedHead, chosen.askedNodes, E.lines(chosen, sheet), chosen.titleDate, chosen.preparedBy, target === 'md' ? [chosen.links, chosen.frontMatter] : chosen.text]);
-  const changed = target => edits[target]?.key === keyOf(target) ? edits[target].value : null;
+  const changed = target => { const kept = edits[target]; return kept?.key !== keyOf(target) ? null : kept.live ? wordsIn(kept.live, target === 'md') : kept.value; };
+  // A preview about to leave the window: the words changed in it are kept as they stand.
+  const settle = inner => { for (const [target, kept] of Object.entries(edits)) if (kept.live === inner) edits[target] = { key: kept.key, value: wordsIn(inner, target === 'md') }; };
 
   function describe() {
     for (const el of root.querySelectorAll('[data-for]')) el.hidden = el.dataset.for !== chosen.target;
@@ -138,14 +144,14 @@ function open(sheet, what) {
       if (gone || run !== drawing) { next.remove(); return; }
       if (!text) G.sheets.paginate(inner, lookOf(now));   // pictures first, so their height is known
       inner.addEventListener('input', () => {
-        edits[target] = { key, value: text ? inner.querySelector('pre').innerText : G.sheets.gather(inner).innerHTML };
+        edits[target] = { key, live: inner };
         clearTimeout(again);
         if (!text) again = setTimeout(() => { if (frame === next) { G.sheets.repaginate(inner, lookOf(chosen)); fit(); } }, 600);   // the sheets dealt again once writing pauses
         fit();
       });
       inner.addEventListener('keydown', event => { if (!keys(event)) event.stopPropagation(); }, true);
       inner.addEventListener('pointerdown', () => doc.querySelector('.lk-menu') && doc.body.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true })));
-      frame?.remove(); frame = next; next.classList.remove('lk-xp-coming');
+      if (frame) { settle(frame.contentDocument); frame.remove(); } frame = next; next.classList.remove('lk-xp-coming');
       fit(); setTimeout(() => { if (frame === next) fit(); }, 300);
     };
     for (const old of desk.querySelectorAll('.lk-xp-coming')) old.remove();

@@ -952,6 +952,15 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1200);
       return is([...kept, ...gone], [true, '856px', false, true]);
     });
+    await step('a key typed in the preview does not write the whole page out; the changed words are read when the preview is drawn again', async () => {   // the rundown of 27 November 2026: at every key the page was copied and written out as text, pictures and all
+      await box.frame().evaluate(() => { const S = window.PluginDoor.sheets, own = S.gather; window.lkWrittenOut = 0; S.gather = (...given) => { window.lkWrittenOut += 1; return own(...given); }; window.lkGatherBack = () => { S.gather = own; }; });
+      await pressWords('Consultant'); await page.keyboard.type('Typed ', { delay: 20 }); await wait(1000);
+      const atKeys = await box.frame().evaluate(() => window.lkWrittenOut);
+      await page.locator('.lk-xp [data-switch="pageNumbers"]').click(); await wait(1300);
+      const kept = (await preview()).includes('Typed '), read = await box.frame().evaluate(() => { window.lkGatherBack(); return window.lkWrittenOut; });
+      await page.locator('.lk-xp [data-switch="pageNumbers"]').click(); await wait(1300);
+      return is([atKeys, kept, read > 0, (await preview()).includes('Typed ')], [0, true, true, true]);
+    });
     await step('Enter takes the line the arrows are on, in a list of the export window', async () => {   // seen by hand, 26 November 2026: Enter did nothing
       await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300);
       await page.locator('.lk-menu .lk-item', { hasText: 'A4' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
