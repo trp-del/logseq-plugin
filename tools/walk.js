@@ -666,7 +666,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     const beside = async locator => { await locator.click({ modifiers: ['Meta'] }); await wait(3000); };
     const press = async what => { await page.locator(`.lk-split-tools [data-do="${what}"]`).click(); await wait(3000); };
     if (!(await sideNow()).open) { await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(true)); await wait(800); }
-    await page.keyboard.press('Meta+k'); await wait(1200);   // the sidebar holds Search, and what the walk left there
+    if (!(await page.evaluate(() => !!document.getElementById('_sidebar.lk-search')?.offsetParent))) { await page.keyboard.press('Meta+k'); await wait(1200); }   // the sidebar holds Search, and what the walk left there (Cmd-K on a shown Search takes it away)
     await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(false)); await wait(800);
     const before = await sideNow();
     await step('Cmd-click on a link in the main view opens its page beside: equal halves, one page with its title, no head, the main view where it was', async () => {
