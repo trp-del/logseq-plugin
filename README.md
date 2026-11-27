@@ -99,8 +99,10 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | A mention | Click a step of where it sits | Under a mention stands the page it is on, and the bullet it is under: each opens |
 
 A day in the journals feed has its lists at the foot of the day. **Relations: the Recycle list** opens Logseq's Recycle as a
-plain list: Restore brings a page or a bullet back; Delete asks under the line and deletes for good, the keyboard waiting on
-Leave it.
+plain list: Restore brings a page or a bullet back; Delete asks under the line, as every delete that asks does (a red yes
+and Cancel, the keyboard waiting on Cancel), and deletes for good. A line is said to be back or gone only when it is: a
+bullet whose page is itself in the Recycle is not brought back, and the notice says to restore the page first; a delete
+Logseq refused is said, and its line stays.
 
 Everything inside an opened node is Logseq's own: its words, bullets, properties, menus and keys. How it is laid out, and how
 a node it points at is opened under it, is under "An opened node, and digging" below.
@@ -122,11 +124,10 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   stands right after the line's words: a press takes the change back with Logseq's own Undo, in as many steps as the change
   took. Nothing lights. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow goes at
   the next change to the graph. Move values keeps its own way back.
-- Delete on a tag or a property asks first, in a box under its line: what goes, how many nodes hold it, a red yes and
-  Cancel. The keys wait on Cancel; only a press on the red yes deletes.
+- Delete on a tag or a property, and Delete in the Recycle list, ask first, in a box under the line: what goes, what that
+  takes with it, a red yes and Cancel. The keys wait on Cancel; only a press on the red yes deletes.
 - The presses are drawn as before the rebuild: the yes that decides filled in the ink, a plain press a quiet capsule, a
-  third-level press with no ground, Delete in red on no ground with its bin, the one yes Undo cannot take back ("Delete for
-  good") filled in blue; a small picture before a press's word where its job has one (Open in sidebar, Set tag, Set property,
+  third-level press with no ground, Delete in red on no ground with its bin; a small picture before a press's word where its job has one (Open in sidebar, Set tag, Set property,
   Undo, Restore, Move values).
 - Where tags are chosen from a menu, they stand as an outline as in Logseq: a bullet before each, and a hairline down from
   each tag through the tags under it. Words typed keep each tag found under the tags it sits under, those greyed and passed over
