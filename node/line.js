@@ -98,6 +98,9 @@ function act(event, row, more) {
     const url = target.closest('.lk-url');
     if (url && line) { G.touch.openUrl(url.dataset.href); return true; }
     if (target.closest('.lk-fold') && target.closest('.lk-row') === row) { G.node.toggle(row); return true; }
+    // The bullet goes to its node, as Logseq's own does; in an open row of Relations it is the dot the row draws.
+    const box = target === row && row.dataset.open ? row.getBoundingClientRect() : null;
+    if ((line && target.closest('.lk-bul')) || (box && event.clientY - box.top < 28 && event.clientX - box.left >= 16 && event.clientX - box.left <= 36)) { G.touch.open(row.dataset.uuid, event.shiftKey); return true; }
     if (line) { if (event.shiftKey) G.touch.open(row.dataset.uuid, true); else G.node.toggle(row); return true; }
     return false;
   }
@@ -128,12 +131,14 @@ G.line.CSS = `
 .lk-row[data-open="soon"] > .lk-open { height: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole */
 .lk-fold { display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
 .lk-fold svg { width: 14px; height: 14px; transition: transform .12s ease; }
-.lk-row:hover > .lk-fold, .lk-row:focus-within > .lk-fold, .lk-row[data-open] > .lk-fold, .lk-list-head .lk-fold { opacity: 1; }
+.lk-row:hover > .lk-fold, .lk-row:has(:focus-visible) > .lk-fold, .lk-row[data-open] > .lk-fold, .lk-list-head .lk-fold { opacity: 1; }
 .lk-row[data-open] > .lk-fold svg, [aria-expanded="true"] > .lk-fold svg { transform: rotate(90deg); }
 .lk-fold:hover { color: var(--lk-text); }
 .lk-line { display: flex; align-items: baseline; gap: 4px; padding: 2px 6px 2px 0; border-radius: var(--lk-corner); line-height: 24px; cursor: default; }
 .lk-line > :is(.lk-bul, .lk-status) { align-self: flex-start; }   /* the marks keep the line's first 24, the words and the day stand on one baseline */
 .lk-line:focus-visible { outline: none; background: var(--lk-wash); }
+.lk-line > .lk-bul { cursor: pointer; }
+.lk-line > .lk-bul:hover::before { opacity: 1; box-shadow: 0 0 0 4.8px var(--lk-bullet-ring); }   /* it goes to its node, as Logseq's own */
 .lk-bul { flex: none; width: 16px; height: 24px; display: inline-flex; align-items: center; justify-content: center; }
 .lk-bul::before { content: ""; width: 6.4px; height: 6.4px; border-radius: 50%; background: var(--lk-bullet); opacity: .8; }
 .lk-bul.lk-folded::before { box-shadow: 0 0 0 4.8px var(--lk-bullet-ring); }   /* it holds lines: the ring Logseq puts round a folded bullet, 16 across (the owner, 26 November 2026: the bullet as before 0.9) */

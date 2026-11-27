@@ -371,6 +371,8 @@ test('a sentence reads a kind, a value of its nodes, a page and a time', () => {
   assert.deepEqual(got.words, ['tingling']);
   assert.deepEqual(sentence.read('fatigue since march', names, today).picks.map(p => p.kind), ['page', 'when']);
   assert.equal(sentence.when('may to august', today).label, 'May–Aug 2026');
+  const like = text => sentence.sentenceLike(sentence.read(text, names, today));
+  assert.deepEqual(['consultations with mei chen', 'fatigue since march', 'consultation', 'fatigue', '2026'].map(like), [true, true, false, false, false]);
 });
 
 const sheet = require('../core/sheet.js');
@@ -379,12 +381,12 @@ test('the key sheet lists each key as it is now, and leaves out a line with none
   const got = sheet.groups([cmd('editor/undo', '⌘Z'), cmd('editor/redo', ''), cmd('editor/indent', ''), cmd('go/search', '⌘K'), cmd('go/journals', 'g j', 'Go to journals'), cmd('lk-todo', 'g d', 'Todo'), cmd('go/all-graphs', 'g ⇧G', 'Go to all graphs'), cmd('sidebar/clear', '⌘C ⌘C')], { takesKey: true });
   assert.deepEqual(got.map(g => g.head), ['Writing', 'Finding', 'Two letters, outside a bullet']);
   assert.deepEqual(got[0].lines, [{ words: 'Undo, redo', keys: ['⌘Z'] }]);
-  assert.deepEqual(got[1].lines, [{ words: 'Search', keys: ['⌘K'] }, { words: 'Search by a sentence', keys: ['⌥⌘K'] }]);   // Logseq's search never hears Cmd-K while Search takes it
+  assert.deepEqual(got[1].lines, [{ words: 'Search', keys: ['⌘K'] }]);   // Logseq's search never hears Cmd-K while Search takes it
   assert.deepEqual(got[2].lines.map(l => l.words), ['Todo', 'Go to all graphs', 'Go to journals']);   // by their letters
 });
 test('the key sheet gives Cmd-K back to Logseq\'s search when Search does not take it', () => {
   const finding = search => sheet.groups([cmd('go/search', '⌘K')], search)[0].lines.map(l => `${l.words} ${l.keys.join()}`);
-  assert.deepEqual(finding({ takesKey: false }), ['Search by a sentence ⌥⌘K', 'Logseq’s search ⌘K']);
+  assert.deepEqual(finding({ takesKey: false }), ['Logseq’s search ⌘K']);
   assert.deepEqual(finding(null), ['Logseq’s search ⌘K']);
 });
 test('typed words find a line that holds every one, and say where', () => {

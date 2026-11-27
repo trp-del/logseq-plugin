@@ -130,7 +130,9 @@ function read(text, names = {}, today = new Date()) {
   const trail = words.slice(lastRead); while (trail.length && STOP.has(trail[0].key)) trail.shift();
   return { picks, words: rest.filter(t => t.key && !STOP.has(t.key)).map(t => t.key), trail: trail.map(t => t.key).filter(Boolean) };
 }
-const api = { read, when: (text, today = new Date()) => when(toks(text), 0, today), norm, look, SHORT };
+// Whether what was read is more than plain words: a time with something it narrows, or a kind with something else.
+const sentenceLike = got => { const kinds = got.picks.map(pick => pick.kind), more = got.picks.length > 1 || got.words.length > 0; return more && (kinds.includes('when') || kinds.includes('tag')); };
+const api = { sentenceLike, read, when: (text, today = new Date()) => when(toks(text), 0, today), norm, look, SHORT };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).sentence = api;
 })(typeof window !== 'undefined' ? window : globalThis);

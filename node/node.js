@@ -76,7 +76,6 @@ function mount(holder, uuid, from = '') {
     const dug = doc.createElement('div'); dug.className = 'lk-open lk-dugopen';
     holder.insertBefore(dug, head); dugs.set(value, dug);
     mount(dug, value, uuid); dug.lkClose = () => undig(value);
-    G.read.names([value]).then(names => { const name = names.get(String(value).toLowerCase()); if (!name || !dug.isConnected) return; const said = doc.createElement('div'); said.className = 'lk-dugname'; said.textContent = name; dug.querySelector(':scope > .lk-editor')?.before(said); }).catch(() => {});   // the dug node says whose its lists are
     sized?.observe(dug); place(); within = dug;
     view.setTimeout(() => { if (dug.isConnected && !dug.dataset.whole) { dug.dataset.whole = '1'; place(); } }, 800);
   };
@@ -358,7 +357,7 @@ function handle(state, event) {
   if (!(target instanceof target.ownerDocument.defaultView.Element)) return;
   // Only what belongs to this node's lists: a nested node's lists handle their own.
   if (target.closest('.lk-rel') !== state.el) return;
-  const row = target.closest('.lk-row');
+  const found = target.closest('.lk-row'), row = found && state.el.contains(found) ? found : null;   // a list inside an opened node: the row that node is open under is not this list's
   if (row && target.closest('.lk-open')?.closest('.lk-row') === row) return;   // inside the opened node everything is Logseq's
   if (target.closest('.lk-draft')) return;   // the line a new node is typed in has its own ears
   if (row && target.closest('.lk-found')) { if (event.type === 'click' && target.closest('.lk-found-rest')) { event.preventDefault(); event.stopPropagation(); open(row); } return; }
@@ -455,7 +454,7 @@ G.node.CSS = `
 .lk-list[data-viewed] > .lk-rows > .lk-row > .lk-line > .lk-dayin:empty { display: none; }
 .lk-list[data-viewed] > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:not(:empty)) + .lk-row:has(> .lk-line > .lk-dayin:empty) { margin-top: 10px; }
 .lk-list[data-viewed]:has(.lk-dayin) > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:empty) > .lk-open { padding-left: 0; }
-.lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 13px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
+.lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
 .lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
 .lk-list-head[data-thin] > .lk-list-name { align-items: baseline; }
 .lk-list-head[data-thin] > .lk-fold { opacity: 1 !important; }   /* the one arrow, in the quiet grey every arrow has, never fainter */
@@ -523,7 +522,7 @@ G.node.CSS = `
 /* A line down the left side of the node opened from a row, from under its own line to its foot, as before 0.9. */
 /* ... under the row's dot, as Logseq draws a bullet's line down to its children: the dot's box is the mark's box at the band's start. */
 .lk-row > .lk-open::before { content: ""; position: absolute; left: calc(var(--lk-mark-box) / 2 - .5px - var(--lk-open-shift)); top: 28px; bottom: 8px; width: 1px; background: var(--lk-line); pointer-events: none; }
-.lk-dugopen { position: absolute; right: 0; margin: 0; padding: 0 0 6px; opacity: 0; pointer-events: none; container: lk-list / inline-size; }   /* a dug node is measured by its own width, so where it is narrow its rows take the narrow layout (name over value) */
+.lk-dugopen { position: absolute; right: 0; margin: 0; padding: 0 0 6px 14px; opacity: 0; pointer-events: none; container: lk-list / inline-size; }   /* a dug node is measured by its own width, so where it is narrow its rows take the narrow layout (name over value) */
 .lk-dugopen[data-whole] { opacity: 1; pointer-events: auto; transition: opacity .16s ease .04s; }
 .lk-dugopen.lk-flow { position: relative; margin: 2px 0 6px 28px; }
 /* The guide line runs down from the middle of the arrow before the value: the arrow's box is 12 wide and ends 4 before the value's words. */
@@ -533,7 +532,6 @@ G.node.CSS = `
 .lk-relhead::after { content: ""; flex: 1; height: 1px; background: var(--lk-hair); }
 .lk-open > .lk-relhead:not(:has(+ .lk-rel > .lk-list)) { display: none; }
 .lk-dugopen > .lk-relhead { margin-left: 0; }
-.lk-dugname { font-size: var(--lk-line-size); line-height: var(--lk-line-lead); font-weight: 600; margin: 2px 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* whose the dug details are */
 .lk-row > .lk-open > .lk-rel { margin: 2px 0 6px 40px; }   /* one step in under the word Relations, so a head's mark stands where the word starts */
 .lk-dugopen > .lk-rel { margin: 2px 0 0 18px; }`;
 })();

@@ -25,7 +25,6 @@ function groups(commands = [], search = null) {
     ]],
     ['Finding', [
       ['Search', [search?.takesKey ? '⌘K' : '']],
-      ['Search by a sentence', [search ? '⌥⌘K' : '']],
       ['Logseq’s search', [theirs(by.get('go/search') || '')]],
       ['Logseq’s commands', the('command-palette/toggle')],
     ]],

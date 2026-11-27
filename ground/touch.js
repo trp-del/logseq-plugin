@@ -1111,6 +1111,8 @@ const OPENED = `
 .lk-editor .is-page-title-row { margin-left: 0 !important; gap: 0 !important; }   /* the title's words stand where the line's words stood */
 .lk-editor:has(.ls-page-title) { margin-left: -2px; }
 .lk-dugopen > .lk-editor:has(.ls-page-title) { margin-left: 0; }
+/* A page opened from a line of Relations: its name stays where the line's words stood (26 November 2026). */
+.lk-list[data-viewed] > .lk-rows > .lk-row > .lk-open > .lk-editor:has(.ls-page-title) { margin-left: -6px; }
 .lk-editor .ls-page-icon { align-self: flex-start !important; height: 24px !important; padding: 0 !important; margin: 0 !important; align-items: center !important; }
 .lk-editor .ls-page-icon button { width: 20px !important; height: 24px !important; min-width: 0 !important; padding: 0 !important; }
 .lk-editor .ls-page-icon :is(.ui__icon, svg) { width: 18px !important; height: 18px !important; font-size: 18px !important; }
@@ -1132,6 +1134,9 @@ const OPENED = `
    is moved or taken away. */
 const IN = ':is(#main-content-container, #right-sidebar, .lk-editor)', OWN = ':is(#main-content-container, #right-sidebar)';
 const MARKS = `
+/* A task says it is one by its status circle: the word Task after it is left out (the owner, 26 November 2026). */
+${IN} .ls-block:has(> .block-main-container .block-left.positioned-properties [class*="ls-icon-"]) > .block-main-container .block-tag:has(a.tag[data-ref="task"]) { display: none !important; }
+${IN} .ls-block:has(> .block-main-container .block-left.positioned-properties [class*="ls-icon-"]) > .block-main-container .ls-block-right:has(a.tag[data-ref="task"]):not(:has(a.tag:not([data-ref="task"]))) { display: none !important; }   /* no empty line where it stood */
 ${OWN} a.property-k:not(.lk-editor a) { font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: var(--lk-prop-size) !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
 ${OWN} .property-key-inner > .property-icon { display: none !important; }
 ${IN} :is(.property-panel-row-empty, .bottom-property-pill:has(.empty-value)) a.property-k { color: var(--lk-off) !important; }

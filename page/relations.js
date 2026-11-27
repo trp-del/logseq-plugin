@@ -20,17 +20,18 @@ G.part({
    inside a head, 32 from a head to what it heads, and 54 from one section to the next. */
 .lk-relwrap { margin: 27px 0 20px; padding-left: 18px; font-size: 1rem; font-weight: 400; line-height: 24px; letter-spacing: normal; color: var(--lk-text); cursor: auto; }
 .lk-relwrap:not(:has(.lk-relpage > .lk-list)) { display: none; }
-.lk-relpage { gap: 28px; margin: 28px 0 0 19px; }   /* the lists one step in under the word Relations, as a bullet's children stand under it (the owner, 26 November 2026: "in-line with natural hierarchy") */
+.lk-relpage { gap: 28px; margin: 28px 0 0 -10px; }   /* a list's name on the edge of the word Relations and of the page's property names (26 November 2026); its rows stay one step in under it */
+.lk-relpage > .lk-list > .lk-list-head[data-one] > .lk-list-via { margin-left: calc(var(--lk-mark-box) + var(--lk-mark-gap)); }   /* a head with no arrow keeps the arrow's room */
 .lk-relpage > .lk-list > .lk-rows { margin-left: -7px; }
 .lk-relpage > .lk-list > .lk-more { position: relative; left: -7px; }   /* Show more on its rows' words' edge */   /* a row's dot one step in from its list's name, as Logseq sets a child under its parent */
 .lk-relsec { margin: 0; }
-.lk-relfind-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); margin: 0 var(--lk-mark-gap) 0 -28px; color: var(--lk-quiet); }   /* the words on the edge of the word Relations, the mark hanging before them */
+.lk-relfind-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); margin: 0 var(--lk-mark-gap) 0 -8px; color: var(--lk-quiet); }   /* the magnifier inside the page's edge (the owner, 26 November 2026: "move the spotlight inward") */
 .lk-relsec:not(:has(+ .lk-rel > .lk-list)) { display: none; }
 .lk-relsec > .lk-relhead { display: flex; gap: var(--lk-mark-gap); margin: 0 0 0 -28px;   /* the word on the page's edge, its arrow hanging before it as Logseq's own */ cursor: default; border-radius: 6px; }
 .lk-relsec > .lk-relhead::after { margin-left: 8px; }
 .lk-relsec > .lk-relhead:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-relsec > .lk-relhead .lk-fold { opacity: 0; margin-top: 0; }
-.lk-relsec > .lk-relhead:hover .lk-fold, .lk-relsec > .lk-relhead[aria-expanded="false"] .lk-fold { opacity: 1; }
+.lk-relsec > .lk-relhead:hover .lk-fold, .lk-relsec > .lk-relhead:focus-visible .lk-fold, .lk-relsec > .lk-relhead[aria-expanded="false"] .lk-fold { opacity: 1; }
 .lk-relsec > .lk-relhead[aria-expanded="true"] .lk-fold svg { transform: rotate(90deg); }
 .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) + .lk-rel, .lk-relsec:has(> .lk-relhead[aria-expanded="false"]) > .lk-relfind { display: none; }
 .lk-relfind { display: flex; align-items: center; margin: 6px 0 0; }
@@ -38,7 +39,6 @@ G.part({
 .lk-relfind .lk-field { flex: 1; min-width: 0; border: 0; border-bottom: 1px solid transparent; outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); line-height: 24px; padding: 2px 0; box-shadow: none; border-radius: 0; }
 .lk-relfind .lk-field:focus, .lk-relfind .lk-field:not(:placeholder-shown) { border-bottom-color: var(--lk-line); }
 .lk-relfind .lk-field::placeholder { color: var(--lk-quiet); }
-.lk-relsec > .lk-relhead .lk-fold { opacity: 1 !important; }
 .lk-relsec > .lk-relhead:hover .lk-fold { color: var(--lk-text); }
 .lk-relday { display: inline-flex; flex: none; font-size: var(--lk-small); }
 .lk-relday[hidden] { display: none; }`);
@@ -47,7 +47,7 @@ G.part({
     const doc = G.host();
     const section = (page, foot) => {
       const head = foot.previousElementSibling, uuid = page.uuid;
-      head.innerHTML = `<div class="lk-relhead" role="button" tabindex="0" aria-expanded="${!shut.read().has(uuid)}"><span class="lk-fold">${G.node.CHEV}</span>Relations</div><div class="lk-relfind" hidden><span class="lk-relfind-icon">${G.touch.icon('search', 15)}</span><input class="lk-field" type="text" placeholder="Find in these" title="Words narrow every list. A day turns the lists back: on Oct 7" aria-label="Find in Relations" spellcheck="false" autocomplete="off"><span class="lk-relday" hidden><button type="button" class="lk-btn lk-low" data-by="-7">‹ a week earlier</button><button type="button" class="lk-btn lk-low" data-by="7">a week later ›</button><button type="button" class="lk-btn lk-low" data-by="0">Today</button></span></div>`;
+      head.innerHTML = `<div class="lk-relhead" role="button" tabindex="0" aria-expanded="${!shut.read().has(uuid)}"><span class="lk-fold">${G.node.CHEV}</span>Relations</div><div class="lk-relfind" hidden><span class="lk-relfind-icon">${G.touch.icon('search', 15)}</span><input class="lk-field" type="text" placeholder="Search" title="Words narrow every list. A day turns the lists back: on Oct 7" aria-label="Find in Relations" spellcheck="false" autocomplete="off"><span class="lk-relday" hidden><button type="button" class="lk-btn lk-low" data-by="-7">‹ a week earlier</button><button type="button" class="lk-btn lk-low" data-by="7">a week later ›</button><button type="button" class="lk-btn lk-low" data-by="0">Today</button></span></div>`;
       const line = head.firstElementChild, find = head.lastElementChild, field = find.querySelector('.lk-field');
       // On a day: a week earlier, a week later, and back to today.
       const steps = find.lastElementChild, today = () => G.days.number(new Date());

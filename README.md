@@ -39,7 +39,8 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 - one list for each of your properties that points at the page, named by the property; on a journal day, Logseq's Scheduled
   and Deadline; then **Mentioned in**;
 - a tag every row of a list shares is said once, beside the list's name;
-- the lists stand under the quiet word **Relations** and a hairline;
+- the lists stand under the quiet word **Relations** and a hairline, each list's name on that word's edge; its fold arrow, as
+  a bullet's, shows under the pointer; the find line under it says **Search**;
 - rows carry their day right after the bullet, in a column of its own before the words (a Date property, else the journal day they were written on), newest first; in a narrow place the day stands under the words;
 - a long list shows ten rows, then **Show 43 more**, saying how many wait;
 - what a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads; the
@@ -52,7 +53,8 @@ A row:
 | Do | Result |
 |---|---|
 | Click the line, or Enter on it | The node opens in place: Logseq's own editor for it, then what points at it |
-| Click the arrow, or Escape once nothing is being written | The opened node closes; Escape closes the innermost first |
+| Click the arrow, or Escape once nothing is being written | The opened node closes; Escape closes the innermost first. The arrow then fades again |
+| Click the bullet | Goes to that node, as Logseq's bullet does (in Search, Todo and Relations alike) |
 | Shift-click, or Shift-Enter | Opens the node in the right sidebar |
 | ⌘-click | In the main view, opens the node beside the page you are on (Two pages side by side) |
 | Click a link in the line | Goes to that node |
@@ -193,10 +195,10 @@ setting gives Cmd-K back to Logseq's own search). It does what Find did (the own
   then the rest Logseq found; grouped by kind, the kinds among them offered above. The typed letters are marked a step heavier.
 - A kind taken: its nodes (and those of the kinds under it), newest first, and above them what they hold to narrow by, each
   value with how many hold it, then the months. A value or month pressed becomes a piece; words narrow further.
-- **By sentence** (the press at the line's end, or Option-Cmd-K): "Consultation with Mei Chen around Aug 2026" is read as a
-  kind, a value and a time, each said under the line with what it was read as; the time is a strip of months, and the nodes
-  just outside it follow under **Near**. A page named alone gives what points at it. Tab puts the lit choice's name in place of
-  the letters that lit it.
+- One line does it all; there are no ways of searching to switch between. "Consultation with Mei Chen around Aug 2026" typed
+  there is read as a kind, a value and a time, each said under the line with what it was read as; the time is a strip of months,
+  and the nodes just outside it follow under **Near**. Words that name no time, and no kind with something else, are plain
+  words, and so is a sentence that finds nothing. Tab puts the lit choice's name in place of the letters that lit it.
 
 | Do | Result |
 |---|---|
@@ -340,7 +342,8 @@ in one column as wide as the longest of them, the values in the next. Every row 
 Logseq's own list, date picker or field, and Cmd-Z takes a change back. A property with no value is not listed. What points at
 the node stands under its rows, under the word Relations and a thin line.
 
-A value that is a node has a small arrow before it. A press on the arrow digs: that node opens under its value, starting where
+A value that is a node has a small arrow before it. A press on the arrow digs: that node opens under its value (its name is not
+said again), starting a step in from where
 the value's words start, with a guide line down from the arrow. It reads the same way (its rows, its Relations) and its own
 values are dug into in turn. A second press on the arrow closes it. A press on the value's name stays Logseq's: it goes to
 that page, and with Shift, Cmd, Ctrl or Option it does what Logseq does (the sidebar, a new window).

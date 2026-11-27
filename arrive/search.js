@@ -9,9 +9,10 @@
      after the words), then the rest of what Logseq found; the kinds among them are the choices.
    - A kind taken: its nodes, newest first, and above them what they hold to narrow by, each value with how many hold it (Provider,
      Topic …), then the months. A value or a month pressed or taken by Tab becomes a piece; words then narrow further.
-   - By sentence (Option-Cmd-K, or the press at the line's end): "Consultation with Mei Chen around Aug 2026" is read as a kind, a
-     value and a time, each said over what it read; the time shows as a strip of months, and the nodes just outside it follow
-     under "Near". Tab puts the lit choice's name in place of the letters that lit it.
+   - One line, no ways to switch between: "Consultation with Mei Chen around Aug 2026" typed there is read as a kind, a value
+     and a time, each said over what it read; the time shows as a strip of months, and the nodes just outside it follow under
+     "Near". Words that name no time and no kind with something else are plain words, and so is a sentence that finds nothing.
+     Tab puts the lit choice's name in place of the letters that lit it.
    - A row: the fold arrow, or Right, opens the node in place under its line; a press on the line, or Enter, goes to the node in
      the main view, Shift to the sidebar; right-click is the line's own menu.
      Escape  empties the words, then lets go of the pieces, then of the line     Backspace on an empty line  takes the last piece off
@@ -22,7 +23,7 @@ const G = window.PluginDoor, S = G.search, R = G.sentence;
 const LOOK = 'M3 10a7 7 0 1 0 14 0a7 7 0 1 0 -14 0M21 21l-6 -6';   // a magnifier, as Logseq's own line icons are drawn
 const FEW = { kind: 3, value: 3, month: 4 };   // what a line of choices shows before its "more", as Find did
 G.part({
-  key: 'search', title: 'Search', about: 'A section of the right sidebar to search your notes: kinds, values and months to narrow by, by pieces or by a sentence, opening in the main view or in place. Cmd-K opens it.',
+  key: 'search', title: 'Search', about: 'A section of the right sidebar to search your notes: kinds, values and months to narrow by, words or a whole sentence in one line, opening in the main view or in place. Cmd-K opens it.',
   settings: [{ key: 'searchTakesSearchKey', type: 'boolean', default: true, title: 'Search opens on Cmd-K', description: 'Off: Cmd-K stays Logseq’s own search, and the plugin’s opens from the command palette.' }],
   start(base) {
     base.style('search', `
@@ -32,14 +33,13 @@ G.part({
 .lk-search-piece { flex: none; padding: 0; border: 0; background: none; color: var(--lk-text); font: inherit; cursor: pointer; }
 .lk-search-piece:hover, .lk-search-piece:focus-visible { text-decoration: line-through; text-decoration-color: var(--lk-quiet); outline: none; }
 .lk-search-piece .lk-prop { margin-right: 4px; }
-.lk-search-way { flex: none; margin-left: auto; padding: 0; border: 0; background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; }
-.lk-search-way:hover, .lk-search-way:focus-visible { color: var(--lk-text); outline: none; }
 .lk-search-read { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 0 0; }
 .lk-search-read[hidden], .lk-search-choices[hidden], .lk-search-none[hidden], .lk-search .lk-time[hidden] { display: none; }
 .lk-search-read > span { display: inline-flex; flex-direction: column; }
 .lk-search-read small { font-size: var(--lk-label); color: var(--lk-quiet); line-height: 1.2; }
 .lk-search-choices { display: flex; flex-direction: column; gap: 8px; padding: 10px 0 4px; }
 .lk-choice-line { display: flex; flex-direction: column; gap: 2px; }
+.lk-choice-name[hidden] { display: none; }
 .lk-choice-name { font-size: var(--lk-label); color: var(--lk-quiet); }
 .lk-choice-name.lk-prop { font-size: var(--lk-label); }
 .lk-choice-vals { display: flex; flex-wrap: wrap; gap: 0 10px; margin-left: -4px; }
@@ -75,8 +75,8 @@ G.part({
     const draw = holder => {
       const doc = holder.ownerDocument, win = doc.defaultView;
       holder.classList.add('lk-search', 'lk-day-end');
-      holder.innerHTML = '<div class="lk-add"><span class="lk-search-pieces" style="display:contents"></span><input class="lk-field" type="text" placeholder="Search" spellcheck="false" autocomplete="off" aria-label="Search"><button type="button" class="lk-search-way" title="Search by a sentence (⌥⌘K)">By sentence</button></div><div class="lk-search-read" hidden></div><div class="lk-time" hidden></div><div class="lk-search-choices" hidden></div><div class="lk-search-none" hidden>Nothing holds these words</div><div class="lk-rel"></div>';
-      const field = holder.querySelector('.lk-field'), piecesEl = holder.querySelector('.lk-search-pieces'), wayEl = holder.querySelector('.lk-search-way'), readEl = holder.querySelector('.lk-search-read'),
+      holder.innerHTML = '<div class="lk-add"><span class="lk-search-pieces" style="display:contents"></span><input class="lk-field" type="text" placeholder="Search" spellcheck="false" autocomplete="off" aria-label="Search"></div><div class="lk-search-read" hidden></div><div class="lk-time" hidden></div><div class="lk-search-choices" hidden></div><div class="lk-search-none" hidden>Nothing holds these words</div><div class="lk-rel"></div>';
+      const field = holder.querySelector('.lk-field'), piecesEl = holder.querySelector('.lk-search-pieces'), readEl = holder.querySelector('.lk-search-read'),
         timeEl = holder.querySelector('.lk-time'), choicesEl = holder.querySelector('.lk-search-choices'), noneEl = holder.querySelector('.lk-search-none'), rel = holder.querySelector('.lk-rel');
       const box = { holder, field, sentence: false, picks: [], text: '', more: new Set(), lit: null, choices: [], timer: 0, turn: 0 };
       boxes.add(box);
@@ -91,7 +91,7 @@ G.part({
         choicesEl.hidden = !lines.length;
         choicesEl.replaceChildren(...lines.map(line => {
           const el = doc.createElement('div'); el.className = 'lk-choice-line';
-          const name = doc.createElement('div'); name.className = 'lk-choice-name' + (line.face === 'prop' ? ' lk-prop' : ''); name.textContent = line.name;
+          const name = doc.createElement('div'); name.className = 'lk-choice-name' + (line.face === 'prop' ? ' lk-prop' : ''); name.textContent = line.name; name.hidden = line.kind === 'kind';   // the kinds say what they are
           const all = box.more.has(line.key), few = FEW[line.kind] || 3, lit = box.lit && line.items.includes(box.lit);
           let items = all ? line.items : line.items.slice(0, few);
           if (!all && lit && !items.includes(box.lit)) items = [...items.slice(0, few - 1), box.lit];   // the lit one always shows
@@ -114,14 +114,12 @@ G.part({
           else b.append(pick.label);
           return b;
         }));
-        wayEl.textContent = box.sentence ? 'By pieces' : 'By sentence';
-        wayEl.title = box.sentence ? 'Search by pieces (⌥⌘K)' : 'Search by a sentence (⌥⌘K)';
-        field.placeholder = box.sentence ? 'Consultation with Mei Chen around August' : tagOf() ? 'Words, a value, a month' : box.picks.length ? 'Words' : 'Search';
+        field.placeholder = tagOf() ? 'Words, a value, a month' : box.picks.length ? 'Words' : 'Search';
       };
       // What a sentence read, said over what it read (kind, the property's name, page, when).
       const drawRead = picks => paint.push(() => drawReadNow(picks));
       const drawReadNow = picks => {
-        readEl.hidden = !box.sentence || !picks.length;
+        readEl.hidden = !picks.length;
         readEl.replaceChildren(...picks.map(pick => {
           const el = doc.createElement('span'), note = doc.createElement('small'), what = doc.createElement('span');
           note.textContent = pick.kind === 'tag' ? 'kind' : pick.kind === 'value' ? pick.prop : pick.kind === 'page' ? 'page' : 'when';
@@ -177,8 +175,13 @@ G.part({
         drawRead([]); paint.push(() => { timeEl.hidden = true; });
         if (tag) {
           const base = (await kindNodes(tag)).filter(node => S.holds(node, rest));
-          drawChoices(valueLines(base, rest), want);
-          return { rows: await placed(shown(base, text), false) };
+          const said = R.read(text, {}), time = said.picks.find(pick => pick.kind === 'when');
+          drawChoices(valueLines(base, rest.concat(time ? [time] : [])), time ? said.trail : want);
+          if (!time) return { rows: await placed(shown(base, text), false) };
+          drawRead([time]);
+          const held = shown(base, said.words.join(' ')), inside = held.filter(node => node.day && node.day >= time.from && node.day <= time.to);
+          const near = held.filter(node => node.day && (node.day < time.from || node.day > time.to) && node.day >= time.nearFrom && node.day <= time.nearTo);
+          return { rows: await placed(inside, false), near: await placed(near, false) };
         }
         const { tags, counts } = await kindCounts();
         if (!text) {
@@ -238,10 +241,22 @@ G.part({
         if (time && dots.length) paint.push(() => G.timeline.strip(timeEl, dots, G.days.number(new Date()), dot => { const line = holder.querySelector(`.lk-row[data-uuid="${dot.uuid}"] > .lk-line`); if (line) { line.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); line.focus({ preventScroll: true }); } }));
         return { rows: await placed(nodes, !tag), near: await placed(near, !tag) };
       };
+      // One line, no ways to switch between (the owner, 26 November 2026: "one unified search like the original find"): words that
+      // name a time together with something else, or a kind with something else, are read as a sentence; the rest as plain words.
+      const asSentence = async () => {
+        if (box.picks.length || !box.text.trim()) return false;
+        const [{ tags }, pages] = await Promise.all([kindCounts(), G.read.pageNames()]);
+        const kinds = byNorm([...tags.values()], one => one.title);
+        return R.sentenceLike(R.read(box.text, { kinds, pages: byNorm(pages.filter(page => !kinds.has(R.norm(page.title))), page => page.title), values: null }));
+      };
       const read = async () => {
         const turn = ++box.turn, mine = paint = [];
         drawPieces();
-        const got = box.sentence ? await readSentence() : await readPieces();
+        const sentence = await asSentence();
+        if (turn !== box.turn) return [];
+        box.sentence = sentence;
+        let got = sentence ? await readSentence() : await readPieces();
+        if (sentence && !got.rows.length && !got.near?.length && turn === box.turn) { mine.length = 0; box.sentence = false; got = await readPieces(); }   // a sentence that finds nothing is plain words
         if (turn !== box.turn) return [];   // a later letter has overtaken this answer: the list drops it too
         for (const job of mine) job();
         noneEl.hidden = !!(got.rows.length || got.near?.length) || got.recent || !(box.text.trim() || box.picks.length);
@@ -253,12 +268,11 @@ G.part({
       const mark = () => { const want = box.sentence ? R.read(box.text, box.names || {}).words : S.tokens(box.text); for (const words of rel.querySelectorAll('.lk-line > .lk-words')) G.node.hit(words, want); };
       rel.addEventListener('lk-drawn', mark);
       const again = () => list.again();
-      box.take = tag => { box.sentence = false; box.picks = tag ? [{ kind: 'tag', tag }] : []; box.text = ''; field.value = ''; box.more.clear(); again(); field.focus(); };
-      box.way = () => { box.sentence = !box.sentence; box.picks = []; box.text = field.value = ''; box.more.clear(); again(); field.focus(); };
+      box.take = tag => { box.picks = tag ? [{ kind: 'tag', tag }] : []; box.text = ''; field.value = ''; box.more.clear(); again(); field.focus(); };
       box.again = () => { kept.clear(); again(); };
       const onInput = () => { box.text = field.value; win.clearTimeout(box.timer); box.timer = win.setTimeout(again, tagOf() ? 0 : 140); };
       const make = async () => {
-        const name = field.value.trim(); if (!name || box.sentence || tagOf()) return;
+        const name = field.value.trim(); if (!name || tagOf()) return;
         try { G.touch.open(await G.write.newPage(name)); } catch (error) { G.say(`The page could not be made: ${error?.message || 'Logseq refused'}`, 'warning'); }
       };
       const onKey = event => {
@@ -297,16 +311,15 @@ G.part({
         if (to) { event.preventDefault(); event.stopPropagation(); to.focus(); }
       };
       const onPiece = event => { const piece = event.target.closest('.lk-search-piece'); if (!piece) return; box.picks.splice(Number(piece.dataset.i), 1); box.more.clear(); again(); field.focus(); };
-      const onWay = () => box.way();
       field.addEventListener('input', onInput); field.addEventListener('keydown', onKey);
       choicesEl.addEventListener('click', onChoice); choicesEl.addEventListener('keydown', onChoice);
-      piecesEl.addEventListener('click', onPiece); wayEl.addEventListener('click', onWay);
+      piecesEl.addEventListener('click', onPiece);
       drawPieces();
       return () => {
         boxes.delete(box); win.clearTimeout(box.timer);
         field.removeEventListener('input', onInput); field.removeEventListener('keydown', onKey);
         choicesEl.removeEventListener('click', onChoice); choicesEl.removeEventListener('keydown', onChoice);
-        piecesEl.removeEventListener('click', onPiece); wayEl.removeEventListener('click', onWay);
+        piecesEl.removeEventListener('click', onPiece);
         rel.removeEventListener('lk-drawn', mark); list.off();
       };
     };
@@ -317,16 +330,14 @@ G.part({
       section.open();
       for (let tries = 0; tries < 20; tries++) {
         const box = [...boxes].find(one => one.holder.isConnected && one.field.offsetParent);   // on screen: a line not yet shown takes no keys (the sidebar giving up a page shown beside)
-        if (box) { if (how.tag) box.take(how.tag); if (how.sentence != null && box.sentence !== how.sentence) box.way(); box.field.focus(); box.field.select(); return; }
+        if (box) { if (how.tag) box.take(how.tag); box.field.focus(); box.field.select(); return; }
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     };
     G.touch.command('lk-search', 'Search', () => focus());
-    G.touch.command('lk-search-sentence', 'Search by a sentence', () => focus({ sentence: true }));
     G.arrive = { ...(G.arrive || {}), search: async id => focus({ tag: (await G.read.tags()).get(id) || null }) };
     base.onStop(() => { G.arrive = { ...(G.arrive || {}), search() {} }; });
     base.onStop(G.touch.key('mod+k', () => { if (G.setting('searchTakesSearchKey') === false) return false; focus(); }));
-    base.onStop(G.touch.key('mod+alt+k', () => { const box = [...boxes].find(one => one.holder.isConnected && one.holder.contains(one.holder.ownerDocument.activeElement)); if (box) { box.way(); return; } focus({ sentence: true }); }));
     base.onStop(G.touch.changed(() => { kept.clear(); for (const box of boxes) if (box.holder.isConnected) box.again(); }));
   },
 });

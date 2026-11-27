@@ -162,23 +162,37 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       for (let i = 0; i < 2; i++) { await page.keyboard.press('Escape'); await wait(400); }
       return is([...bare, lit, lines.includes('Provider') && lines.includes('When'), ...after], [true, 'Recently opened', 'Consultation', true, ['Consultation', 'ProviderDr. Mei Chen'], true]);
     });
-    await step('Search by sentence reads a kind, a value and a time, and puts the near ones under Near', async () => {
-      await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Meta+Alt+k'); await wait(800);
+    await step('a sentence typed in the one Search line reads a kind, a value and a time, and puts the near ones under Near', async () => {
+      await page.locator('.lk-search .lk-field').focus(); await wait(300);
       await page.keyboard.type('Consultation with mei chen around Aug 2026', { delay: 20 }); await wait(2500);
       const got = await page.evaluate(() => [[...document.querySelectorAll('.lk-search-read small')].map(el => el.textContent), [...document.querySelectorAll('.lk-search .lk-list-name')].map(el => el.textContent).filter(Boolean), !document.querySelector('.lk-search .lk-time').hidden]);
-      await page.keyboard.press('Meta+a'); await page.keyboard.press('Backspace'); await page.keyboard.press('Meta+Alt+k'); await wait(800);
+      await page.keyboard.press('Meta+a'); await page.keyboard.press('Backspace'); await wait(800);
       // Search closed again, so the steps after it find their own rows (Search shows the pages opened last when empty).
       await page.locator('#right-sidebar .sidebar-item', { has: page.locator('.lk-search') }).first().locator('.item-actions button').last().click().catch(() => {}); await wait(800);
       return is(got, [['kind', 'Provider', 'when'], ['Near'], true]);
     });
-    await step('a node dug into names itself and never lists the node it was dug from', async () => {
+    await step('a node dug into is named once, on its value, and never lists the node it was dug from', async () => {
       const row = page.locator('#main-content-container .lk-row', { hasText: 'Video call' }).first(), uuid = await row.getAttribute('data-uuid');
       await row.locator('.lk-words').click(); await wait(2200);
       await page.evaluate(() => { const a = [...document.querySelectorAll('#main-content-container .lk-editor .property-value-inner[data-type=node] a.page-ref')].pop(); const r = a.getBoundingClientRect(); a.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + 3, clientY: r.top + 8 })); });
       await wait(2200);
-      const got = await page.evaluate(u => [!!document.querySelector('.lk-dugopen > .lk-dugname')?.textContent.trim(), document.querySelectorAll(`.lk-dugopen .lk-row[data-uuid="${u}"]`).length], uuid);
+      const got = await page.evaluate(u => [!document.querySelector('.lk-dugname'), document.querySelectorAll(`.lk-dugopen .lk-row[data-uuid="${u}"]`).length], uuid);
       await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('Escape'); await wait(300);
       return is(got, [true, 0]);
+    });
+    await goto(CHEN);
+    await step('the kinds at a list\'s head answer a press inside an opened node, a row\'s arrow goes again once it is closed, and its bullet goes to it', async () => {   // the owner, 26 November 2026: "this is not working. I'm clicking on these."
+      const row = page.locator('#main-content-container .lk-relpage .lk-row').first(); await row.locator('.lk-words').click(); await wait(2200);
+      await row.locator(':scope > .lk-fold').click(); await wait(500); await page.mouse.move(2, 2); await wait(300);
+      const shown = await row.locator(':scope > .lk-fold').evaluate(el => getComputedStyle(el).opacity);
+      await goto(NORTHGATE);
+      await page.locator('#main-content-container .lk-relpage .lk-row .lk-words').first().click(); await wait(2500);
+      const tab = page.locator('.lk-row > .lk-open .lk-tab[data-kind]:not([data-kind=""])').first(); let on = 'no kinds inside';
+      if (await tab.count()) { await tab.click(); await wait(900); on = await page.locator('.lk-row > .lk-open .lk-tab.on[data-kind]:not([data-kind=""])').count() > 0; }
+      await page.keyboard.press('Escape'); await wait(500);
+      const target = page.locator('#main-content-container .lk-relpage .lk-row').first(), uuid = await target.getAttribute('data-uuid');
+      await target.locator(':scope > .lk-line > .lk-bul').click(); await wait(1500);
+      return is([shown, on === true || on, await page.evaluate(u => location.hash.includes(u), uuid)], ['0', true, true]);
     });
     await goto(FATIGUE);
     await step('a list folded lets go of the kind it was narrowed to', async () => {
@@ -369,7 +383,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const dug = await row.evaluate(el => { const holder = el.querySelector(':scope > .lk-open'), box = holder.querySelector(':scope > .lk-dugopen'), value = holder.querySelector(':scope > .lk-editor .property-value-inner[data-type="node"] a.page-ref');
         const left = one => { const walk = document.createTreeWalker(one, NodeFilter.SHOW_TEXT); let text; while ((text = walk.nextNode())) { const range = document.createRange(); range.selectNodeContents(text); const at = range.getBoundingClientRect(); if (text.textContent.trim() && at.width) return at.left; } return null; };
         const under = box.getBoundingClientRect(), valueRow = value.closest('.bottom-property-pill, .property-pair'), next = valueRow.nextElementSibling;
-        return [box.dataset.node, Math.round(under.top - valueRow.getBoundingClientRect().bottom), next ? next.getBoundingClientRect().top >= under.bottom - 1 : true, Math.abs(left(box) - left(value)) < 1.5]; });
+        return [box.dataset.node, Math.round(under.top - valueRow.getBoundingClientRect().bottom), next ? next.getBoundingClientRect().top >= under.bottom - 1 : true, Math.abs(left(box) - left(value) - 14) < 1.5]; });   // a step in, so its rows' arrows stand clear of its line (the owner, 26 November 2026)
       const stayed = (await page.evaluate(() => location.hash)) === hash;
       await page.keyboard.press('Escape'); await wait(700);
       const afterOne = [await row.locator('.lk-dugopen').count(), await row.getAttribute('data-open')];
@@ -674,7 +688,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.up('Alt'); await wait(300); const stayed = await sheet();
       return is([early, held?.stays, held?.presses, held?.heads, stayed?.stays, stayed?.keys, await page.evaluate(() => document.querySelector('.lk-sheet').offsetHeight) - size], [null, false, 'none', ['Writing', 'Arranging bullets', 'Finding', 'Moving around', 'Two letters, outside a bullet'], true, true, 0]);
     });
-    await step('the sheet says each key as it is: Logseq\'s and the plugin\'s, and no Cmd-K for Logseq\'s search while Search takes it', async () => { const got = await lines(); return is(['Undo, redo = ⌘Z ⌘⇧Z', 'Indent, outdent = ⇥ ⇧⇥', 'Search = ⌘K', 'Search by a sentence = ⌥⌘K', 'Todo = g d', 'Update plugins = u p'].filter(want => !got.includes(want)).concat(got.filter(line => line.startsWith('Logseq’s search'))), []); });
+    await step('the sheet says each key as it is: Logseq\'s and the plugin\'s, and no Cmd-K for Logseq\'s search while Search takes it', async () => { const got = await lines(); return is(['Undo, redo = ⌘Z ⌘⇧Z', 'Indent, outdent = ⇥ ⇧⇥', 'Search = ⌘K', 'Todo = g d', 'Update plugins = u p'].filter(want => !got.includes(want)).concat(got.filter(line => line.startsWith('Logseq’s search'))), []); });
     await step('letters typed find among the keys and reach nothing else; Up and Down light a line; Escape clears, then closes', async () => {
       const theme = () => page.evaluate(() => document.documentElement.className + document.documentElement.dataset.theme), before = await theme();
       await page.keyboard.type('t t', { delay: 60 }); await wait(500); const same = await theme() === before;
