@@ -39,7 +39,7 @@ G.part({
       // A day said in the words ("by friday") becomes the task's Deadline and leaves the words; it is said at the line's right before Return.
       const offAdd = G.node.adder(holder, 'Add or find a todo', async words => {
         const read = G.todo.dayIn(words, G.days.number(new Date())), made = await G.write.addTask(read ? read.words : words, read ? read.day : 0);
-        doc.defaultView.setTimeout(() => narrow(), 0);   // the line empties without a key: the list is whole again, and the day said at its right goes
+        doc.defaultView.setTimeout(() => narrow(true), 0);   // the line empties without a key: the list is whole again with the new task in it, and the day said at its right goes
         return made;
       }, 'The task could not be added');
       const field = holder.firstElementChild.firstElementChild, hint = doc.createElement('span'); hint.className = 'lk-todo-hint'; field.after(hint); hint.after(viewEl);
@@ -53,15 +53,25 @@ G.part({
       let by = BY[kept('lk.todo-by', 'day')] ? kept('lk.todo-by', 'day') : 'day', sort = kept('lk.todo-sort', 'day') === 'name' ? 'name' : 'day', out = new Set(kept('lk.todo-out', []));
       let dayAt = kept('lk.todo-date-at', 'end');   // where a task's day stands: 'start' or 'end' of its line
       let held = new Set();   // every open task, listed or not
-      const read = async () => {
-        const [all, statuses] = await Promise.all([G.read.tasks(), G.read.statuses()]), today = G.days.number(new Date());
-        held = new Set(all.map(task => task.uuid));
-        const titleOf = new Map(statuses.map(status => [status.id, status.title])), open = statuses.filter(status => all.some(task => task.status === status.id));
-        const listed = all.filter(task => !out.has(titleOf.get(task.status) || ''));
+      /* What the graph holds is asked for when it may have changed (the list reads again by itself at a change), when what is
+         listed or how it is grouped is chosen, and when the day turns over. Narrowing the list to the words typed asks nothing:
+         it shapes the last reading again (narrow says so in fresh, which the list's next reading takes; the list reads at once). */
+      let got = null, fresh = true;
+      const gather = async () => {
+        const [all, statuses] = await Promise.all([G.read.tasks(), G.read.statuses()]);
+        const titleOf = new Map(statuses.map(status => [status.id, status.title])), listed = all.filter(task => !out.has(titleOf.get(task.status) || ''));
         // Where each task sits: its page, then the bullet it is under. Said under a task's words, except what the group's own heading says.
         const sits = await G.read.where(listed.map(task => task.id));
         // The names of the nodes linked in a task's words and in the words of where it sits: a link reads as its name, never as its id.
         const names = await G.read.names([...new Set([...listed.map(task => task.words), ...[...sits.values()].flat().map(step => step.words)].flatMap(G.words.named))]);
+        return { all, statuses, titleOf, listed, sits, names };
+      };
+      const read = async () => {
+        if (fresh || !got) { const asked = got = gather(); asked.catch(() => { if (got === asked) got = null; }); }   // a reading that failed is not kept
+        fresh = true;
+        const { all, statuses, titleOf, listed, sits, names } = await got, today = G.days.number(new Date());
+        held = new Set(all.map(task => task.uuid));
+        const open = statuses.filter(status => all.some(task => task.status === status.id));
         // The strip of time: every listed task that has a day, a late one in red; a press on a dot goes to its line.
         const dots = listed.filter(task => task.day).map(task => ({ day: task.day, title: G.words.plain(task.words, names), uuid: task.uuid, late: task.day < today }));
         timeEl.hidden = dots.length < 5;   // a strip of two or three dots says less than the lines under it
@@ -92,12 +102,13 @@ G.part({
               ...(has ? [{ gap: true }, { word: 'Remove deadline', take: () => change(G.write.setDeadline(uuid, 0)).catch(refused('The deadline could not be taken off')) }] : [])]); } }];
       };
       const list = G.node.listing(holder.lastElementChild, read, { few: 30, none: 'No open tasks', dayStart: () => dayAt === 'start', more, leaves: uuid => !held.has(uuid) });
-      const narrow = () => {
+      const narrow = anew => {   // anew: the graph was written to (a task added), so it is read again
         const now = field.value.trim().toLowerCase(), said = G.todo.dayIn(field.value, G.days.number(new Date()));
         hint.textContent = said ? G.days.short(said.day) : '';   // a day is written one way everywhere
-        if (now !== typed) { typed = now; list.again(); }
+        if (now !== typed) { typed = now; fresh = anew === true; list.again(); }
       };
-      field.addEventListener('input', narrow); field.addEventListener('keyup', narrow);
+      const onTyped = () => narrow(false);
+      field.addEventListener('input', onTyped); field.addEventListener('keyup', onTyped);
       const onView = event => {
         const button = event.target.closest('button'); if (!button) return;
         if (button.dataset.of === 'by') return void G.menu(button, [{ group: 'Group by' }, ...Object.entries(BY).map(([key, word]) => ({ word: word.slice(3, 4).toUpperCase() + word.slice(4), on: key === by, take: () => { by = key; keep('lk.todo-by', by); list.again(); } })),
@@ -111,7 +122,7 @@ G.part({
       // The day turns over while the window stays open: read again when it does.
       let today = G.days.number(new Date());
       const tick = doc.defaultView.setInterval(() => { const now = G.days.number(new Date()); if (now !== today) { today = now; list.again(); } }, 60000);
-      return () => { doc.defaultView.clearInterval(tick); viewEl.removeEventListener('click', onView); field.removeEventListener('input', narrow); field.removeEventListener('keyup', narrow); offAdd(); list.off(); };
+      return () => { doc.defaultView.clearInterval(tick); viewEl.removeEventListener('click', onView); field.removeEventListener('input', onTyped); field.removeEventListener('keyup', onTyped); offAdd(); list.off(); };
     };
     // In the sidebar from the corner; in the middle of the window, a page of its own, from the command or g then d.
     const section = G.touch.section('lk-todo', 'Todo', draw, CHECK), page = G.touch.page('lk-todo-page', 'Todo', draw);
