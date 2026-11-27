@@ -1,7 +1,9 @@
 /* GROUND: the one fenced place where the plugin touches Logseq's own screen. Every name of Logseq's markup, every call that is
    not in its plugin API, and every piece of Logseq lent to the plugin stands here and nowhere else, so a Logseq update is
    checked against this one file. Seen in Logseq 2.0.2.
-     touch.watch(fn)          fn runs once a frame after Logseq's page changed; gives back what stops it
+     touch.watch(fn, { at, words })   fn runs once a frame after Logseq's page changed; gives back what stops it. at (a
+                              selector): fn runs at once instead, before the page is painted, and only when the change lies
+                              in, or brings in, such an element. words: fn also runs when only letters changed
      touch.changed(fn, atOnce) fn runs a moment after the graph changed (atOnce: at every change, so it must be light); gives
                               back what stops it
      touch.writing()          the text box of the bullet being written in, or null
@@ -36,7 +38,9 @@
                               each change of the screen until stopped; wayOut(press) the arrow after the line of steps;
                               route(), address(), has(uuid), top(uuid), focused(), into(uuid), stepUp(), parent(uuid), go(uuid), back(address),
                               and the embed and selection pieces
-     touch.command(key, label, run)   a line in Logseq's command palette; touch.commands() the ones made, { name, label, run };
+     touch.command(key, label, run, keys)   a line in Logseq's command palette, with keys where the plugin gives it some:
+                              those keys are Logseq's "non-editing" kind, which does not fire while a bullet is written;
+                              touch.commands() the ones made, { name, label, run };
                               touch.logseqCommands() Logseq's own, { id, label, key, run }; each key is the one in force
                               once touch.keysRead() has read the graph's config
      touch.keepPlace()        where the keys are now; gives back what returns them there
@@ -72,7 +76,13 @@
      touch.pictures(files)    files of the graph's assets folder as a page can load them: a function file -> address
      touch.queryShown(uuid)   a query's table as it is drawn on screen: { columns, order } or null
      touch.dragBand()         how tall the band at the window's top is that moves the window, where no press reaches the page
-     touch.graphChanged(fn)   fn runs when another graph is opened; gives back what stops it
+     touch.graphChanged(fn)   fn runs when another graph is opened; gives back what stops it. Before fn, the ground lets go of
+                              all it remembers of the graph before, and every touch.changed is told as after a change
+     touch.kept(name, fallback)   what the window remembers on this Mac (its local storage), one small thing by its name
+                              ('lk.…'): { get(), set(value), drop() }; a value is anything JSON keeps
+     touch.keptParts(name, most)  many small things under one name, each written by itself, so a change writes that one and
+                              never the whole; past most (300) the ones written longest ago are let go:
+                              { get(key, fallback), set(key, value), drop(key), keys() }
      touch.search(words, limit)   Logseq's own search: the ids of what it finds, in its order; null where it does not answer
      touch.makeProperty(name, type, many), touch.makeTag(name)   a property, a tag of the person's own, made by the calls
                               Logseq's documentation leaves out (ground/write.js newProperty and newTag are what a part calls)
@@ -87,23 +97,53 @@ const host = () => G.host();
 const PAGE = '.cp__page-inner-wrap', PAGE_NODE = '.ls-page-title .ls-block[blockid]', FIRST_NODE = '.ls-page-blocks .ls-block[blockid]', FEED = '.journal-item';
 const OURS = '.lk-open, .lk-rel, .lk-ghost';   // what is the plugin's own on Logseq's screen, never read as a page of Logseq's
 
-// One watcher of Logseq's page for every part: passes run once a frame, whatever changed and however often.
-const passes = new Set(); let observer = null, queued = false;
-function run() { queued = false; for (const fn of [...passes]) { try { fn(); } catch (error) { console.error('Logseq Plugin: a pass over the page failed', error); } } }
-function watch(fn) {
-  passes.add(fn);
-  if (!observer) { observer = new (host().defaultView.MutationObserver)(() => { if (!queued) { queued = true; host().defaultView.requestAnimationFrame(run); } }); observer.observe(host().body, { childList: true, subtree: true }); observer.observe(host().documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-color'] }); }
-  host().defaultView.requestAnimationFrame(() => { if (passes.has(fn)) fn(); });
-  return () => { passes.delete(fn); if (!passes.size && observer) { observer.disconnect(); observer = null; } };
+/* One watcher of Logseq's page for every part. A pass runs once a frame, whatever changed and however often. Two kinds more,
+   so that no place needs a watcher of its own: a pass with at (a selector) runs at once, before the page is painted, and only
+   when the change lies in, or brings in, such an element (one of Logseq's menus, whose lines must never show for a frame); a
+   pass with words also runs, once a frame, when nothing but letters changed. */
+const passes = new Set(), sharp = new Map(), worded = new Set(); let observer = null, queued = false, wordsQueued = false;
+const each = fns => { for (const fn of [...fns]) { try { fn(); } catch (error) { console.error('Logseq Plugin: a pass over the page failed', error); } } };
+function run() { queued = false; wordsQueued = false; each(passes); }
+function runWords() { if (!wordsQueued) return; wordsQueued = false; each(worded); }
+const touches = (change, at) => (change.target.nodeType === 1 && !!change.target.closest(at)) || [...change.addedNodes].some(el => el.nodeType === 1 && (el.matches(at) || !!el.querySelector(at)));
+function heardPage(changes) {
+  const view = host().defaultView;
+  if (changes.some(change => change.type !== 'characterData')) {
+    for (const [fn, at] of [...sharp]) if (changes.some(change => change.type === 'childList' && touches(change, at))) each([fn]);
+    if (!queued) { queued = true; view.requestAnimationFrame(run); }
+  } else if (worded.size && !queued && !wordsQueued) { wordsQueued = true; view.requestAnimationFrame(runWords); }
+}
+function watch(fn, { at = '', words = false } = {}) {
+  graphEar();
+  if (at) sharp.set(fn, at); else passes.add(fn);
+  if (words) worded.add(fn);
+  if (!observer) { observer = new (host().defaultView.MutationObserver)(heardPage); observer.observe(host().body, { childList: true, subtree: true, characterData: true }); observer.observe(host().documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-color'] }); }
+  host().defaultView.requestAnimationFrame(() => { if (passes.has(fn) || sharp.has(fn)) fn(); });
+  return () => { passes.delete(fn); sharp.delete(fn); worded.delete(fn); if (!passes.size && !sharp.size && observer) { observer.disconnect(); observer = null; } };
 }
 
 // The graph changed: said once, a moment after the last change of a burst (typing saves every few letters).
-const heard = new Set(), heardAtOnce = new Set(); let offChanged = null, timer = 0;
+const heard = new Set(), heardAtOnce = new Set(), heardGraph = new Set(); let offChanged = null, timer = 0, offGraph = null;
+const tell = all => { for (const one of [...all]) { try { one(); } catch (error) { console.error('Logseq Plugin: a part could not follow a change', error); } } };
 function changed(fn, atOnce = false) {
+  graphEar();
   (atOnce ? heardAtOnce : heard).add(fn);
-  const tell = (all) => { for (const one of [...all]) { try { one(); } catch (error) { console.error('Logseq Plugin: a part could not follow a change', error); } } };
   if (!offChanged) offChanged = logseq.DB.onChanged(() => { tell(heardAtOnce); clearTimeout(timer); timer = setTimeout(() => { G.read.forget(); tell(heard); }, 500); });
   return () => { heard.delete(fn); heardAtOnce.delete(fn); if (!heard.size && !heardAtOnce.size && typeof offChanged === 'function') { offChanged(); offChanged = null; clearTimeout(timer); } };
+}
+/* Another graph opened. Logseq does not load a plugin again then; it only says so. Everything the ground remembers of the graph
+   before is let go at once (what the reads keep, the sidebar's pages by their number in that graph, the pictures read for an
+   export, that graph's own keys), and every place that follows the graph's changes is told as after a change: its lists read
+   the graph now open, and the Undo arrow, which stood for a change in the other graph, goes. */
+function graphEar() {
+  if (offGraph) return;
+  try {
+    offGraph = logseq.App.onCurrentGraphChanged(() => {
+      G.read.forget(); sideUuids.clear(); read.clear(); changedKeys = {}; keysRead();
+      clearTimeout(timer);
+      tell(heardAtOnce); tell(heard); tell(heardGraph);
+    }) || true;
+  } catch (error) { console.warn('Logseq Plugin: a change of graph cannot be heard', error); }
 }
 /* Digging, where it meets Logseq's screen. Inside an opened node a value that is a node carries a small arrow before its name
    (drawn by the stylesheet, so nothing is added to Logseq's rows). A plain press on the arrow is the plugin's: fn(editor, uuid)
@@ -756,6 +796,44 @@ function tableBar(word, run) {
   });
   return () => { off(); for (const button of doc.querySelectorAll('.lk-table-word')) button.remove(); };
 }
+/* What the window remembers on this Mac: its local storage, which is Logseq's own window's and so stands here. One keeper for
+   every part. kept: one small thing by its name. keptParts: many small things under one name (a time for each node seen, a
+   choice for each list), each written by itself under name/key with the moment it was written, so a change never writes the
+   whole again; past most, the ones written longest ago are let go, so it stays small however long the plugin is used. A store
+   that is full or closed remembers nothing, and nothing is said. */
+const stored = () => { try { return host().defaultView.localStorage; } catch (error) { return null; } };
+function kept(name, fallback = null) {
+  return {
+    get() { try { const raw = stored()?.getItem(name); return raw == null ? fallback : JSON.parse(raw); } catch (error) { return fallback; } },
+    set(value) { try { stored()?.setItem(name, JSON.stringify(value)); } catch (error) { /* not remembered */ } },
+    drop() { try { stored()?.removeItem(name); } catch (error) { /* nothing to take away */ } },
+  };
+}
+function keptParts(name, most = 300) {
+  const head = `${name}/`, key = part => head + String(part);
+  const all = () => { const at = stored(), out = []; try { for (let i = 0; i < (at?.length || 0); i++) { const one = at.key(i); if (one?.startsWith(head)) out.push(one); } } catch (error) { /* none */ } return out; };
+  let count = -1;
+  const trim = () => {
+    const at = stored(), rows = all().map(one => { try { return [one, Number(JSON.parse(at.getItem(one))?.at) || 0]; } catch (error) { return [one, 0]; } }).sort((a, b) => a[1] - b[1]);
+    const keep = Math.floor(most * .9);
+    for (const [one] of rows.slice(0, Math.max(0, rows.length - keep))) at.removeItem(one);
+    count = Math.min(rows.length, keep);
+  };
+  return {
+    get(part, fallback = null) { try { const raw = stored()?.getItem(key(part)); return raw == null ? fallback : JSON.parse(raw).v; } catch (error) { return fallback; } },
+    set(part, value) {
+      try {
+        const at = stored(); if (!at) return;
+        if (count < 0) count = all().length;
+        if (at.getItem(key(part)) == null) count++;
+        at.setItem(key(part), JSON.stringify({ v: value, at: Date.now() }));
+        if (count > most) trim();
+      } catch (error) { /* not remembered */ }
+    },
+    drop(part) { try { const at = stored(); if (at?.getItem(key(part)) != null) { at.removeItem(key(part)); if (count > 0) count--; } } catch (error) { /* nothing to take away */ } },
+    keys: () => all().map(one => one.slice(head.length)),
+  };
+}
 /* Three calls that Logseq's documentation leaves out, each tried in the running Logseq (2.0.2, 27 November 2026).
    search: Logseq's own search, asked for the ids of what it finds, in its order; it answered { blocks: [{ id, … }], … }. null
    where it does not answer.
@@ -777,7 +855,11 @@ const makeTag = async name => String((await logseq.Editor.createPage(name, {}, {
 // A command in Logseq's palette and a line of Logseq's keyboard settings (Keymap), where its key is given or changed. Logseq
 // lists there only a command that names its keys, so one without any names none: it reads "Unset".
 const said = new Map();   // the plugin's own commands, for a place that lists them (the corner)
-const command = (name, label, run, keys) => { said.set(name, { name, label, run }); return logseq.App.registerCommandPalette({ key: name, label, keybinding: { binding: keys || [] } }, run); };
+/* The keys the plugin gives are letters one after another ("g d"), so they are Logseq's "non-editing" kind: active when no
+   bullet is being written (its commands guide; tried in Logseq 2.0.2, 27 November 2026: the key ran its command outside a
+   bullet, and typed in a bullet it stayed letters). A command the plugin gives no key is left as it was, so that a key the
+   person gives it in Logseq's Keymap works wherever they are. */
+const command = (name, label, run, keys) => { said.set(name, { name, label, run }); return logseq.App.registerCommandPalette({ key: name, label, keybinding: keys ? { mode: 'non-editing', binding: keys } : { binding: [] } }, run); };
 const commands = () => { const keys = new Map(palette().map(one => [one.id.split('/').pop(), one.key])); return [...said.values()].map(one => ({ ...one, key: keys.get(one.name) || '' })); };
 /* Logseq's own commands, as its palette lists them, each { id, label, key, run }: the key it has (as the Mac's marks, "⌘⇧K",
    or two letters one after another, "g j"); run as its palette runs it, by its id (a plugin's own by its action). The plugin's
@@ -1009,10 +1091,8 @@ const plugins = {
     for (const id of ids.filter(one => one !== own)) { try { await core.reload(id); } catch (error) { console.error(`Logseq Plugin: ${id} could not be reloaded`, error); } }
     if (ids.includes(own)) await core.reload(own);
   },
-  keep(kept) { try { host().defaultView.localStorage.setItem(LOADED, JSON.stringify({ at: Date.now(), ...kept })); } catch (error) { /* then nothing is said afterwards */ } },
-  took() {
-    try { const at = host().defaultView.localStorage, kept = JSON.parse(at.getItem(LOADED) || 'null'); at.removeItem(LOADED); return kept && Date.now() - kept.at < 60000 ? kept : null; } catch (error) { return null; }
-  },
+  keep(what) { kept(LOADED).set({ at: Date.now(), ...what }); },
+  took() { const note = kept(LOADED), what = note.get(); note.drop(); return what && Date.now() - what.at < 60000 ? what : null; },
 };
 function section(name, title, draw, path) {
   const E = logseq.Experiments, React = E?.React;
@@ -1121,9 +1201,8 @@ function topMenu(lines) {
       }
     }
   };
-  const watch = new (doc.defaultView.MutationObserver)(add);
-  watch.observe(doc.body, { childList: true, subtree: true });
-  return () => { watch.disconnect(); for (const el of doc.querySelectorAll('.lk-topitem')) el.remove(); };
+  const off = watch(add, { at: '.ui__dropdown-menu-content' });   // the one watcher, at once and only when such a menu came or changed
+  return () => { off(); for (const el of doc.querySelectorAll('.lk-topitem')) el.remove(); };
 }
 /* Logseq's own menus, a line at a time: where a line stands, what it says, and leaving hidden ones out. isHidden(where, name)
    says which; offer(at, where, name) is asked for a right-click on a line. A right press on a line is kept from Logseq, which
@@ -1172,9 +1251,9 @@ function menuLines(base, isHidden, offer) {
   for (const type of ['pointerdown', 'pointerup', 'mousedown', 'mouseup']) base.listen(doc, type, onRight, true);
   base.listen(doc, 'contextmenu', onMenu, true);
   base.listen(doc, 'keydown', onArrow, true);
-  base.onStop(watch(pass));
-  const observer = new win.MutationObserver(pass); observer.observe(doc.body, { childList: true, subtree: true });
-  base.onStop(() => { observer.disconnect(); for (const el of doc.querySelectorAll('[data-lk-hidden]')) el.removeAttribute('data-lk-hidden'); });
+  // The one watcher, at once (a hidden line must not show for a frame), and only when one of these menus came or changed.
+  base.onStop(watch(pass, { at: MENUS.map(place => place.box).join(', ') }));
+  base.onStop(() => { for (const el of doc.querySelectorAll('[data-lk-hidden]')) el.removeAttribute('data-lk-hidden'); });
   return { again: pass };
 }
 function menuItem(label, run) {
@@ -1289,8 +1368,9 @@ const graphs = {
   },
 };
 function graphChanged(fn) {
-  const off = logseq.App.onCurrentGraphChanged(() => { read.clear(); fn(); });
-  return () => { if (typeof off === 'function') off(); };
+  graphEar();
+  heardGraph.add(fn);
+  return () => { heardGraph.delete(fn); };
 }
 
 // One of Logseq's own icons, drawn as Logseq draws it (its tablerIcons hand back a React element), else from the icon font it loads.
@@ -1350,10 +1430,9 @@ function addresses(base) {
     event.preventDefault(); event.stopImmediatePropagation();
     if (event.type === 'click') openUrl(el.textContent.trim());
   };
-  const off = watch(mark), words = new view.MutationObserver(mark);
-  words.observe(doc.body, { subtree: true, characterData: true });   // an address edited in place
+  const off = watch(mark, { words: true });   // words: an address edited in place
   for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) base.listen(view, type, on, true);
-  base.onStop(() => { off(); words.disconnect(); for (const el of doc.querySelectorAll('[data-lk-short]')) { delete el.dataset.lkShort; el.removeAttribute('title'); } });
+  base.onStop(() => { off(); for (const el of doc.querySelectorAll('[data-lk-short]')) { delete el.dataset.lkShort; el.removeAttribute('title'); } });
 }
 
 /* Where the plugin's lists stand, Logseq's own for the same thing are taken away: its Linked references and its two-way
@@ -1558,6 +1637,12 @@ ${IN} .page-reference > .bracket { display: none !important; }
 ${IN} a.tag { font-family: var(--lk-tag-face) !important; font-size: var(--lk-tag-size); color: var(--lk-quiet) !important; text-decoration: none !important; }
 ${IN} a.tag:hover { color: var(--lk-text) !important; }
 ${IN} .block-tag a.hash-symbol { opacity: 0; }
+/* Three tags or more: Logseq folds them to two and a count, and writes each of the two with its # among its letters. The name
+   alone is noted on the tag (tagNames, below) and drawn in place of Logseq's words, cut short as Logseq cuts them; the two
+   stand as far apart as two tags do. */
+${IN} .block-tags.cursor-pointer { gap: calc(var(--spacing, .25rem) * 1); }
+${IN} .block-tag a.tag[data-lk-name] > * { display: none !important; }
+${IN} .block-tag a.tag[data-lk-name]::after { content: attr(data-lk-name); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 ${IN} .block-tag:hover a.hash-symbol { opacity: .6; }
 a.external-link { color: var(--lk-text) !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; border-bottom: none !important; }   /* a web link is a link: the ink, underlined, never Logseq's blue, wherever Logseq draws it (a card over a link too); one line under it, not Logseq's second */
 a.external-link:hover { text-decoration-color: currentColor !important; }
@@ -1647,9 +1732,21 @@ const FILL = `
 :is(#lk-none, html) .bottom-property-pill${FILLING} { display: flex !important; }
 :is(#lk-none, html) .lk-editor :is(.bottom-property-pill, .property-pair)${FILLING} { display: grid !important; }
 `;
-/* On a page, a link to that same page is its words alone: it leads nowhere (the owner's marked page, 26 November 2026). */
+// The name of each tag Logseq wrote with its # (a bullet's tags folded to two and a count), noted on it for the stylesheet.
+function tagNames() {
+  const doc = host(), FOLDED = '.block-tags.cursor-pointer > .block-tag a.tag';
+  const mark = () => {
+    for (const tag of doc.querySelectorAll(FOLDED)) { const said = (tag.textContent || '').trim(), name = said.startsWith('#') ? said.slice(1) : ''; if (name) { if (tag.dataset.lkName !== name) tag.dataset.lkName = name; } else if (tag.dataset.lkName != null) delete tag.dataset.lkName; }
+    for (const tag of doc.querySelectorAll('a.tag[data-lk-name]')) if (!tag.matches(FOLDED)) delete tag.dataset.lkName;
+  };
+  const off = watch(mark, { words: true });
+  return () => { off(); for (const tag of doc.querySelectorAll('a.tag[data-lk-name]')) delete tag.dataset.lkName; };
+}
+/* On a page, a link to that same page is its words alone: it leads nowhere (the owner's marked page, 26 November 2026). With
+   it the marks' one look at the page is started: the names of folded tags. */
 function here() {
   const doc = host(), el = doc.createElement('style'); el.id = 'lk-here'; doc.head.appendChild(el);
+  const offTags = tagNames();
   const quote = text => String(text).replace(/["\\]/g, '\\$&');
   const set = async () => {
     try {
@@ -1662,7 +1759,7 @@ function here() {
   };
   set();
   const off = logseq.App.onRouteChanged(() => set());
-  return () => { try { off?.(); } catch (error) { /* gone with the plugin */ } el.remove(); };
+  return () => { try { off?.(); } catch (error) { /* gone with the plugin */ } offTags(); el.remove(); };
 }
 /* Logseq's own screens, quieted, as the plugin drew them before 0.9 (the owner, 25 November 2026, choosing each from a
    picture of both). One sheet for each thing, so each can be switched off on its own. Nothing here is inside an opened node:
@@ -1701,9 +1798,9 @@ ${TOAST} .ui__toast-close svg { width: 14px; height: 14px; }`,
   floats: `
 .ui__dialog-content:has(.cp__cmdk__modal), .cp__cmdk__modal { background: var(--lk-paper) !important; }
 .ui__dialog-content:has(.cp__cmdk__modal) { overflow: hidden; }
-:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__popover-content, .ui__select-content, .ui__multi-select-content) { background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; color: var(--lk-text) !important; border: .5px solid var(--lk-line) !important; border-radius: 10px !important; box-shadow: var(--lk-float-shadow) !important; }
+:is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__popover-content, .ui__select-content, .ui__multi-select-content) { background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; color: var(--lk-text) !important; border: .5px solid var(--lk-line) !important; border-radius: var(--lk-corner-float) !important; box-shadow: var(--lk-float-shadow) !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content, .ui__context-menu-sub-content, .ui__select-content) { padding: 5px !important; }
-:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px 4px !important; box-sizing: border-box !important; height: var(--lk-line-h) !important; min-height: 0 !important; border-radius: 6px !important; color: var(--lk-text) !important; gap: 8px !important; }
+:is(.ui__dropdown-menu-item, .ui__dropdown-menu-sub-trigger, .ui__select-item, .ui__context-menu-content [role=menuitem]) { font-weight: 400 !important; font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; padding: 3px 9px 4px !important; box-sizing: border-box !important; height: var(--lk-line-h) !important; min-height: 0 !important; border-radius: var(--lk-corner) !important; color: var(--lk-text) !important; gap: 8px !important; }
 .ui__dropdown-menu-sub-trigger[data-open]:not([data-highlighted], :hover) { background: var(--lk-wash) !important; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) :is(.ui__icon, i.ti) { font-size: 14px !important; width: 14px; }
 :is(.ui__dropdown-menu-content, .ui__dropdown-menu-sub-content, .ui__context-menu-content) svg.tabler-icon { width: 14px !important; height: 14px !important; stroke-width: 1.4 !important; }
@@ -1725,32 +1822,32 @@ ${TOAST} .ui__toast-close svg { width: 14px; height: 14px; }`,
 .ui__popover-content .cp__select .input-wrap { background: transparent !important; padding: 4px 5px 0 !important; }
 .ui__popover-content .cp__select-input { background: transparent !important; font-size: var(--lk-line-size) !important; padding: 4px 9px !important; border: 0 !important; box-shadow: inset 0 -1px 0 var(--lk-hair) !important; border-radius: 0 !important; }
 .ui__popover-content .cp__select .menu-link-wrap { padding: 0 5px !important; }
-.ui__popover-content .cp__select .menu-link { display: flex !important; padding: 3px 9px 4px !important; border-radius: 6px !important; }
+.ui__popover-content .cp__select .menu-link { display: flex !important; padding: 3px 9px 4px !important; border-radius: var(--lk-corner) !important; }
 .ui__popover-content .cp__select .menu-link, .ui__popover-content .cp__select .menu-link * { font-size: var(--lk-line-size) !important; line-height: var(--lk-line-lead) !important; }
 .ui__popover-content .cp__select .menu-link svg { width: 14px !important; height: 14px !important; }
 .ui__alert-dialog-content { width: 260px !important; max-width: 260px !important; padding: 18px 14px 14px !important; gap: 4px !important; text-align: center !important; background: var(--lk-glass) !important; -webkit-backdrop-filter: var(--lk-glass-blur) !important; backdrop-filter: var(--lk-glass-blur) !important; border: .5px solid var(--lk-line) !important; border-radius: 14px !important; box-shadow: var(--lk-float-shadow) !important; }
 .ui__alert-dialog-header { text-align: center !important; }
-.ui__alert-dialog-title { font-size: 13px !important; line-height: 18px !important; font-weight: 600 !important; }
+.ui__alert-dialog-title { font-size: var(--lk-small) !important; line-height: 18px !important; font-weight: 600 !important; }
 .ui__alert-dialog-title > span { flex-direction: column !important; gap: 6px !important; }
 .ui__alert-dialog-title .ui__icon svg { width: 30px !important; height: 30px !important; stroke-width: 1.2 !important; color: var(--lk-quiet) !important; }
-.ui__alert-dialog-main-content, .ui__alert-dialog-main-content p { font-size: 12px !important; opacity: 1 !important; color: var(--lk-quiet) !important; }
+.ui__alert-dialog-main-content, .ui__alert-dialog-main-content p { font-size: var(--lk-label) !important; opacity: 1 !important; color: var(--lk-quiet) !important; }
 .ui__alert-dialog-main-content p { margin: 0 0 8px !important; }
 .ui__alert-dialog-footer { display: block !important; }
 .ui__alert-dialog-footer > span:first-child:empty { display: none !important; }
 .ui__alert-dialog-footer > span:last-child { display: flex !important; flex-direction: column-reverse !important; gap: 6px !important; width: 100% !important; }
-.ui__alert-dialog-footer .ui__button { width: 100% !important; height: 28px !important; border-radius: 7px !important; border: 0 !important; font-size: 13px !important; font-weight: 500 !important; box-shadow: none !important; }
+.ui__alert-dialog-footer .ui__button { width: 100% !important; height: 28px !important; border-radius: 7px !important; border: 0 !important; font-size: var(--lk-small) !important; font-weight: 500 !important; box-shadow: none !important; }
 .ui__alert-dialog-footer .ui__button.as-outline { background: var(--lk-wash) !important; color: var(--lk-text) !important; }
 .ui__alert-dialog-footer .ui__button.as-solid { background: var(--lk-text) !important; color: var(--lk-paper) !important; }
 .ui__alert-dialog-overlay { background: rgba(0,0,0,.14) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 .ui__dialog-content { background: var(--lk-paper) !important; border: 1px solid var(--lk-hair) !important; border-radius: 8px !important; box-shadow: 0 10px 30px rgba(0,0,0,.14) !important; }
 .cp__settings-inner > aside { background: transparent !important; box-shadow: inset -1px 0 0 var(--lk-hair) !important; }
-.cp__settings-inner .settings-menu-item { background: transparent !important; border-radius: 6px; }
+.cp__settings-inner .settings-menu-item { background: transparent !important; border-radius: var(--lk-corner); }
 .cp__settings-inner .settings-menu-item:is(.active, :hover) { background: var(--lk-wash) !important; }
 .cp__settings-inner .settings-menu-link strong { font-weight: 400 !important; }
 .cp__settings-inner .settings-menu-link .ui__icon { color: var(--lk-quiet) !important; }
 .cp__settings-inner .cp__settings-modal-title { font-size: 20px !important; font-weight: 600 !important; }
 .cp__settings-inner .cp__settings-category-title { font-weight: 600 !important; }
-.cp__settings-inner .panel-wrap .ui__button[class~="bg-primary/90"] { background: color-mix(in srgb, var(--lk-text) 9%, transparent) !important; color: var(--lk-text) !important; box-shadow: none !important; border: 0 !important; border-radius: 6px !important; font-weight: 500 !important; }
+.cp__settings-inner .panel-wrap .ui__button[class~="bg-primary/90"] { background: color-mix(in srgb, var(--lk-text) 9%, transparent) !important; color: var(--lk-text) !important; box-shadow: none !important; border: 0 !important; border-radius: var(--lk-corner) !important; font-weight: 500 !important; }
 .cp__settings-inner .panel-wrap .ui__button[class~="bg-primary/90"]:hover { background: color-mix(in srgb, var(--lk-text) 15%, transparent) !important; }
 .cp__settings-inner .panel-wrap :is(select, [role=combobox], input:not([type=checkbox]):not([type=radio])) { background: transparent !important; border-color: var(--lk-hair) !important; box-shadow: none !important; }
 .ui__popover-content .cp__select .menu-link { box-sizing: border-box !important; min-height: var(--lk-line-h) !important; align-items: center !important; }
@@ -1912,7 +2009,7 @@ ${['page', 'property', 'tag'].map(kind => `.left-sidebar-inner li.recent-item[da
 .left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) { margin-top: 24px; }
 .left-sidebar-inner .sidebar-content-group:is(.favorites, .recent):not(.has-children) { display: none; }
 .left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd { display: flex !important; padding: 4px 8px !important; margin: -4px 0 0 !important; min-height: 0; height: auto; line-height: 20px; opacity: 1; }
-.left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd :is(.a, a, strong) { font-size: var(--lk-line-size); font-weight: 700; color: var(--ls-primary-text-color) !important; opacity: 1 !important; }
+.left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd :is(.a, a, strong) { font-size: var(--lk-line-size); font-weight: 700; color: var(--lk-text) !important; opacity: 1 !important; }
 .left-sidebar-inner .sidebar-content-group.recent > .sidebar-content-group-inner > .hd { margin-bottom: 8px !important; }
 .left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd > .b { opacity: 0; }
 .left-sidebar-inner .sidebar-content-group:is(.favorites, .recent) > .sidebar-content-group-inner > .hd:hover > .b { opacity: 1; }
@@ -2180,5 +2277,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

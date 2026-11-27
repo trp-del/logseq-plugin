@@ -13,13 +13,18 @@ G.look = {
   /* A notice (the owner's capsule, 3 and 6 November 2026, back on 27 November): gone after stay ms; it fades where it stands. */
   NOTICE: { stay: 4000 },
   /* The faces. Logseq reaches no face of the Mac by its name alone ("New York" came out as Georgia, "SF Mono" as Menlo), so
-     each face the look uses comes with the plugin, in fonts/, and is said from there once Logseq has told the plugin where its
-     folder is (root: logseq.baseInfo.lsr, known at the start, not at load). A tag is written in Commissioner with its stroke ends widened, a property's name in
+     each face the look uses comes with the plugin, in fonts/, and is said from there by the address Logseq's own call gives for
+     a file of the plugin's (resolveResourceFullUrl, known at the start, not at load; tried in Logseq 2.0.2, 27 November 2026: it
+     answers the address the plugin used to build from a line marked for Logseq's inner use; root, that line's address, is taken
+     only where the call is not there). A tag is written in Commissioner with its stroke ends widened, a property's name in
      Fragment Mono (the owner, 26 November 2026); the words are in Logseq's own text face. Both are free under the SIL Open
      Font License, the licences beside the files. Commissioner is one file for all its weights; the widened ends are
      its FLAR setting at 100. Where a file is not
      there the next face in the token stands in. */
-  faces: root => root ? ['Commissioner.ttf|LK Commissioner|100 900|normal|"FLAR" 100', 'FragmentMono-Regular.ttf|LK Fragment|400|normal'].map(one => { const [file, name, weight, style, set] = one.split('|'); return `@font-face { font-family: "${name}"; font-weight: ${weight}; font-style: ${style}; ${set ? `font-variation-settings: ${set}; ` : ''}src: url("${root}fonts/${file}") format("truetype"); }`; }).join('\n') : '',
+  faces(root = '') {
+    const at = file => { try { if (typeof logseq.resolveResourceFullUrl === 'function') return String(logseq.resolveResourceFullUrl(`fonts/${file}`) || ''); } catch (error) { /* then the address given */ } return root ? `${root}fonts/${file}` : ''; };
+    return ['Commissioner.ttf|LK Commissioner|100 900|normal|"FLAR" 100', 'FragmentMono-Regular.ttf|LK Fragment|400|normal'].map(one => { const [file, name, weight, style, set] = one.split('|'), address = at(file); return address ? `@font-face { font-family: "${name}"; font-weight: ${weight}; font-style: ${style}; ${set ? `font-variation-settings: ${set}; ` : ''}src: url("${address}") format("truetype"); }` : ''; }).filter(Boolean).join('\n');
+  },
   TOKENS: `
 :root { --lk-text: var(--ls-primary-text-color, hsl(var(--foreground))); --lk-paper: var(--ls-primary-background-color, hsl(var(--background)));
   --lk-quiet: color-mix(in srgb, var(--lk-text) 70%, transparent); --lk-off: color-mix(in srgb, var(--lk-text) 46%, transparent);
@@ -104,10 +109,10 @@ input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; 
 input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: absolute; left: 2.5px; right: 2.5px; top: 4.75px; height: 1.5px; border-radius: 1px; background: currentColor; }
 /* lk-window: a window in the middle of the screen, the page dimmed behind it (lk-clear leaves the page as it is); lk-pop: what
    floats beside the thing pressed, on the Mac's glass. As before the rebuild (the owner chose them back, 26 November 2026). */
-.lk-window { background: var(--lk-paper); color: var(--lk-text); border: 1px solid var(--lk-hair); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.14); font-size: 14px; line-height: 1.5; text-align: left; }
+.lk-window { background: var(--lk-paper); color: var(--lk-text); border: 1px solid var(--lk-hair); border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.14); font-size: var(--lk-line-size); line-height: 1.5; text-align: left; }
 .lk-window::backdrop { background: rgba(0,0,0,.16); }
 .lk-window.lk-clear::backdrop { background: transparent; }
-.lk-pop { background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); color: var(--lk-text); border: .5px solid var(--lk-line); border-radius: var(--lk-corner-float); box-shadow: var(--lk-float-shadow); font-size: 14px; line-height: 1.4; text-align: left; }
+.lk-pop { background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); color: var(--lk-text); border: .5px solid var(--lk-line); border-radius: var(--lk-corner-float); box-shadow: var(--lk-float-shadow); font-size: var(--lk-line-size); line-height: 1.4; text-align: left; }
 .lk-coming { color: var(--lk-coming); }
 .lk-going { color: var(--lk-going); text-decoration: line-through; text-decoration-thickness: 1.5px; }`,
 };
