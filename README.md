@@ -143,7 +143,8 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
 - The top bar keeps Logseq's own menu and the sidebar button. Home, back, forward, the plugins button and Logseq's search go;
   Ontology and Todo are in the corner.
 - The left sidebar is words alone: no picture before Journals, Pages, a favourite or a recent page, no section words
-  (Navigations, Favorites, Recent), a gap between the groups, the graph's name alone. Logseq's ? at the bottom right goes.
+  (Navigations, Favorites, Recent), a gap between the groups, the graph's name alone. A tag among the favourites and recent pages
+  is written in the tag's face and a property in the property's, each sized so its letters look as large as a page's name. Logseq's ? at the bottom right goes.
 - A page's title is a step smaller and tighter.
 - Logseq's own menus, pop-ups and lists to choose from stand on the plugin's glass, their lines the menu's size and their keys
   faint marks; the question before a page is deleted is small and in the middle, as the Mac asks; Logseq's windows and its
