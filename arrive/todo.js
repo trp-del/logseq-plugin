@@ -30,12 +30,15 @@ G.part({
 .lk-todo .lk-add .lk-field { padding-left: 22px; background: linear-gradient(var(--lk-off), var(--lk-off)) no-repeat 3px 50% / 11px 1.2px, linear-gradient(var(--lk-off), var(--lk-off)) no-repeat 8px 50% / 1.2px 11px; }`);
     const PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'];
     const refused = what => error => G.write.refused(what, error, 'The task was not changed.');
+    // What is listed (the statuses left out), how it is grouped and sorted and where a task's day stands are kept for the next
+    // time, on this Mac, by the one keeper of what the window remembers.
+    const kept = { by: G.touch.kept('lk.todo-by', 'day'), sort: G.touch.kept('lk.todo-sort', 'day'), out: G.touch.kept('lk.todo-out', []), dayAt: G.touch.kept('lk.todo-date-at', 'end') };
     // The one list, drawn the same in the sidebar's section and on the page of its own.
     const draw = holder => {
       const doc = holder.ownerDocument;
       holder.classList.add('lk-todo');
       holder.innerHTML = '<div class="lk-time" hidden></div><div class="lk-todo-view"><div><button type="button" data-of="show"></button><button type="button" data-of="by"></button></div></div><div class="lk-rel"></div>';
-      const timeEl = holder.children[0], viewEl = holder.children[1], store = doc.defaultView.localStorage;
+      const timeEl = holder.children[0], viewEl = holder.children[1];
       // A day said in the words ("by friday") becomes the task's Deadline and leaves the words; it is said at the line's right before Return.
       const offAdd = G.node.adder(holder, 'Add or find a todo', async words => {
         const read = G.todo.dayIn(words, G.days.number(new Date())), made = await G.write.addTask(read ? read.words : words, read ? read.day : 0);
@@ -46,12 +49,9 @@ G.part({
       // What is typed in that line narrows the list to the tasks holding every word of it (G.todo.holding: a link is read as the
       // name of its node, so a task is found by a name it links); Return still adds it as a new task.
       let typed = '';
-      // What is listed (the statuses left out), how it is grouped and how it is sorted are kept for the next time, on this Mac.
-      const kept = (key, fallback) => { try { return JSON.parse(store.getItem(key)) ?? fallback; } catch (error) { return fallback; } };
-      const keep = (key, value) => { try { store.setItem(key, JSON.stringify(value)); } catch (error) { /* this sitting only */ } };
       const BY = { day: 'By day', page: 'By page', parent: 'By parent', tag: 'By tag', priority: 'By priority', status: 'By status' };
-      let by = BY[kept('lk.todo-by', 'day')] ? kept('lk.todo-by', 'day') : 'day', sort = kept('lk.todo-sort', 'day') === 'name' ? 'name' : 'day', out = new Set(kept('lk.todo-out', []));
-      let dayAt = kept('lk.todo-date-at', 'end');   // where a task's day stands: 'start' or 'end' of its line
+      let by = BY[kept.by.get()] ? kept.by.get() : 'day', sort = kept.sort.get() === 'name' ? 'name' : 'day', out = new Set([].concat(kept.out.get() || []));
+      let dayAt = kept.dayAt.get() === 'start' ? 'start' : 'end';   // where a task's day stands: 'start' or 'end' of its line
       let held = new Set();   // every open task, listed or not
       /* What the graph holds is asked for when it may have changed (the list reads again by itself at a change), when what is
          listed or how it is grouped is chosen, and when the day turns over. Narrowing the list to the words typed asks nothing:
@@ -111,12 +111,12 @@ G.part({
       field.addEventListener('input', onTyped); field.addEventListener('keyup', onTyped);
       const onView = event => {
         const button = event.target.closest('button'); if (!button) return;
-        if (button.dataset.of === 'by') return void G.menu(button, [{ group: 'Group by' }, ...Object.entries(BY).map(([key, word]) => ({ word: word.slice(3, 4).toUpperCase() + word.slice(4), on: key === by, take: () => { by = key; keep('lk.todo-by', by); list.again(); } })),
-          { gap: true }, { group: 'Sort by' }, ...[['day', 'Day'], ['name', 'Name']].map(([key, word]) => ({ word, on: key === sort, take: () => { sort = key; keep('lk.todo-sort', sort); list.again(); } })),
-          { gap: true }, ...G.listview.dayPlaces(dayAt === 'start', start => { dayAt = start ? 'start' : 'end'; keep('lk.todo-date-at', dayAt); list.again(); })]);
-        const open = button.lkOpen || [], flip = title => { if (out.has(title)) out.delete(title); else if (open.filter(status => !out.has(status.title)).length > 1) out.add(title); keep('lk.todo-out', [...out]); list.again(); };   // the last one listed cannot be left out
+        if (button.dataset.of === 'by') return void G.menu(button, [{ group: 'Group by' }, ...Object.entries(BY).map(([key, word]) => ({ word: word.slice(3, 4).toUpperCase() + word.slice(4), on: key === by, take: () => { by = key; kept.by.set(by); list.again(); } })),
+          { gap: true }, { group: 'Sort by' }, ...[['day', 'Day'], ['name', 'Name']].map(([key, word]) => ({ word, on: key === sort, take: () => { sort = key; kept.sort.set(sort); list.again(); } })),
+          { gap: true }, ...G.listview.dayPlaces(dayAt === 'start', start => { dayAt = start ? 'start' : 'end'; kept.dayAt.set(dayAt); list.again(); })]);
+        const open = button.lkOpen || [], flip = title => { if (out.has(title)) out.delete(title); else if (open.filter(status => !out.has(status.title)).length > 1) out.add(title); kept.out.set([...out]); list.again(); };   // the last one listed cannot be left out
         G.menu(button, [{ group: 'Show' }, ...open.map(status => ({ word: status.title, icon: G.touch.statusIcon(status.icon), on: !out.has(status.title), take: () => flip(status.title) })),
-          ...(open.some(status => out.has(status.title)) ? [{ gap: true }, { word: 'Show all', take: () => { out = new Set(); keep('lk.todo-out', []); list.again(); } }] : [])]);
+          ...(open.some(status => out.has(status.title)) ? [{ gap: true }, { word: 'Show all', take: () => { out = new Set(); kept.out.set([]); list.again(); } }] : [])]);
       };
       viewEl.addEventListener('click', onView);
       // The day turns over while the window stays open: read again when it does.
