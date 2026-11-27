@@ -30,7 +30,7 @@ G.part({
   start(base) {
     base.style('folded', `${G.touch.FOLDED}
 .lk-held-note { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; white-space: nowrap; user-select: none; cursor: default; font-size: var(--lk-small); color: var(--lk-quiet); font-weight: 400; }
-.lk-held-note svg, .lk-held-note .ti { align-self: center; width: 14px; height: 14px; }
+.lk-held-note .lk-pair > :first-child { align-self: center; width: 14px; height: 14px; }
 .lk-held-note .lk-pair { display: inline-flex; align-items: baseline; gap: .15em; }
 .lk-held-note .lk-pair + .lk-pair { margin-left: .35em; }
 .lk-held-note .lk-sep { margin: 0 .1em; }`);

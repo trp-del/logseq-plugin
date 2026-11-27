@@ -42,7 +42,7 @@ label.lk-xp-row { cursor: text; }
 .lk-xp-zoom { display: flex; justify-content: flex-end; padding: 0 0 12px; }
 .lk-xp-zoom .lk-btn { font-size: var(--lk-small); }
 .lk-xp-desk > iframe { display: block; margin: 0 auto; width: 794px; max-width: none; height: 600px; border: 0; color-scheme: light; background: transparent; }
-.lk-xp-desk > iframe.lk-xp-text { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22); }
+.lk-xp-desk > iframe.lk-xp-text { background: ${G.sheets.PAPER.white}; box-shadow: ${G.sheets.PAPER.shadow}; }
 .lk-xp-desk > iframe.lk-xp-coming { position: absolute; visibility: hidden; pointer-events: none; left: -10000px; }`;
 
 const lookOf = chosen => ({ paper: chosen.paper, margins: chosen.margins, size: chosen.size, footer: chosen.footer, pageNumbers: chosen.pageNumbers });
@@ -132,7 +132,7 @@ function open(sheet, what) {
     const run = ++drawing, target = chosen.target, now = { ...chosen }, key = keyOf(target), text = target === 'md';
     if (edits[target] && edits[target].key !== key) { delete edits[target]; G.say(DRAWN_AGAIN, 'warning'); }
     const kept = changed(target);
-    const html = text ? `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light}html,body{margin:0;background:#fff;color:#111}body{padding:56px 64px}pre{margin:0;font:13px/1.55 Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;outline:none}</style></head><body><pre contenteditable="plaintext-only" spellcheck="false">${esc(kept ?? markdown(sheet, now))}</pre></body></html>`
+    const html = text ? `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light}html,body{margin:0;background:${G.sheets.PAPER.white};color:#111}body{padding:56px 64px}pre{margin:0;font:13px/1.55 Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;outline:none}</style></head><body><pre contenteditable="plaintext-only" spellcheck="false">${esc(kept ?? markdown(sheet, now))}</pre></body></html>`
       : G.paper.page(kept ?? await paperBody(sheet, now), lookOf(now), titleOf(sheet));
     if (gone || run !== drawing) return;
     const next = doc.createElement('iframe'); next.title = 'Preview'; next.className = `lk-xp-coming${text ? ' lk-xp-text' : ''}`;

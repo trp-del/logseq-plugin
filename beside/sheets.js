@@ -6,15 +6,17 @@
    preview's own frame. The sheets can be written in: the pieces are moved onto them, not copied.
      sheets.paginate(doc, look)     deals the page (its .x-doc) onto sheets; look as core/paper.js takes it, with sizes
      sheets.gather(doc)             the page back in one piece, what went on over several sheets joined (a copy, for the export)
-     sheets.repaginate(doc, look)   the sheets dealt again after writing, the caret kept */
+     sheets.repaginate(doc, look)   the sheets dealt again after writing, the caret kept
+     sheets.PAPER                   the paper's white and the shadow it lies under, for whatever shows the paper */
 (function () {
 const G = window.PluginDoor;
+const PAPER = { white: '#fff', shadow: '0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22)' };
 /* A piece that goes on over the next sheet: what stays of it (data-cut) ends flush with the sheet's foot, a justified line at
    the foot stays justified, and what goes on (data-goes-on) begins flush with the next sheet's top, an item without a second
    bullet. A table that goes on at the page's top level keeps the gap it had above it before this was written. */
 const CSS = `:root { color-scheme: light; }
 html, body { margin: 0; background: transparent; } body { padding: 0 20px 24px !important; } body:focus { outline: none; }
-.sheet { position: relative; box-sizing: border-box; margin: 0 auto 24px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22); overflow: hidden; }
+.sheet { position: relative; box-sizing: border-box; margin: 0 auto 24px; background: ${PAPER.white}; box-shadow: ${PAPER.shadow}; overflow: hidden; }
 .sheet-body { height: 100%; overflow: hidden; display: flow-root; }
 [data-cut] { margin-bottom: 0 !important; } [data-cut="open"], [data-cut="words"] { padding-bottom: 0 !important; } [data-cut="words"] { text-align-last: justify; }
 [data-goes-on]:not(table), [data-goes-on] table[data-goes-on] { margin-top: 0 !important; padding-top: 0 !important; } li[data-goes-on] { list-style: none; }
@@ -173,5 +175,5 @@ function repaginate(doc, look) {
   if (caret?.node?.isConnected) { try { selection.collapse(caret.node, caret.at); } catch (error) { /* the caret is lost */ } }
   return n;
 }
-G.sheets = { paginate, gather, repaginate };
+G.sheets = { paginate, gather, repaginate, PAPER };
 })();
