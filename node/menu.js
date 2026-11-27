@@ -19,8 +19,10 @@ G.menu = (at, items, opts = {}) => { close?.(); return make(at, items, opts, nul
 function make(at, items, opts, parent) {
   const from = at.from || at, doc = from.ownerDocument, win = doc.defaultView;
   const menu = doc.createElement('div'); menu.className = 'lk-menu'; menu.setAttribute('role', 'menu');
+  const tree = items.some(item => item.depth != null);   // tags as an outline: each a bullet, a line down from it along the tags under it
+  if (tree) menu.classList.add('lk-menu-tree');
   menu.innerHTML = (opts.find ? `<input class="lk-menu-find" type="text" placeholder="${G.esc(opts.find === true ? 'Find' : opts.find)}" aria-label="${G.esc(opts.find === true ? 'Find' : opts.find)}" spellcheck="false" autocomplete="off">` : '') + items.map((item, i) => item.gap ? '<div class="lk-gap"></div>' : item.group ? `<div class="lk-group">${G.esc(item.group)}</div>`
-    : `<button type="button" class="lk-item${item.sub ? ' lk-has-sub' : ''}${item.on ? ' on' : ''}${item.goes ? ' lk-goes' : ''}" role="menuitem" data-i="${i}" data-face="${item.face || ''}" style="padding-left: ${8 + (item.depth || 0) * 16}px"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span><span>${G.esc(item.word)}</span>${item.value && !item.sub ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}${item.sub ? `<span class="lk-item-sub">${G.touch.icon('chevron-right', 14)}</span>` : ''}</button>`).join('');
+    : `<button type="button" class="lk-item${item.sub ? ' lk-has-sub' : ''}${item.on ? ' on' : ''}${item.goes ? ' lk-goes' : ''}" role="menuitem" data-i="${i}" data-face="${item.face || ''}" style="padding-left: ${8 + (item.depth || 0) * 18}px; --lk-d: ${item.depth || 0}"${opts.quiet ? ' tabindex="-1"' : ''}><span class="lk-item-icon">${item.icon || ''}</span>${tree ? '<span class="lk-item-bul" aria-hidden="true"></span>' : ''}<span>${G.esc(item.word)}</span>${item.value && !item.sub ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}${item.on ? `<span class="lk-item-on">${G.touch.icon('check', 14)}</span>` : ''}${item.sub ? `<span class="lk-item-sub">${G.touch.icon('chevron-right', 14)}</span>` : ''}</button>`).join('');
   doc.body.appendChild(menu);
   if (opts.height) menu.style.maxHeight = Math.min(opts.height, win.innerHeight - 16) + 'px';   // a long list scrolls under its line to type in
   const box = at.from ? { left: at.x, right: at.x, top: at.y, bottom: at.y } : from.getBoundingClientRect();
@@ -98,6 +100,7 @@ function make(at, items, opts, parent) {
     const narrow = () => {
       const want = field.value.trim().toLowerCase().split(/\s+/).filter(Boolean); let exact = false;
       for (const el of menu.querySelectorAll('.lk-group, .lk-gap')) el.hidden = want.length > 0;
+      menu.classList.toggle('lk-narrowed', want.length > 0);   // a narrowed outline has gaps in it: no lines down
       for (const row of menu.querySelectorAll('.lk-item:not(.lk-item-make)')) { const text = row.textContent.toLowerCase(); row.hidden = !want.every(word => text.includes(word)); if (text.trim() === field.value.trim().toLowerCase()) exact = true; }
       if (opts.rank) {   // the closest first: the words as typed at a word's start, then anywhere, then apart; the shorter before the longer
         const phrase = want.join(' '), score = row => { const text = row.querySelector('span:not(.lk-item-icon)').textContent.toLowerCase(); return (text.startsWith(phrase) || text.includes(' ' + phrase) ? 0 : text.includes(phrase) ? 1 : 2) * 1000 + text.length; };
@@ -143,5 +146,12 @@ G.menu.CSS = `
 .lk-menu [hidden] { display: none !important; }
 .lk-menu-find { display: block; width: 100%; box-sizing: border-box; margin: 0 0 4px; padding: 4px 8px; border: 0; border-bottom: 1px solid var(--lk-hair); outline: 0; background: none; color: inherit; font: inherit; font-size: var(--lk-line-size); box-shadow: none; border-radius: 0; }
 .lk-menu-find { position: sticky; top: -4px; z-index: 1; background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); }
+.lk-menu-tree .lk-item { position: relative; gap: 4px; }
+.lk-menu .lk-item-bul { flex: none; width: 16px; display: inline-flex; align-items: center; justify-content: center; align-self: stretch; }
+.lk-menu .lk-item-bul::before { content: ""; width: 6.4px; height: 6.4px; border-radius: 50%; background: var(--lk-bullet); opacity: .8; }
+/* One hairline down from each tag through the tags under it, through the middle of its bullet, as Logseq's outline draws it
+   (the owner, 26 November 2026: "menus that have you select tags should probably have bullet outline too"). */
+.lk-menu-tree .lk-item::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--lk-d, 0) * 18px); pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0 15.5px, var(--lk-line) 15.5px 16.5px, transparent 16.5px 18px); }
+.lk-menu-tree.lk-narrowed .lk-item::after { display: none; }
 .lk-menu-find::placeholder { color: var(--lk-off); }`;
 })();

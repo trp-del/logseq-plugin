@@ -110,6 +110,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   third-level press with no ground, Delete in red on no ground with its bin, the one yes Undo cannot take back ("Delete for
   good") filled in blue; a small picture before a press's word where its job has one (Open in sidebar, Set tag, Set property,
   Undo, Restore, Move values).
+- Where tags are chosen from a menu, they stand as an outline as in Logseq: a bullet before each, and a hairline down from
+  each tag through the tags under it (no lines while the words typed narrow the menu).
 - What floats (a menu, a list to choose from) stands on the Mac's glass: the page shows through, a 10-point corner, a hair-thin
   edge, one shadow; a window in the middle of the screen is on the page's paper with a hairline.
 - A key is told only where it is not a common one, as the Mac writes it, with no box. The one exception is the key sheet,

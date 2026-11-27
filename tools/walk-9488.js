@@ -1,0 +1,816 @@
+#!/usr/bin/env node
+/* The walk: the plugin tried in a real Logseq, on a throwaway copy of the sample graph, with real presses and keys sent through
+   Logseq's debugging port. Each step says what a person does and what must then be true; a step that is not true fails the walk.
+   It is a net, not the proof: a change is proven by hand, on the owner's kind of graph and window.
+     node tools/walk.js              starts its own Logseq (port 9480), walks, closes it
+     node tools/walk.js --keep       leaves that Logseq open afterwards, to look at
+   Every fault the owner reports is added here as a step that fails before the fix. */
+const path = require('node:path'), os = require('node:os'), fs = require('node:fs');
+const ROOT = path.resolve(__dirname, '..');
+for (const dir of [path.join(ROOT, 'node_modules'), path.resolve(ROOT, '..', '..', 'logseq-plugin', 'node_modules')]) if (fs.existsSync(dir)) { process.env.NODE_PATH = dir; require('node:module').Module._initPaths(); break; }
+const sandbox = require('./sandbox.js');
+const PORT = 9488, DIR = path.join(os.tmpdir(), `logseq-walk-${PORT}`), keep = process.argv.includes('--keep');
+const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-4000-8000-00000000000e', NORTHGATE = '1a000000-0000-4000-8000-000000000002', OCT7 = '00000001-2026-1007-0000-000000000000';
+
+(async () => {
+  fs.rmSync(DIR, { recursive: true, force: true }); fs.mkdirSync(DIR, { recursive: true });
+  const box = await sandbox.start({ dir: DIR, graph: 'Illness Test Graph', plugin: ROOT, port: PORT });
+  const page = box.page, faults = [], errors = [];
+  page.on('console', m => { if (m.type() === 'error' && /Logseq Plugin|lk-|PluginDoor/.test(m.text())) errors.push(m.text().slice(0, 200)); });
+  page.on('pageerror', e => errors.push(String(e).slice(0, 200)));
+  const wait = ms => page.waitForTimeout(ms);
+  const goto = async uuid => { await page.evaluate(u => window.logseq.api.push_state('page', { name: u }), uuid); await wait(1800); };
+  const count = sel => page.locator(sel).count();
+  const lists = () => page.evaluate(() => [...document.querySelectorAll('.lk-rel')].map(rel => ({ where: rel.closest('#right-sidebar') ? 'sidebar' : rel.closest('.lk-open') ? 'opened' : 'main', lists: [...rel.querySelectorAll(':scope > .lk-list')].map(l => `${[l.querySelector('.lk-list-via').innerText, l.querySelector('.lk-list-name').innerText.replace(/\n?[A-Z][a-z]{2} \d+(, \d{4})? to [A-Z][a-z]{2} \d+(, \d{4})?$/, '')].filter(Boolean).join('\n')} (${l.querySelectorAll(':scope > .lk-rows > .lk-row').length})`) })));
+  let n = 0;
+  const step = async (what, check) => { n++; try { const said = await check(); if (said !== true) faults.push(`${what}: ${said}`); } catch (error) { faults.push(`${what}: ${String(error.message || error).split('\n')[0]}`); } };
+  // A line's own words, without what Relations says after them (the value that tells nodes apart, what it lacks, where it sits).
+  const lineWords = i => page.locator('.lk-row .lk-line').nth(i).evaluate(el => { const words = el.querySelector('.lk-words').cloneNode(true); words.querySelectorAll('.lk-tell, .lk-lacks, .lk-sits').forEach(one => one.remove()); return words.innerText.trim(); });
+  const is = (got, want) => JSON.stringify(got) === JSON.stringify(want) || `got ${JSON.stringify(got)}, not ${JSON.stringify(want)}`;
+  try {
+    await page.evaluate(() => { window.resizeTo(1100, 800); }); await wait(2500);   // the editor is asked for a moment after the start
+    await goto(FATIGUE);
+    await step('a page lists what points at it, by property, the shared tag said once', async () => is(await lists(), [{ where: 'main', lists: ['Symptom type\nSymptom Log 12 (10)'] }]));   // one head for every list: the kind and its count, no span of days (the owner's marked page, 26 November 2026)
+    await step('a list shows ten nodes, then "Show 2 more" shows them all', async () => { const more = page.locator('#main-content-container .lk-relpage .lk-more').first(), said = await more.innerText(); await more.click(); await wait(500); return is([said, await count('#main-content-container .lk-relpage > .lk-list > .lk-rows > .lk-row')], ['Show 2 more', 12]); });   // ten, the owner, 25 November 2026
+    await step('Logseq\'s own Linked references are gone where the lists stand', async () => is(await page.evaluate(() => [...document.querySelectorAll('.references')].filter(el => el.offsetParent).length), 0));
+    await step('rows carry their day, newest first', async () => is(await page.locator('.lk-row > .lk-day').evaluateAll(els => els.slice(0, 3).map(el => el.textContent)), ['Oct 4', 'Oct 2', 'Sep 20']));
+    await step('a press on a line opens the node in place as Logseq\'s own', async () => { await page.locator('.lk-row .lk-line').nth(8).click(); await wait(1800); return is([await count('.lk-row[data-open]'), await count('.lk-row[data-open] .lk-editor .ls-block')], [1, 2]); });
+    await step('the opened node stands where its line stood', async () => is(await page.evaluate(() => { const open = document.querySelector('.lk-row[data-open]'), closed = document.querySelector('.lk-row:not([data-open])'); const a = open.querySelector('.lk-editor .block-content-wrapper').getBoundingClientRect(), b = closed.querySelector('.lk-words').getBoundingClientRect(), r = open.getBoundingClientRect(), c = closed.getBoundingClientRect(); return [Math.round(a.left - b.left), Math.round((a.top - r.top) - (b.top - c.top))]; }), [0, 0]));
+    await step('writing in the opened node changes the line once it is closed', async () => {
+      await page.locator('.lk-row[data-open] .lk-editor .block-content').first().click(); await wait(400);
+      await page.keyboard.type(' again', { delay: 30 }); await wait(300);
+      await page.keyboard.press('Escape'); await wait(400);
+      const open = await count('.lk-row[data-open]');
+      await page.keyboard.press('Escape'); await wait(900);
+      return is([open, await count('.lk-row[data-open]'), await lineWords(8), await page.evaluate(() => document.activeElement.className)], [1, 0, 'Tired by evening. again', 'lk-line']);
+    });
+    await step('Logseq\'s own Undo takes the writing back', async () => { await page.keyboard.press('Meta+z'); await wait(1300); return is(await lineWords(8), 'Tired by evening.'); });
+    await step('Enter opens the line the keys are on, the arrows walk the lines', async () => {
+      await page.locator('.lk-row .lk-line').first().focus(); await page.keyboard.press('ArrowDown');
+      const second = await page.evaluate(() => { const words = document.activeElement.querySelector('.lk-words').cloneNode(true); words.querySelectorAll('.lk-lacks, .lk-sits, .lk-tell').forEach(el => el.remove()); return words.innerText.trim(); });
+      await page.keyboard.press('Enter'); await wait(1500);
+      const open = await page.evaluate(() => [...document.querySelectorAll('.lk-rows > .lk-row')].findIndex(r => r.dataset.open));
+      await page.locator('.lk-row[data-open] > .lk-fold').click(); await wait(300);
+      return is([second, open, await count('.lk-row[data-open]')], ['Wiped out all day.', 1, 0]);
+    });
+    await step('a list folds and unfolds on its arrow only, not on a press on its name', async () => {
+      await page.locator('.lk-list-head .lk-list-via, .lk-list-head .lk-list-name').first().click(); await wait(500);
+      const kept = await page.evaluate(() => document.querySelector('.lk-list .lk-rows').hidden);
+      await page.locator('.lk-list-head > .lk-fold').first().click(); await wait(500);
+      const hidden = await page.evaluate(() => document.querySelector('.lk-list .lk-rows').hidden);
+      await page.locator('.lk-list-head > .lk-fold').first().click(); await wait(500);
+      return is([kept, hidden, await page.evaluate(() => document.querySelector('.lk-list .lk-rows').hidden)], [false, true, false]);
+    });
+    await goto(NORTHGATE);
+    await step('a page opened in a row reads as a line: its name the size of the words, its own lists under it', async () => {
+      await page.locator('.lk-row .lk-line').first().click(); await wait(2200);
+      return is(await page.evaluate(() => { const ed = document.querySelector('.lk-editor'); return [getComputedStyle(ed.querySelector('.ls-page-title-container')).fontSize, [...document.querySelectorAll('.lk-open > .lk-rel > .lk-list > .lk-list-head')].map(el => [el.querySelector('.lk-list-via').innerText, el.querySelector('.lk-list-name').innerText.replace(/\n?[A-Z][a-z]{2} \d+(, \d{4})? to [A-Z][a-z]{2} \d+(, \d{4})?$/, '')].filter(Boolean).join('\n'))]; }), ['16px', ['Decided\nDecision 3', 'Provider of\nConsultation 2']]);
+    });
+    await step('a node opens inside an opened node, and Escape closes one at a time, innermost first', async () => {
+      await page.locator('.lk-open .lk-row .lk-line').nth(1).click(); await wait(1800);
+      const deep = await count('.lk-row[data-open]');
+      await page.keyboard.press('Escape'); await wait(400); const one = await count('.lk-row[data-open]');
+      await page.keyboard.press('Escape'); await wait(400);
+      return is([deep, one, await count('.lk-row[data-open]')], [2, 1, 0]);
+    });
+    await goto(CHEN);
+    await step('a page says its place: its tag and the tags above it', async () => is(await page.locator('.lk-place').innerText(), 'Doctor/Person/Entity'));
+    await step('a line\'s link reads as the node\'s name', async () => is(await page.locator('.lk-row .lk-line a.lk-node').first().innerText(), 'Dr. Mei Chen'));
+    const first = await page.locator('.lk-row').first().getAttribute('data-uuid');
+    await step('a task shows Logseq\'s circle; a press on it lists the statuses; one press sets one', async () => {
+      await page.evaluate(u => window.logseq.api.upsert_block_property(u, 'logseq.property/status', 'Todo'), first); await wait(1500);
+      await page.locator('.lk-row .lk-status').first().click(); await wait(400);
+      const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
+      await page.locator('.lk-menu .lk-item', { hasText: 'Doing' }).click(); await wait(1500);
+      return is([items, await page.locator('.lk-row .lk-status').first().getAttribute('title')], [['Backlog', 'Todo', 'Doing', 'In Review', 'Done', 'Canceled'], 'Doing']);
+    });
+    await step('Logseq\'s own Undo puts the status back', async () => { await page.keyboard.press('Meta+z'); await wait(1300); return is(await page.locator('.lk-row .lk-status').first().getAttribute('title'), 'Todo'); });
+    await step('a right-click on a line opens its menu; Escape closes it and nothing changed', async () => {
+      await page.locator('.lk-row .lk-line').nth(1).click({ button: 'right' }); await wait(400);
+      const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
+      await page.keyboard.press('Escape'); await wait(300);
+      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Tags…', 'Delete'], 0, 0]);
+    });
+    await step('Delete takes a node away and Logseq\'s own Undo brings it back', async () => {
+      const before = await count('.lk-rows > .lk-row');
+      await page.locator('.lk-row .lk-line').nth(2).click({ button: 'right' }); await wait(400);
+      await page.locator('.lk-menu .lk-item', { hasText: 'Delete' }).click(); await wait(1600);
+      const after = await count('.lk-rows > .lk-row');
+      await page.keyboard.press('Meta+z'); await wait(1600);
+      return is([after - before, await count('.lk-rows > .lk-row') - before], [-1, 0]);
+    });
+    await goto(OCT7);
+    await step('on a journal day the rows do not repeat the day', async () => is(await page.locator('.lk-row .lk-day').evaluateAll(els => els.map(el => el.textContent)), ['', '']));
+    await step('a day in the journals feed has what points at it at its foot, and a day nothing points at shows nothing', async () => { await page.evaluate(() => window.logseq.api.push_state('home')); await wait(2500);
+      const days = await page.evaluate(() => [...document.querySelectorAll('#main-content-container .lk-rel')].map(rel => [rel.querySelectorAll(':scope > .lk-list').length, rel.offsetHeight > 0]));
+      return is([days.length > 0, days.every(([n, shown]) => (n > 0) === shown)], [true, true]); });
+    await goto(FATIGUE);
+    await step('Shift-click opens the node in the sidebar, selects no words, and the sidebar\'s page gets its own lists', async () => {
+      await page.locator('.lk-row .lk-line').first().click({ modifiers: ['Shift'] }); await wait(2000);
+      return is([(await lists()).map(l => l.where), await page.evaluate(() => String(getSelection()))], [['main', 'sidebar'], '']);
+    });
+    await step('a page in the sidebar lies flat on the page\'s ground and shows its place, its properties open and its Relations', async () => {   // the owner, 25 November 2026: "the sidebar is not correctlt styled like pre 0.9 version", "it should have full info like before too"
+      const before = await count('#right-sidebar .sidebar-item');
+      await page.evaluate(u => window.logseq.api.open_in_right_sidebar(u), CHEN); await wait(4000);
+      const got = await page.evaluate(() => {
+        const item = document.querySelector('#right-sidebar .sidebar-item.item-type-page'), look = getComputedStyle(item), box = item.querySelector('.ls-sidebar-page-properties'), clear = c => /^(rgba\(0, 0, 0, 0\)|transparent)$/.test(c);
+        return [look.boxShadow === 'none' && clear(look.backgroundColor) && clear(getComputedStyle(item.querySelector('.sidebar-item-header')).backgroundColor), clear(getComputedStyle(document.querySelector('#right-sidebar .cp__right-sidebar-inner')).backgroundColor) && clear(getComputedStyle(document.querySelector('#right-sidebar')).backgroundColor),
+          !!item.querySelector('.lk-place')?.innerText.trim(), !(box.children.length === 1 && box.querySelector(':scope > div:first-child > button:only-child')), item.querySelectorAll('.lk-relwrap .lk-list').length > 0];
+      });
+      await page.locator('#right-sidebar .sidebar-item.item-type-page').first().locator('.item-actions button').last().click(); await wait(800);
+      return is([got, await count('#right-sidebar .sidebar-item')], [[true, true, true, true, true], before]);
+    });
+    await step('a reload of the plugin leaves nothing doubled and nothing behind', async () => {
+      await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(5000);
+      return is([(await lists()).map(l => l.lists.length), await page.evaluate(() => { const ids = [...document.querySelectorAll('style[id^="lk-style"]')].map(el => el.id); return ids.length - new Set(ids).size; }), await count('.lk-place')], [[1, 0], 0, 1]);
+    });
+    await step('the dark theme carries the same greys', async () => {
+      await page.evaluate(() => window.logseq.api.set_theme_mode('dark')); await wait(600);
+      const got = await page.evaluate(() => { const row = document.querySelector('.lk-row .lk-words'), day = document.querySelector('.lk-row .lk-day'); const lum = c => { const m = c.match(/[\d.]+/g).map(Number), k = /^color\(/.test(c) ? 255 : 1; return (m[0] * 299 + m[1] * 587 + m[2] * 114) / 1000 * k * (m[3] ?? 1); }; return lum(getComputedStyle(row).color) > 150 && lum(getComputedStyle(day).color) > 40; });
+      await page.evaluate(() => window.logseq.api.set_theme_mode('light'));
+      return is(got, true);
+    });
+    // ---- Arriving: Search (the right sidebar, in place of Find; the owner, 26 November 2026)
+    await goto(FATIGUE);
+    await step('Cmd-K opens Search in the right sidebar with the keys in its line', async () => {
+      await page.keyboard.press('Meta+k'); await wait(1500);
+      return is(await page.evaluate(() => [document.getElementById('_sidebar.lk-search')?.textContent, document.activeElement?.closest('.lk-search') != null]), ['Search', true]);
+    });
+    await step('Search shows what holds every word first, each node once, grouped by kind, the typed letters marked', async () => {   // the owner's marked page, then their choice of Logseq's own answers after (26 November 2026)
+      await page.keyboard.type('chen', { delay: 30 }); await wait(1500);
+      const got = await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-search .lk-row')], holds = rows.map(r => /chen/i.test(r.querySelector('.lk-words').textContent)); return [rows.length > 0, holds[0], new Set(rows.map(r => r.dataset.uuid)).size === rows.length, document.querySelectorAll('.lk-search .lk-list-name').length > 1, rows.filter(r => { const w = r.querySelector('.lk-words').cloneNode(true); for (const el of w.querySelectorAll('.lk-sits')) el.remove(); return /chen/i.test(w.textContent); }).every(r => r.querySelector('mark.lk-hit'))]; });
+      return is(got, [true, true, true, true, true]);
+    });
+    await step('a press on a found line goes to it in the main view; Escape empties the line', async () => {
+      await page.locator('.lk-search .lk-row', { hasText: 'Dr. Mei Chen' }).first().locator('.lk-words').click(); await wait(1500);
+      const went = await page.evaluate(() => location.hash.includes('1a000000-0000-4000-8000-00000000000e'));
+      await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Escape'); await wait(500);
+      return is([went, await page.locator('.lk-search .lk-field').inputValue()], [true, '']);
+    });
+    // ---- The marked pictures of 25 and 26 November 2026, as steps
+    await goto(CHEN);
+    await step('Search as Find: nothing typed shows the kinds with counts and the pages opened last; letters light a kind, Tab takes it and its values show with counts; a value taken narrows', async () => {   // the owner's choices, 26 November 2026
+      await page.locator('.lk-search .lk-field').focus(); await wait(1200);
+      const bare = await page.evaluate(() => [/\d/.test(document.querySelector('.lk-search .lk-choice')?.textContent || ''), document.querySelector('.lk-search .lk-list-name')?.textContent]);
+      await page.keyboard.type('cons', { delay: 30 }); await wait(1500);
+      const lit = await page.evaluate(() => document.querySelector('.lk-search .lk-choice.lit')?.firstChild?.textContent);
+      await page.keyboard.press('Tab'); await wait(1500);
+      const lines = await page.evaluate(() => [...document.querySelectorAll('.lk-search .lk-choice-name')].map(el => el.textContent));
+      await page.keyboard.type('mei', { delay: 30 }); await wait(1200);
+      await page.keyboard.press('Tab'); await wait(1500);
+      const after = await page.evaluate(() => [[...document.querySelectorAll('.lk-search-piece')].map(el => el.textContent), [...document.querySelectorAll('.lk-search .lk-row')].every(r => /Mei Chen/.test(r.textContent))]);
+      for (let i = 0; i < 2; i++) { await page.keyboard.press('Escape'); await wait(400); }
+      return is([...bare, lit, lines.includes('Provider') && lines.includes('When'), ...after], [true, 'Recently opened', 'Consultation', true, ['Consultation', 'ProviderDr. Mei Chen'], true]);
+    });
+    await step('Search by sentence reads a kind, a value and a time, and puts the near ones under Near', async () => {
+      await page.locator('.lk-search .lk-field').focus(); await page.keyboard.press('Meta+Alt+k'); await wait(800);
+      await page.keyboard.type('Consultation with mei chen around Aug 2026', { delay: 20 }); await wait(2500);
+      const got = await page.evaluate(() => [[...document.querySelectorAll('.lk-search-read small')].map(el => el.textContent), [...document.querySelectorAll('.lk-search .lk-list-name')].map(el => el.textContent).filter(Boolean), !document.querySelector('.lk-search .lk-time').hidden]);
+      await page.keyboard.press('Meta+a'); await page.keyboard.press('Backspace'); await page.keyboard.press('Meta+Alt+k'); await wait(800);
+      // Search closed again, so the steps after it find their own rows (Search shows the pages opened last when empty).
+      await page.locator('#right-sidebar .sidebar-item', { has: page.locator('.lk-search') }).first().locator('.item-actions button').last().click().catch(() => {}); await wait(800);
+      return is(got, [['kind', 'Provider', 'when'], ['Near'], true]);
+    });
+    await step('a node dug into names itself and never lists the node it was dug from', async () => {
+      const row = page.locator('#main-content-container .lk-row', { hasText: 'Video call' }).first(), uuid = await row.getAttribute('data-uuid');
+      await row.locator('.lk-words').click(); await wait(2200);
+      await page.evaluate(() => { const a = [...document.querySelectorAll('#main-content-container .lk-editor .property-value-inner[data-type=node] a.page-ref')].pop(); const r = a.getBoundingClientRect(); a.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + 3, clientY: r.top + 8 })); });
+      await wait(2200);
+      const got = await page.evaluate(u => [!!document.querySelector('.lk-dugopen > .lk-dugname')?.textContent.trim(), document.querySelectorAll(`.lk-dugopen .lk-row[data-uuid="${u}"]`).length], uuid);
+      await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('Escape'); await wait(300);
+      return is(got, [true, 0]);
+    });
+    await goto(FATIGUE);
+    await step('a list folded lets go of the kind it was narrowed to', async () => {
+      const list = page.locator('#main-content-container .lk-list:has(.lk-tab[data-kind]:not([data-kind=""]))').first();
+      if (!(await list.count())) return is('no list with kinds on this page', 'a list with kinds');
+      await list.locator('.lk-tab[data-kind]:not([data-kind=""])').first().click(); await wait(500);
+      const on = await list.locator('.lk-tab.on').count();
+      await list.locator('.lk-list-head .lk-fold').click(); await wait(400); await list.locator('.lk-list-head .lk-fold').click(); await wait(600);
+      return is([on, await list.locator('.lk-tab.on').count()], [1, 0]);
+    });
+    // ---- Arriving: Todo
+    await step('the corner opens Todo in the sidebar, under its own name', async () => {
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.locator('.lk-menu .lk-item', { hasText: /^Todo$/ }).click(); await wait(2200);
+      return is([await page.evaluate(() => document.getElementById('_sidebar.lk-todo')?.textContent), await count('.lk-todo .lk-field')], ['Todo', 1]);
+    });
+    await step('a task past its day stands under Overdue, its day red, and Today holds only today', async () => {   // the owner's marked page, 26 November 2026
+      return is(await page.evaluate(() => { const lists = [...document.querySelectorAll('.lk-todo .lk-list')], named = n => lists.find(l => l.querySelector('.lk-list-name')?.innerText === n);
+        const late = named('Overdue'), today = named('Today');
+        return [!!late, !!late && [...late.querySelectorAll('.lk-row')].every(r => r.querySelector(':scope > .lk-day.lk-late')), !today || ![...today.querySelectorAll('.lk-day.lk-late')].length]; }), [true, true, true]);
+    });
+    await step('a task typed in its line lands on today\'s journal as a Todo and shows under Any time', async () => {
+      await page.locator('.lk-todo .lk-field').click(); await page.keyboard.type('Ring the pharmacy', { delay: 20 }); await page.keyboard.press('Enter'); await wait(2200);
+      return is(await page.evaluate(() => [...document.querySelectorAll('.lk-todo .lk-list')].filter(l => l.querySelector('.lk-list-name').innerText === 'Any time').map(l => [...l.querySelectorAll('.lk-line')].map(el => el.innerText.split('\n')[0]).filter(t => t === 'Ring the pharmacy').length)), [1]);   // the line's first row: under it the task says where it sits
+    });
+    await step('once a task is added the list is whole again, and the task carries one day: no journal under its words', async () => {   // typing narrows the list; adding must not leave it narrowed
+      return is(await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-todo .lk-row')], mine = rows.find(r => r.querySelector('.lk-words')?.firstChild?.textContent.trim() === 'Ring the pharmacy'); return [rows.length > 1, !!mine?.querySelector('.lk-sits')?.textContent.trim(), document.querySelector('.lk-todo .lk-field').value]; }), [true, false, '']);
+    });
+    await step('a day said in a new task\'s words becomes its deadline and leaves the words', async () => {   // the owner chose this old part, 26 November 2026
+      await page.locator('.lk-todo .lk-field').click(); await page.keyboard.type('Water the ferns tomorrow', { delay: 20 }); await wait(300);
+      const hint = await page.locator('.lk-todo .lk-todo-hint').innerText();
+      await page.keyboard.press('Enter'); await wait(2400);
+      const got = await page.evaluate(() => [...document.querySelectorAll('.lk-todo .lk-list')].filter(l => l.querySelector('.lk-list-name').innerText === 'Coming up').map(l => [...l.querySelectorAll('.lk-row')].filter(r => r.querySelector('.lk-line').innerText.split('\n')[0] === 'Water the ferns').map(r => !!r.querySelector(':scope > .lk-day').textContent.trim())).flat());
+      return is([hint.length > 5, got], [true, [true]]);
+    });
+    await step('a task set Done from its circle leaves the list', async () => {
+      const row = page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' });
+      await row.locator('.lk-status').click(); await wait(400);
+      await page.locator('.lk-menu .lk-item', { hasText: 'Done' }).click(); await wait(2000);
+      return is(await page.locator('.lk-todo .lk-row', { hasText: 'Ring the pharmacy' }).count(), 0);
+    });
+    await step('Todo does not say Task on every row, and still lists the tasks after the plugin is loaded again', async () => {
+      const tags = await page.locator('.lk-todo .lk-row .lk-tag').allInnerTexts();
+      await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(5500);
+      const rows = await count('.lk-todo .lk-row');
+      await page.locator('.lk-todo .lk-row .lk-line').first().click(); await wait(1800);   // it still answers a press: the row opens
+      const open = await count('.lk-todo .lk-row[data-open]');
+      await page.keyboard.press('Escape'); await wait(400);
+      return is([tags.includes('Task'), await page.evaluate(() => document.getElementById('_sidebar.lk-todo')?.textContent), rows > 0, open, await count('.lk-todo .lk-row[data-open]')], [false, 'Todo', true, 1, 0]);
+    });
+    // ---- Tending: Ontology
+    await step('the corner opens Ontology as a page of its own: each top tag an area, side by side', async () => {
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.locator('.lk-menu .lk-item', { hasText: /^Ontology$/ }).click(); await wait(3000);
+      const areas = await page.evaluate(() => [...document.querySelectorAll('.lk-map > .lk-rel > .lk-list[data-face="tag"]')].map(l => [l.querySelector('.lk-row .lk-words').innerText, Math.round(l.getBoundingClientRect().top)]));
+      await page.locator('.lk-map .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-num').click(); await wait(500);   // a press beside the name selects the tag
+      const joined = await page.evaluate(() => { const paths = [...document.querySelectorAll('.lk-map .lk-joins path')]; return [paths.length > 0, paths.every(p => getComputedStyle(p).strokeOpacity === '0.5' && getComputedStyle(p).fill === 'none' && !/L/.test(p.getAttribute('d')))]; });   // the old Ontology's hairlines: one a pair, quiet grey, no heads (the owner, 25 November 2026)
+      return is([await page.evaluate(() => location.hash.split('?')[0]), await page.locator('.lk-page-title').innerText(), areas.length > 1, areas[0][0], areas.length > 1 && areas[0][1] === areas[1][1], joined], ['#/lk-ontology', 'Ontology', true, 'Entity', true, [true, true]]);
+    });
+    await step('Properties is the table it was before the rebuild: Property, On tags, Holds, Filled, least filled first; a press on a column\'s name sorts by it', async () => {   // the owner, 26 November 2026: "I like before version"
+      await page.locator('.lk-map .lk-onto-tabs [data-tab="props"]').click(); await wait(2000);
+      const table = () => page.evaluate(() => [[...document.querySelectorAll('.lk-map .lk-th')].map(th => th.innerText.replace(/\n/g, ' ')), [...document.querySelectorAll('.lk-map .lk-trow')].slice(0, 2).map(row => [...row.querySelectorAll('.lk-td')].map(td => td.innerText.trim()))]);
+      const first = await table();
+      await page.locator('.lk-map .lk-th', { hasText: 'Property' }).click(); await wait(300);
+      const byName = await table();
+      await page.locator('.lk-map .lk-th', { hasText: 'Property' }).click(); await wait(300);
+      const back = (await table())[0];
+      await page.locator('.lk-map .lk-onto-tabs [data-tab="tags"]').click(); await wait(1500);
+      return is([first, byName, back], [[['Property', 'On tags', 'Holds', 'Filled ↑'], [['Side Effects', 'Pharmacological Agent', 'Symptom', '2 of 6'], ['Notes', 'Person', 'words', '6 of 12']]],
+        [['Property ↑', 'On tags', 'Holds', 'Filled'], [['Agent', 'Treatment', 'Pharmacological Agent', '3 of 3'], ['Confirmation Status', 'Cancer', 'a choice', '1 of 1']]], ['Property ↓', 'On tags', 'Holds', 'Filled']]);
+    });
+    await step('In the sidebar, on that page, opens the outline beside whatever you read: the tabs, then the tags in their own face', async () => {
+      await page.locator('.lk-map > .lk-side').click(); await wait(2500); await goto(CHEN);   // the outline beside a page, the page of its own left behind
+      
+      return is(await page.evaluate(() => { const lists = [...document.querySelectorAll('.lk-ontology > .lk-rel > .lk-list')]; const first = lists[0]?.querySelectorAll('.lk-row'); return [[...document.querySelectorAll('.lk-ontology > .lk-onto-tabs > .lk-tab')].map(t => t.innerText.trim()), lists.length, [...(first || [])].slice(0, 3).map(r => [r.querySelector('.lk-line').innerText, r.style.getPropertyValue('--lk-depth')]), /New York|serif/.test(getComputedStyle(first[0].querySelector('.lk-words')).fontFamily)]; }),
+        [['Tags', 'Properties', 'History'], 1, [['Entity\n24', '0'], ['Organization\n5', '1'], ['Hospital\n3', '2']], true]);
+    });
+    await step('nothing opens under a tag in Ontology: a press beside its name selects it, a press on the name goes to its page', async () => {   // the owner, 25 November 2026
+      const row = page.locator('.lk-ontology .lk-row', { hasText: /^Hospital/ }).first();
+      await row.locator('.lk-num').click(); await wait(600);
+      const chosen = [await page.locator('.lk-ontology .lk-row.lk-chosen .lk-words').allInnerTexts(), await count('.lk-ontology .lk-row[data-open]'), await count('.lk-ontology .lk-editor')];
+      await row.locator('.lk-words').click(); await wait(2500);
+      const title = await page.evaluate(() => document.querySelector('#main-content-container .ls-page-title')?.innerText || '');
+      return is([chosen, /Hospital/.test(title), await count('.lk-ontology .lk-row[data-open]')], [[['Hospital'], 0, 0], true, 0]);
+    });
+    await step('Ontology\'s New tag line makes one of your own tags, and the list shows it', async () => {
+      await page.locator('.lk-ontology .lk-field').click(); await page.keyboard.type('Zzontag', { delay: 20 }); await page.keyboard.press('Enter'); await wait(2500);
+      const ident = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?i :where [?b :block/title "Zzontag"] [?b :block/tags :logseq.class/Tag] [?b :db/ident ?i]]')).flat().map(String));
+      return is([ident.length === 1 && /user\.class\//.test(ident[0]), await page.locator('.lk-ontology .lk-row', { hasText: 'Zzontag' }).count(), await page.locator('.lk-ontology .lk-field').inputValue()], [true, 1, '']);
+    });
+    await step('a closed line\'s menu puts a tag on the node and takes it off again', async () => {
+      const row = page.locator('.lk-todo .lk-row').first(), uuid = await row.getAttribute('data-uuid');
+      const tags = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?tt :where [?b :block/uuid #uuid "${u}"] [?b :block/tags ?t] [?t :block/title ?tt]]`)).flat().sort(), uuid);
+      const before = await tags();
+      const pick = async () => { await page.locator(`.lk-todo .lk-row[data-uuid="${uuid}"] > .lk-line`).click({ button: 'right' }); await wait(500); await page.locator('.lk-menu .lk-item', { hasText: 'Tags…' }).click(); await wait(700); };
+      await pick(); const head = await page.locator('.lk-menu .lk-group').innerText(); await page.locator('.lk-menu .lk-item', { hasText: /^Hospital$/ }).click(); await wait(1800);
+      const set = await tags();
+      await pick(); const on = await page.locator('.lk-menu .lk-item.on', { hasText: /^Hospital$/ }).count(); await page.locator('.lk-menu .lk-item', { hasText: /^Hospital$/ }).click(); await wait(1800);
+      return is([head, set.includes('Hospital') && !before.includes('Hospital'), on, await tags()], ['Tags', true, 1, before]);
+    });
+    // ---- Writing: sure values
+    await goto(OCT7);
+    const typed = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, '')).uuid, OCT7);
+    const holds = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?pn ?vt :where [?b :block/uuid #uuid "${u}"] [?b ?a ?v] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :block/title ?pn] [?v :block/title ?vt]]`)).map(r => r.join(': ')).sort(), typed);
+    await step('a bullet typed with a link and a tag gets, on leaving it, what its words say for certain', async () => {
+      await wait(600); await box.frame().evaluate(u => logseq.Editor.editBlock(u), typed); await wait(700);
+      await page.keyboard.type('Quick word with [[Dr. Mei Ch', { delay: 50 }); await wait(700); await page.keyboard.press('Enter'); await wait(500);
+      await page.keyboard.type(' #Consult', { delay: 50 }); await wait(700); await page.keyboard.press('Enter'); await wait(700);
+      const before = await holds();
+      await page.keyboard.press('Escape'); await wait(2500);
+      return is([before, await holds()], [[], ['Date: Oct 7th, 2026', 'Provider: Dr. Mei Chen']]);
+    });
+    await step('Logseq\'s own Undo takes each value back, and a bullet left unchanged gets nothing', async () => {
+      await page.keyboard.press('Meta+z'); await wait(700); await page.keyboard.press('Meta+z'); await wait(900);
+      const undone = await holds();
+      await box.frame().evaluate(u => logseq.Editor.editBlock(u), typed); await wait(700); await page.keyboard.press('Escape'); await wait(2200);
+      return is([undone, await holds()], [[], []]);
+    });
+    // ---- Writing: where a tag sits, and where a new tag goes
+    const tagged = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, '')).uuid, OCT7);
+    await step('Logseq\'s own list of tags says where each tag sits', async () => {
+      await wait(600); await box.frame().evaluate(u => logseq.Editor.editBlock(u), tagged); await wait(700);
+      await page.keyboard.type('Scan #Hosp', { delay: 50 }); await wait(900);
+      const where = await page.evaluate(() => [...document.querySelectorAll('.ui__popover-content a.menu-link')].filter(a => /^Hospital/.test(a.innerText)).map(a => a.querySelector('.lk-where')?.innerText));
+      for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
+      await wait(500);
+      return is(where, ['Organization / Entity', 'Occurrence']);   // Hospital, and Hospitalization
+    });
+    await step('a tag made while writing asks where it goes: an arrow and Enter put it there, and the keys stay in the bullet', async () => {
+      await page.keyboard.type('Zzward', { delay: 50 }); await wait(900); await page.keyboard.press('Enter'); await wait(1500);
+      const head = await page.locator('.lk-menu .lk-group').innerText().catch(() => '');
+      await page.keyboard.press('ArrowDown'); await wait(200);
+      const lit = await page.locator('.lk-menu .lk-item.lit').innerText().catch(() => '');
+      await page.keyboard.press('Enter'); await wait(1500);
+      const placed = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?pt :where [?b :block/title "Zzward"] [?b :logseq.property.class/extends ?p] [?p :block/title ?pt]]')).flat());
+      return is([head, lit !== '', placed.length === 1 && placed[0] === lit, await page.evaluate(() => document.activeElement?.tagName), await count('.lk-menu')], ['Zzward is a new tag. Put it under:', true, true, 'TEXTAREA', 0]);
+    });
+    await step('writing on is the answer no: the list goes and the letters land in the bullet', async () => {
+      await page.keyboard.type(' #Zzbay', { delay: 50 }); await wait(900); await page.keyboard.press('Enter'); await wait(1500);
+      const asked = await count('.lk-menu');
+      await page.keyboard.type(' on', { delay: 50 }); await wait(400);
+      const text = await page.evaluate(() => document.activeElement?.value || '');
+      await page.keyboard.press('Escape'); await wait(800);
+      return is([asked, await count('.lk-menu'), / on$/.test(text)], [1, 0, true]);
+    });
+    await step('a page made while writing asks what it is: an arrow and Enter give it its tag, and the keys stay in the bullet', async () => {
+      await box.frame().evaluate(u => logseq.Editor.editBlock(u), tagged); await wait(700);
+      await page.keyboard.type(' [[Zzdoc Quill', { delay: 50 }); await wait(900); await page.keyboard.press('Enter'); await wait(1800);
+      const head = await page.locator('.lk-menu .lk-group').innerText().catch(() => '');
+      await page.keyboard.press('ArrowDown'); await wait(200);
+      const lit = await page.locator('.lk-menu .lk-item.lit').innerText().catch(() => '');
+      await page.keyboard.press('Enter'); await wait(1500);
+      const tags = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?tt :where [?p :block/title "Zzdoc Quill"] [?p :block/tags ?t] [?t :block/title ?tt]]')).flat());
+      const writing = await page.evaluate(() => document.activeElement?.tagName);
+      await page.keyboard.press('Escape'); await wait(800);
+      return is([head, lit !== '' && tags.includes(lit), writing, await count('.lk-menu')], ['Zzdoc Quill is a new page. What is it?', true, 'TEXTAREA', 0]);
+    });
+    // ---- Relations: what a list's head says, and + on it
+    await goto(CHEN);
+    const MAIN = '#main-content-container .lk-relpage > .lk-list';
+    await step('every list\'s head is one look: the property\'s name with the arrow, under it its kinds with their counts and, at its right end, the span of its days', async () => {   // the owner's marked page, 26 November 2026, then "before for list head" the same day
+      const heads = await page.evaluate(sel => { const box = el => { const range = document.createRange(); range.selectNodeContents(el); return range.getBoundingClientRect(); };
+        return [...document.querySelectorAll(sel)].filter(l => l.dataset.kind === 'property' && l.querySelector('.lk-tab')).map(l => { const name = box(l.querySelector('.lk-list-via .lk-prop')), arrow = l.querySelector('.lk-list-head > .lk-fold').getBoundingClientRect(), tab = box(l.querySelector('.lk-tab'));
+          return [Math.abs((arrow.top + arrow.bottom) / 2 - (name.top + name.bottom) / 2) < 6, name.bottom <= tab.top + 1, l.querySelectorAll(':scope > .lk-rows > .lk-row').length < 2 || !!l.querySelector('.lk-list-head .lk-span'), /\d/.test(l.querySelector('.lk-tab').innerText)]; }); }, MAIN);
+      return is([heads.length > 0, heads.every(h => h.every(Boolean))], [true, true]);
+    });
+    await step('+ on a list\'s head opens a line to type a new node in at the list\'s end; Enter makes it pointing here, the Undo arrow takes it back', async () => {   // the owner, 25 November 2026: "the actual feature were well developed"
+      const list = page.locator(MAIN, { has: page.locator('.lk-list-head .lk-plus') }).first(), name = await list.evaluate(el => el.lkList.prop.title);
+      await list.locator('.lk-list-head .lk-plus').click(); await wait(700);
+      const line = await page.evaluate(() => { const d = document.querySelector('.lk-draft'), f = d?.querySelector('input'); return d ? [d === d.parentElement.lastElementChild, document.activeElement === f, /^Add an? /.test(f.placeholder), d.querySelector('.lk-draft-props .lk-prop').innerText] : null; });
+      await page.keyboard.type('Zzadded here', { delay: 20 }); await page.keyboard.press('Enter'); await wait(900);
+      if (await page.evaluate(() => document.querySelector('.lk-draft input')?.dataset.step === 'where')) { await page.keyboard.press('Enter'); await wait(600); }   // where it goes: Enter is today's journal
+      await wait(2500);
+      const held = await box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?pn :where [?b :block/title "Zzadded here"] [?b ?a ?v] [?v :block/uuid #uuid "${u}"] [?p :db/ident ?a] [(namespace ?a) ?ns] [(= ?ns "user.property")] [?p :block/title ?pn]]`)).flat(), CHEN);
+      const stays = await page.evaluate(() => { const f = document.querySelector('.lk-draft input'); return [!!f, f?.value]; });
+      await page.keyboard.press('Escape'); await wait(400);
+      const gone = await page.evaluate(() => document.querySelectorAll('.lk-draft').length);
+      await list.locator('.lk-row .lk-undo').first().click(); await wait(3500);
+      const left = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?b :block/title "Zzadded here"] (not [?b :logseq.property/deleted-at])]')).length);   // a page made goes to Logseq's Recycle
+      return is([line, held, stays, gone, left], [[true, true, true, name], [name], [true, ''], 0, 0]);
+    });
+    await step('the arrow before a value that is a node opens that node under its value, in the same rows; Escape closes the deepest first', async () => {   // the owner, 25 November 2026: "does not allow me to dig", "this does not look like a coherent system to dig"
+      const hash = await page.evaluate(() => location.hash);
+      const row = page.locator(MAIN + ' > .lk-rows > .lk-row', { has: page.locator('.lk-line') }).nth(1);
+      await row.locator(':scope > .lk-line').click(); await wait(2500);
+      const link = row.locator(':scope > .lk-open > .lk-editor .property-value-inner[data-type="node"] a.page-ref').first(), uuid = (await link.getAttribute('data-uuid')).toLowerCase();
+      await link.click({ position: { x: 5, y: 10 } }); await wait(3000);
+      const dug = await row.evaluate(el => { const holder = el.querySelector(':scope > .lk-open'), box = holder.querySelector(':scope > .lk-dugopen'), value = holder.querySelector(':scope > .lk-editor .property-value-inner[data-type="node"] a.page-ref');
+        const left = one => { const walk = document.createTreeWalker(one, NodeFilter.SHOW_TEXT); let text; while ((text = walk.nextNode())) { const range = document.createRange(); range.selectNodeContents(text); const at = range.getBoundingClientRect(); if (text.textContent.trim() && at.width) return at.left; } return null; };
+        const under = box.getBoundingClientRect(), valueRow = value.closest('.bottom-property-pill, .property-pair'), next = valueRow.nextElementSibling;
+        return [box.dataset.node, Math.round(under.top - valueRow.getBoundingClientRect().bottom), next ? next.getBoundingClientRect().top >= under.bottom - 1 : true, Math.abs(left(box) - left(value)) < 1.5]; });
+      const stayed = (await page.evaluate(() => location.hash)) === hash;
+      await page.keyboard.press('Escape'); await wait(700);
+      const afterOne = [await row.locator('.lk-dugopen').count(), await row.getAttribute('data-open')];
+      await page.keyboard.press('Escape'); await wait(700);
+      return is([dug[0] === uuid, dug[1], dug[2], dug[3], stayed, afterOne, await count(MAIN + ' .lk-row[data-open]')], [true, 0, true, true, true, [0, '1'], 0]);
+    });
+    await step('in an opened node every property is one kind of row: names in one column, values in the next, no capsule', async () => {
+      const row = page.locator(MAIN + ' > .lk-rows > .lk-row', { has: page.locator('.lk-line') }).nth(1);
+      await row.locator(':scope > .lk-line').click(); await wait(2500);
+      const rows = await row.evaluate(el => { // where the first thing drawn in a piece starts: its words, or the icon Logseq draws before them (a status circle)
+        const left = one => { const walk = document.createTreeWalker(one, NodeFilter.SHOW_ALL); let at; while ((at = walk.nextNode())) { if (at.nodeType === 1 && at.tagName.toLowerCase() !== 'svg') continue; if (at.nodeType === 3 && !at.textContent.trim()) continue; const range = document.createRange(); at.nodeType === 3 ? range.selectNodeContents(at) : range.selectNode(at); const box = range.getBoundingClientRect(); if (box.width) return Math.round(box.left); } return null; };
+        return [...el.querySelectorAll(':scope > .lk-open > .lk-editor :is(.bottom-property-pill, .property-pair)')].filter(one => one.offsetParent).map(one => [left(one.querySelector('.property-k')), left(one.querySelector('.property-value-container')), getComputedStyle(one, '::after').content]); });
+      await page.keyboard.press('Escape'); await wait(700);
+      return is([rows.length > 1, new Set(rows.map(r => r[0])).size, new Set(rows.map(r => r[1])).size, rows.every(r => r[2] === 'none')], [true, 1, 1, true]);
+    });
+    // ---- Ontology: counts, moving a tag with the keys, its lines, its menu
+    await step('a tag with tags under it folds as a bullet does: its arrow hides them and shows them again, Cmd-Up and Cmd-Down too', async () => {   // the owner, 26 November 2026: "you should be able to fold things just like a normal bullet"
+      const names = () => page.evaluate(() => [...document.querySelectorAll('.lk-ontology .lk-list[data-face="tag"] .lk-row .lk-words')].map(w => w.textContent));
+      const row = page.locator('.lk-ontology .lk-row', { hasText: /^Organization/ }).first();
+      await row.hover(); await row.locator('.lk-fold').click(); await wait(1200);
+      const shut = !(await names()).includes('Hospital');
+      await page.keyboard.press('Meta+ArrowDown'); await wait(1200);
+      const open = (await names()).includes('Hospital');
+      await page.keyboard.press('Meta+ArrowUp'); await wait(1200);
+      const again = !(await names()).includes('Hospital');
+      await row.hover(); await row.locator('.lk-fold').click(); await wait(1200);
+      return is([shut, open, again, (await names()).includes('Hospital')], [true, true, true, true]);
+    });
+    await step('each tag says how many nodes stand under it', async () => is(await page.evaluate(() => { const rows = [...document.querySelectorAll('.lk-ontology .lk-list[data-face="tag"] .lk-row')]; const n = r => Number(r.querySelector('.lk-num')?.innerText || 0); return [n(rows[0]) > 0, n(rows[0]) >= n(rows[1])]; }), [true, true]));
+    const shape = () => page.evaluate(() => [...document.querySelectorAll('.lk-ontology .lk-list[data-face="tag"] .lk-row')].slice(0, 5).map(r => [r.querySelector('.lk-words').innerText, Number(r.style.getPropertyValue('--lk-depth')) || 0]));
+    await step('Tab puts a tag under the tag above it at its level, Shift-Tab takes it out again, and the keys stay on its row', async () => {
+      const before = await shape();
+      await page.locator('.lk-ontology .lk-row', { hasText: /^Person/ }).first().locator('.lk-line').focus(); await wait(200);
+      await page.keyboard.press('Tab'); await wait(2500);
+      const moved = await shape(), focus = await page.evaluate(() => document.activeElement?.querySelector?.('.lk-words')?.innerText);
+      await page.keyboard.press('Shift+Tab'); await wait(2500);
+      return is([before.find(r => r[0] === 'Person')?.[1], moved.find(r => r[0] === 'Person')?.[1], focus, await shape()], [1, 2, 'Person', before]);
+    });
+    await step('Tab and Shift-Tab pressed one right after the other end where they should: the second waits for the first', async () => {   // found by hand, 25 November 2026
+      const before = await shape();
+      await page.locator('.lk-ontology .lk-row', { hasText: /^Person/ }).first().locator('.lk-line').focus(); await wait(200);
+      await page.keyboard.press('Tab'); await page.keyboard.press('Shift+Tab'); await wait(5000);
+      const parents = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?pt :where [?b :block/title "Person"] [?b :block/tags :logseq.class/Tag] [?b :logseq.property.class/extends ?p] [?p :block/title ?pt]]')).flat());
+      return is([await shape(), parents], [before, ['Entity']]);
+    });
+    await step('the selected tag shows its lines to the tags it is joined with, and they stay while the pointer is elsewhere', async () => {
+      await page.locator('.lk-ontology .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-num').click(); await wait(500);
+      const one = [await count('.lk-joins path') > 0, await page.evaluate(() => { const box = document.querySelector('.lk-ontology:not(.lk-map) .lk-list[data-face="tag"] > .lk-rows').getBoundingClientRect(), svg = document.querySelector('.lk-ontology:not(.lk-map) .lk-joins path').getBoundingClientRect(); return svg.right > box.right && svg.right < box.right + 20; }), await count('.lk-joins')];   // a bracket just outside the outline's right edge
+      await page.locator('.lk-ontology .lk-field').hover(); await wait(400);
+      return is([one, await count('.lk-joins')], [[true, true, 1], 1]);
+    });
+    await step('a tag\'s menu shows its nodes in Search and offers to put it under another tag', async () => {
+      await page.locator('.lk-ontology .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').click({ button: 'right' }); await wait(500);
+      const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
+      await page.locator('.lk-menu .lk-item', { hasText: 'Show its nodes' }).click(); await wait(1500);
+      const piece = await page.locator('.lk-search .lk-search-piece').innerText().catch(() => '');
+      for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await wait(250); }
+      return is([items.includes('Show its nodes'), items.includes('Move under…'), piece], [true, true, 'Consultation']);
+    });
+    /* Found by hand, 26 November 2026: a merge is many writes, and its one Undo is that many steps of Logseq's own; a step
+       miscounted leaves part of the merge, or takes back an earlier change. Tick two tags, merge, Undo: all of it is back. */
+    await step('two tags ticked and merged with the row of actions: the nodes go to the kept tag, and one Undo puts every one back', async () => {
+      const state = () => box.frame().evaluate(async () => { const q = s => logseq.DB.datascriptQuery(s); return [(await q('[:find ?a ?w :where [?t :block/tags :logseq.class/Tag] [?t :block/title ?a] [(contains? #{"research" "Report"} ?a)] [?b :block/tags ?t] [?b :block/title ?w]]')).map(r => r.join('>')).sort(), (await q('[:find ?a ?b :where [?t :block/tags :logseq.class/Tag] [?t :block/title ?a] [?t :logseq.property.class/properties ?p] [?p :block/title ?b]]')).map(r => r.join('>')).sort(), (await q('[:find ?a ?b :where [?p :logseq.property/classes ?c] [?p :block/title ?a] [?c :block/title ?b]]')).map(r => r.join('>')).sort()]; });
+      const row = name => page.locator('.lk-ontology .lk-row').filter({ has: page.locator('.lk-words', { hasText: new RegExp(`^${name}$`) }) }).first();
+      const before = await state();
+      await row('research').locator('.lk-tick').click(); await row('Report').locator('.lk-tick').click(); await wait(300);
+      const said = await page.locator('.lk-ontology .lk-onto-acts .lk-said').innerText();
+      await page.locator('.lk-ontology .lk-onto-acts [data-act="merge"]').click(); await wait(1500);
+      const head = await page.locator('.lk-ontology .lk-merge .lk-ask-head').innerText();
+      await page.locator('.lk-ontology .lk-merge [data-do="yes"]').click(); await wait(5000);
+      const merged = [await row('research').count(), (await state())[0].filter(one => one.startsWith('research>')).length];
+      await page.locator('.lk-undo').first().click(); await wait(6000);
+      return is([said, head, merged, await state(), await row('research').count()], ['2 tags picked', 'Merge research into Report', [0, 0], before, 1]);
+    });
+    await step('a tag\'s values are moved into a new property: shown first, written on the yes, and one Undo puts all of it back', async () => {
+      const held = title => box.frame().evaluate(async t => { const G = window.PluginDoor; G.read.forget(); const prop = [...(await G.read.properties()).values()].find(p => p.title === t); return prop ? (await G.read.holders(prop.ident)).length : -1; }, title);
+      const before = await held('Provider');
+      await page.locator('.lk-ontology .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').click({ button: 'right' }); await wait(500);
+      await page.locator('.lk-menu .lk-item', { hasText: 'Move values…' }).click(); await wait(1500);
+      await page.locator('.lk-ask [data-do="from"]').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: /^Provider$/ }).click(); await wait(1200);
+      await page.locator('.lk-ask [data-do="into"]').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: 'A new property…' }).click(); await wait(400);
+      await page.keyboard.type('Zzseen by', { delay: 20 }); await page.keyboard.press('Enter'); await wait(1200);
+      await page.locator('.lk-ask .lk-tick').click(); await wait(500);
+      const yes = await page.locator('.lk-ask .lk-accent').innerText(), n = parseInt(yes.replace(/\D+/g, ''), 10), shown = [await count('.lk-ask-row .lk-going') > 0, await count('.lk-ask-row .lk-coming') > 0];
+      await page.locator('.lk-ask .lk-accent').click(); await wait(2500 + n * 400);
+      const said = await page.locator('.lk-ask-said').innerText().catch(() => ''), after = [await held('Provider'), await held('Zzseen by')];
+      await page.locator('.lk-ask [data-do="undo"]').click(); await wait(2500 + n * 500);
+      return is([/^Move \d+ values?$/.test(yes), shown, said.startsWith(`Moved ${n} value`), after, await held('Provider'), await held('Zzseen by'), await count('.lk-ask')], [true, [true, true], true, [before - n, n], before, -1, 0]);
+    });
+    await step('u p has Logseq load the plugin again from its folder and says in one line what that brought; typed in a bullet it is letters', async () => {   // the owner, 25 November 2026: "can you add update plugins with `u p`?"
+      const run = () => box.frame().evaluate(() => (window.lkRun = (window.lkRun || 0) + 1));   // 1 in a plugin just loaded
+      const toast = async () => { for (let i = 0; i < 40; i++) { const text = await page.evaluate(() => [...document.querySelectorAll('.ui__toast-description')].map(el => el.innerText.trim()).find(t => /^Plugins /.test(t)) || ''); if (text) return text; await wait(250); } return ''; };
+      await goto(CHEN); await run();
+      await page.locator('#main-content-container .block-add-button').first().click(); await wait(900);
+      await page.keyboard.type('up', { delay: 150 }); await wait(2500);
+      const typed = [await page.evaluate(() => document.activeElement?.value), await run()];
+      await page.keyboard.press('Meta+z'); await page.keyboard.press('Escape'); await wait(700);
+      await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('u'); await wait(150); await page.keyboard.press('p');
+      const said = await toast(); await wait(4500);
+      return is([typed, /^Plugins up to date: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, 1]);
+    });
+    // ---- Relations as it was: kinds, View, picking, the find line, the timeline
+    await step('a list of several kinds names them with their counts; a kind pressed narrows the list, All gives it back', async () => {   // the owner, 25 November 2026: "relations from original was quite developed. take all the features from it"
+      let list = null;
+      for (const where of [OCT7, NORTHGATE, FATIGUE, CHEN]) { await goto(where); list = page.locator(MAIN, { has: page.locator('.lk-tab') }).first(); if (await list.count()) break; }
+      if (!(await list.count())) return is('no list of several kinds on these pages', 'one');
+      const tabs = await list.locator('.lk-tab:not(.lk-tabmore):not(.lk-newtab)').evaluateAll(els => els.map(el => [el.dataset.kind, parseInt(el.querySelector('.lk-n').innerText, 10)]));
+      const all = tabs[0][1], kind = tabs[1];
+      await list.locator('.lk-tab').nth(1).click(); await wait(500);
+      const narrowed = await list.locator(':scope > .lk-rows > .lk-row').count(), more = await list.locator(':scope > .lk-more').count();
+      await list.locator('.lk-tab').first().click(); await wait(500);
+      return is([tabs[0][0], all === tabs.slice(1).reduce((n, t) => n + t[1], 0) || all > kind[1], more ? narrowed <= kind[1] : narrowed === kind[1], await list.locator('.lk-tab.on').first().innerText().then(t => t.startsWith('All'))], ['', true, true, true]);
+    });
+    await step('View groups a list by month and sorts it by name; what is set is said on the head and kept', async () => {
+      await goto(CHEN);
+      const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first(), key = await list.getAttribute('data-key');
+      const view = async (line, choice) => { await list.locator('.lk-dots').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: line }).first().click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: choice }).first().click(); await wait(600); };
+      await view('Group by', 'Month');
+      const groups = await list.locator('.lk-group-head').count(), said = await list.locator('.lk-set').innerText();
+      await view('Group by', 'None'); await view('Sort by', 'Name');
+      const words = await list.locator(':scope > .lk-rows > .lk-row .lk-words').evaluateAll(els => els.map(el => el.innerText.trim().toLowerCase()));
+      const kept = await page.evaluate(k => JSON.parse(localStorage.getItem('lk.views') || '{}')[k], key);
+      await view('Sort by', 'Day');
+      return is([groups > 0, said, words.join('|') === [...words].sort((a, b) => a.localeCompare(b)).join('|'), kept, await page.evaluate(k => JSON.parse(localStorage.getItem('lk.views') || '{}')[k] ?? null, key)], [true, 'By month', true, { sort: 'name' }, null]);
+    });
+    await step('Pick nodes draws tick boxes; a tag put on the picked nodes is said with an Undo that takes it back', async () => {
+      const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first();
+      const tagsOf = () => list.locator(':scope > .lk-rows > .lk-row .lk-line').evaluateAll(els => els.slice(0, 2).map(el => el.querySelector('.lk-tag')?.innerText || ''));
+      await list.locator('.lk-dots').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: 'Pick nodes' }).click(); await wait(500);
+      const astray = await list.locator(':scope > .lk-rows > .lk-row').evaluateAll(rows => rows.filter(row => { const box = row.querySelector(':scope > .lk-tick').getBoundingClientRect(), line = row.querySelector(':scope > .lk-line').getBoundingClientRect(); return Math.abs((box.top + box.height / 2) - (line.top + 14)) > 4 || box.right > line.left + 4; }).length);
+      if (astray) throw new Error(`${astray} tick boxes stand off their line's first line`);
+      await list.locator('.lk-row > .lk-tick').nth(0).click(); await wait(200); await list.locator('.lk-row > .lk-tick').nth(1).click(); await wait(400);
+      const bar = await list.locator('.lk-pickbar').innerText();
+      await list.locator('.lk-pickbar [data-do="tag"]').click(); await wait(600); await page.keyboard.type('Zzontag', { delay: 30 }); await wait(500);
+      const offered = await page.locator('.lk-menu .lk-item:not([hidden])').count();
+      if (!offered) { await page.keyboard.press('Escape'); await wait(200); await list.locator('.lk-pickbar [data-do="clear"]').click(); return is('the tag made earlier in the walk is not offered', 'offered'); }
+      await page.keyboard.press('Enter'); await wait(3500);
+      const did = await list.locator('.lk-pickbar .lk-did').innerText().catch(() => ''), held = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?t :block/title "Zzontag"] [?b :block/tags ?t]]')).length);
+      await list.locator('.lk-pickbar [data-do="undo"]').click(); await wait(4000);
+      const after = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?t :block/title "Zzontag"] [?b :block/tags ?t]]')).length);
+      return is([bar.startsWith('2'), did, held, after, await list.locator('.lk-row > .lk-tick').count()], [true, 'Zzontag put on 2 nodes', 2, 0, 0]);
+    });
+    await step('the find line narrows every list to typed words and turns the lists back to a day; Escape gives them back', async () => {
+      const rows = () => page.locator(MAIN + ' > .lk-rows > .lk-row:not(.lk-faint)').count();
+      await page.keyboard.press('Meta+Shift+p'); await wait(700); await page.keyboard.type('Relations: find', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(700);
+      const field = page.locator('#main-content-container .lk-relfind .lk-field'), focused = await field.evaluate(el => el === document.activeElement);
+      const before = await rows();
+      await page.keyboard.type('on Sep 1', { delay: 30 }); await wait(700);
+      const back = [await rows(), await page.locator(MAIN + ' .lk-since').count(), await page.locator('#main-content-container .lk-relday').isVisible()];
+      await page.keyboard.press('Escape'); await wait(500);
+      return is([focused, back[0] < before, back[1] > 0, back[2], await rows(), await field.inputValue()], [true, true, true, true, before, '']);
+    });
+    await step('a list\'s timeline has a dot for each dated node; a dot pressed narrows the list to its week, Escape lets go', async () => {
+      const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first();
+      const view = async (line, choice) => { await list.locator('.lk-dots').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: line }).first().click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: choice }).first().click(); await wait(700); };
+      await view('Timeline', 'One line');
+      const dots = await list.locator('.lk-time-dot').count(), all = await list.evaluate(el => el.lkList.rows.filter(row => row.day).length);
+      await list.locator('.lk-time-dot').first().click({ force: true }); await wait(600);
+      const said = await list.locator('.lk-set').innerText().catch(() => '');
+      await page.keyboard.press('Escape'); await wait(500);
+      const free = await list.locator('.lk-set').count();
+      await view('Timeline', 'Hidden');
+      return is([dots, /^showing /.test(said), free, await list.locator('.lk-time').count()], [all, true, 0, 0]);
+    });
+    await step('the Recycle list shows what Logseq keeps deleted, and Delete asks first with the keyboard on Leave it', async () => {
+      await page.keyboard.press('Meta+Shift+p'); await wait(700); await page.keyboard.type('the Recycle list', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(2000);
+      const rows = await page.locator('.lk-recycle-row').count(), told = await page.locator('.lk-recycle-top').innerText().catch(() => '');
+      let asked = 'nothing to delete';
+      if (rows) { await page.locator('.lk-recycle-row [data-do="delete"]').first().click(); await wait(400); asked = await page.evaluate(() => document.activeElement?.innerText || ''); await page.keyboard.press('Enter'); await wait(400); }
+      const after = await page.locator('.lk-recycle-row').count();
+      await goto(CHEN);
+      return is([told.length > 0, rows ? asked : 'nothing to delete', after], [true, rows ? 'Leave it' : 'nothing to delete', rows]);
+    });
+    {
+    // ---- Beside: two pages side by side (the owner chose the old feature, 26 November 2026)
+    await goto(CHEN);
+    const sideNow = () => page.evaluate(() => ({ list: window.logseq.api.get_state_from_store('sidebar/blocks').map(e => e[1]), open: !!window.logseq.api.get_state_from_store('ui/sidebar-open?') }));
+    const halves = () => page.evaluate(() => { const side = document.querySelector('#right-sidebar'), main = document.querySelector('#main-content-container'); return [Math.round(main.getBoundingClientRect().left), Math.round(side.getBoundingClientRect().width), window.innerWidth]; });
+    const split = () => page.evaluate(() => { const side = document.querySelector('#right-sidebar'), shown = [...side.querySelectorAll('.sidebar-item')].filter(el => el.offsetParent);
+      return { on: side.hasAttribute('data-lk-split'), title: side.querySelector('.lk-split-title')?.innerText.trim() || '', shown: shown.length, head: !!shown[0]?.querySelector('.sidebar-item-header')?.offsetParent, own: document.querySelectorAll('.lk-split-line, .lk-split-tools, .lk-split-title').length }; });
+    const hospital = () => page.locator('#main-content-container .ls-page-properties a.page-ref', { hasText: 'Northgate' }).first();
+    const beside = async locator => { await locator.click({ modifiers: ['Meta'] }); await wait(3000); };
+    const press = async what => { await page.locator(`.lk-split-tools [data-do="${what}"]`).click(); await wait(3000); };
+    if (!(await sideNow()).open) { await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(true)); await wait(800); }
+    await page.keyboard.press('Meta+k'); await wait(1200);   // the sidebar holds Search, and what the walk left there
+    await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(false)); await wait(800);
+    const before = await sideNow();
+    await step('Cmd-click on a link in the main view opens its page beside: equal halves, one page with its title, no head, the main view where it was', async () => {
+      const hash = await page.evaluate(() => location.hash);
+      await beside(hospital());
+      const [left, width, whole] = await halves(), got = await split();
+      return is([got, Math.abs(width - (whole - left) / 2) <= 1, (await page.evaluate(() => location.hash)) === hash], [{ on: true, title: 'Northgate Cancer Center', shown: 1, head: false, own: 3 }, true, true]);
+    });
+    await step('the page beside shows its place, its properties and its Relations, and its title stands level with the main title', async () => is(await page.evaluate(() => { const item = document.querySelector('[data-lk-split-item]');
+      return [!!item.querySelector('.lk-place')?.innerText.trim(), item.querySelectorAll('.property-pair').length > 0, item.querySelectorAll('.lk-relwrap .lk-list').length > 0,
+        Math.abs(item.querySelector('.lk-split-title').getBoundingClientRect().top - document.querySelector('#main-content-container .ls-page-title-container .block-title-wrap').getBoundingClientRect().top) <= 8]; }), [true, true, true, true]));
+    await step('a line opened in the page beside leaves that page its own title and place where they were', async () => {
+      const at = () => page.evaluate(() => { const item = document.querySelector('[data-lk-split-item]'), title = item.querySelector('.lk-split-title').getBoundingClientRect(), place = item.querySelector('.lk-place'); return [Math.round(title.left), Math.round(title.top), !!place.closest('.lk-open'), place.innerText.trim()]; });
+      const was = await at();
+      await page.locator('[data-lk-split-item] .lk-row .lk-line').first().click(); await wait(2500);
+      const open = await count('[data-lk-split-item] .lk-row[data-open]'), now = await at();
+      await page.keyboard.press('Escape'); await wait(700);
+      return is([open, now, await count('[data-lk-split-item] .lk-row[data-open]')], [1, was, 0]);
+    });
+    await step('the line between the halves drags, stops at 320, and a double-click gives equal halves', async () => {
+      const line = page.locator('.lk-split-line'), box = await line.boundingBox();
+      const drag = async to => { const at = await line.boundingBox(); await page.mouse.move(at.x + 4, 400); await page.mouse.down(); await page.mouse.move(to, 400, { steps: 8 }); await page.mouse.up(); await wait(500); return halves(); };
+      const wider = await drag(box.x - 60), narrow = await drag(2000), wide = await drag(0);
+      await line.dblclick({ position: { x: 4, y: 400 } }); await wait(500);
+      const [left, width, whole] = await halves();
+      return is([wider[1] > box.x / 2 && Math.abs(wider[1] - (whole - box.x + 60)) <= 6, narrow[1], whole - left - wide[1], Math.abs(width - (whole - left) / 2) <= 1], [true, 320, 320, true]);
+    });
+    await step('another Cmd-click puts that page on the right instead, and the one before leaves the sidebar', async () => {
+      await beside(page.locator('#main-content-container .lk-place a', { hasText: 'Doctor' }));
+      const got = await split(), now = await sideNow();
+      return is([got.title, got.shown, now.list.length - before.list.length, await page.evaluate(() => !!document.querySelector('[data-lk-split-item] .lk-split-sign') && !document.querySelector('[data-lk-split-item] .ls-sidebar-page-properties')?.offsetParent)], ['Doctor', 1, 1, true]);
+    });
+    await step('swap puts the right page on the left and the left page on the right', async () => {
+      await press('swap');
+      return is([(await split()).title, await page.evaluate(() => document.querySelector('#main-content-container .ls-page-title-container .block-title-wrap')?.innerText.trim())], ['Dr. Mei Chen', 'Doctor']);
+    });
+    await step('the close icon ends the split: the sidebar shut as before, holding what it held, nothing of the split left', async () => {
+      await press('close');
+      return is([await sideNow(), await split()], [before, { on: false, title: '', shown: 0, head: false, own: 0 }]);
+    });
+    await goto(CHEN);
+    await step('Cmd-click on a line of Relations opens its node beside and does not open the line', async () => {
+      const line = page.locator('#main-content-container .lk-relpage > .lk-list > .lk-rows > .lk-row > .lk-line').first(), uuid = await line.evaluate(el => el.parentElement.dataset.uuid);
+      await beside(line);
+      const got = await split(), opened = await count('#main-content-container .lk-row[data-open]');
+      await press('close');
+      return is([got.on, got.shown, opened, await sideNow()], [true, 1, 0, before]);
+    });
+    await step('with the sidebar open, Cmd-K during the split ends it and shows Search with the keys in its line', async () => {
+      await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(true)); await wait(800);
+      await beside(hospital()); const on = (await split()).on;
+      await page.keyboard.press('Meta+k'); await wait(2000);
+      return is([on, (await split()).own, await page.evaluate(() => document.activeElement?.closest('.lk-search') != null), (await sideNow()).list.length - before.list.length], [true, 0, true, 1]);
+    });
+    await step('Shift-click during the split ends it and the page from the right stays in the sidebar; shutting the sidebar ends it too', async () => {
+      await beside(hospital()); const title = (await split()).title;
+      await hospital().click({ modifiers: ['Shift'] }); await wait(2500);
+      const shifted = [await split().then(s => [s.on, s.own]), (await sideNow()).open];
+      await beside(hospital());
+      await page.evaluate(() => window.logseq.api.set_right_sidebar_visible(false)); await wait(2000);
+      return is([title, ...shifted, (await split()).own, (await sideNow()).list.length >= before.list.length + 1], ['Northgate Cancer Center', [false, 0], true, 0, true]);
+    });
+    await step('a reload of the plugin during the split closes it and leaves the sidebar as it was', async () => {
+      const was = await sideNow();
+      await page.locator('#main-content-container .lk-row .lk-line').first().click({ modifiers: ['Meta'] }); await wait(3000);
+      const on = (await split()).on;
+      await page.evaluate(() => window.LSPluginCore.reload('logseq-plugin')); await wait(6000);
+      return is([on, (await split()).own, (await split()).on, await sideNow()], [true, 0, false, was]);
+    });
+    }
+    {
+    // ---- Focusing into a bullet and out (the owner, 26 November 2026)
+    const focus = await box.frame().evaluate(async () => { const p = await logseq.Editor.createPage('Zzfocus walk', {}, { redirect: false }); const first = await logseq.Editor.appendBlockInPage(p.uuid, 'Above one');
+      await logseq.Editor.insertBatchBlock(first.uuid, [{ content: 'Above two' }, { content: 'Above three' }, { content: 'Go in here', children: [{ content: 'Under it' }] }, { content: 'Below' }], { sibling: true });
+      return { page: p.uuid, bullet: (await logseq.Editor.getPageBlocksTree(p.uuid))[3].uuid }; });
+    const dot = page.locator(`#main-content-container .ls-block[blockid="${focus.bullet}"] > .block-main-container .bullet-container`).first();
+    /* What the glide does from a press on, read at each frame: how far the bullet moved by it, whether it moved the whole way
+       smoothly, whether the old view faded; then how things stand at rest. */
+    const glided = async act => {
+      const seen = page.evaluate(uuid => new Promise(done => { const tops = []; let ghost = false; const t0 = performance.now(); const frame = () => {
+        const main = document.getElementById('main-content-container'), block = [...main.querySelectorAll(`.ls-block[blockid="${uuid}"]`)].find(b => !b.closest('.lk-ghost'));
+        if (main.querySelector('.lk-ghost')) ghost = true;
+        if (block?.getAnimations().some(a => a.id === 'lk-glide')) tops.push(Math.round(block.querySelector(':scope > .block-main-container').getBoundingClientRect().top));
+        if (performance.now() - t0 < 1400) requestAnimationFrame(frame); else done({ moved: new Set(tops).size > 4 && Math.abs(tops[0] - tops[tops.length - 1]) > 40, ghost }); }; frame(); }), focus.bullet);
+      await wait(60); await act(); const got = await seen; await wait(500);
+      return [got.moved, got.ghost, ...await page.evaluate(uuid => [location.hash.includes(uuid), !!document.querySelector(`#main-content-container .ls-block.selected[blockid="${uuid}"]`), document.querySelectorAll('#main-content-container .lk-out').length, document.querySelectorAll('.lk-ghost').length, !!document.querySelector('.ui__dialog-content')], focus.bullet)];
+    };
+    // moved, old view faded, in the bullet, selected, arrows, copies left, a window of Logseq's open
+    const IN = [true, true, true, false, 1, 0, false], OUT = [true, true, false, true, 0, 0, false];
+    await goto(focus.page);
+    await step('a press on a bullet glides it to the top, the old view fading, an up arrow after the line of steps', async () => is(await glided(() => dot.click()), IN));
+    await step('the up arrow steps out with the same glide back, and the bullet comes back selected', async () => is(await glided(() => page.locator('#main-content-container .lk-out').click()), OUT));
+    await step('Cmd-. goes back into the selected bullet and Cmd-, steps out again, Logseq\'s settings staying shut', async () => is([await glided(() => page.keyboard.press('Meta+.')), await glided(() => page.keyboard.press('Meta+,'))], [IN, OUT]));
+    await step('Back and Forward glide too', async () => is([await glided(() => page.evaluate(() => history.back())), (await glided(() => page.evaluate(() => history.forward()))).slice(0, 4)], [IN, [true, true, false, true]]));
+    await step('Cmd-, while writing in the focused bullet keeps the cursor and selects nothing', async () => {
+      await dot.click(); await wait(1200);
+      await page.locator(`#main-content-container .ls-block[blockid="${focus.bullet}"] > .block-main-container .block-content`).first().click(); await wait(500);
+      const got = await glided(() => page.keyboard.press('Meta+,')), writing = await page.evaluate(() => document.activeElement?.tagName);
+      await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('Escape'); await wait(300);
+      return is([got, writing], [[true, true, false, false, 0, 0, false], 'TEXTAREA']);
+    });
+    await step('with Reduce motion on nothing moves: the old view only fades, and the bullet still comes back selected', async () => {
+      await page.emulateMedia({ reducedMotion: 'reduce' }); await goto(focus.page);
+      const got = [await glided(() => dot.click()), await glided(() => page.locator('#main-content-container .lk-out').click())];
+      await page.emulateMedia({ reducedMotion: null });
+      return is(got, [[false, ...IN.slice(1)], [false, ...OUT.slice(1)]]);
+    });
+    }
+    {
+    // ---- Beside: the key sheet (the owner chose it again, 26 November 2026)
+    const sheet = () => page.evaluate(() => { const box = document.querySelector('.lk-sheet.on'); return box ? { stays: box.classList.contains('stays'), presses: getComputedStyle(box).pointerEvents, keys: document.activeElement === box.querySelector('.lk-field'), heads: [...box.querySelectorAll('.lk-sheet-group:not([hidden]) > .lk-sheet-head')].map(el => el.textContent) } : null; });
+    const lines = () => page.evaluate(() => [...document.querySelectorAll('.lk-sheet .lk-sheet-line:not([hidden])')].map(el => `${el.querySelector('.lk-sheet-words').textContent} = ${[...el.querySelectorAll('.lk-keycap')].map(key => key.textContent).join(' ')}`));
+    const holdOption = async () => { await page.keyboard.down('Alt'); await wait(1100); await page.keyboard.up('Alt'); await wait(300); };
+    await goto(CHEN);
+    await step('Option held on its own brings the key sheet after a moment, which takes nothing while held and stays once let go', async () => {
+      await page.keyboard.down('Alt'); await wait(300); const early = await sheet(); await wait(800); const held = await sheet(), size = await page.evaluate(() => document.querySelector('.lk-sheet').offsetHeight);
+      await page.keyboard.up('Alt'); await wait(300); const stayed = await sheet();
+      return is([early, held?.stays, held?.presses, held?.heads, stayed?.stays, stayed?.keys, await page.evaluate(() => document.querySelector('.lk-sheet').offsetHeight) - size], [null, false, 'none', ['Writing', 'Arranging bullets', 'Finding', 'Moving around', 'Two letters, outside a bullet'], true, true, 0]);
+    });
+    await step('the sheet says each key as it is: Logseq\'s and the plugin\'s, and no Cmd-K for Logseq\'s search while Search takes it', async () => { const got = await lines(); return is(['Undo, redo = ⌘Z ⌘⇧Z', 'Indent, outdent = ⇥ ⇧⇥', 'Search = ⌘K', 'Search by a sentence = ⌥⌘K', 'Todo = g d', 'Update plugins = u p'].filter(want => !got.includes(want)).concat(got.filter(line => line.startsWith('Logseq’s search'))), []); });
+    await step('letters typed find among the keys and reach nothing else; Up and Down light a line; Escape clears, then closes', async () => {
+      const theme = () => page.evaluate(() => document.documentElement.className + document.documentElement.dataset.theme), before = await theme();
+      await page.keyboard.type('t t', { delay: 60 }); await wait(500); const same = await theme() === before;
+      await page.keyboard.press('Meta+a'); await page.keyboard.type('go', { delay: 40 }); await wait(300);
+      const found = (await lines()).every(line => /go/i.test(line.split(' = ')[0])), marked = await page.locator('.lk-sheet mark.lk-hit').first().innerText();
+      const lit = () => page.evaluate(() => [...document.querySelectorAll('.lk-sheet-line:not([hidden])')].findIndex(el => el.classList.contains('lit')));
+      const first = await lit(); await page.keyboard.press('ArrowDown'); const second = await lit(); await page.keyboard.press('ArrowUp'); const back = await lit();
+      await page.keyboard.type('zzzz'); await wait(200); const none = await page.locator('.lk-sheet-none').innerText();
+      await page.keyboard.press('Escape'); await wait(300); const cleared = [await page.locator('.lk-sheet .lk-field').inputValue(), (await lines()).length > 20];
+      await page.keyboard.press('Escape'); await wait(300);
+      return is([same, found, marked.toLowerCase(), first, second, back, none, cleared, await sheet()], [true, true, 'go', 0, 1, 0, 'No key does that.', ['', true], null]);
+    });
+    await step('a quick Option and a letter, Option with Shift, and any other key while held bring or keep no sheet', async () => {
+      await page.keyboard.press('Alt+e'); await wait(1000); const quick = await sheet();
+      await page.keyboard.down('Alt'); await page.keyboard.down('Shift'); await wait(1000); const shifted = await sheet(); await page.keyboard.up('Shift'); await page.keyboard.up('Alt'); await wait(200);
+      await page.keyboard.down('Alt'); await wait(1100); const up = !!(await sheet()); await page.keyboard.press('ArrowDown'); await wait(300); const gone = await sheet(); await page.keyboard.up('Alt'); await wait(300);
+      return is([quick, shifted, up, gone, await sheet()], [null, null, true, null, null]);
+    });
+    await step('a press puts the sheet away while Option is held and, once it stays, only a press outside it', async () => {
+      await page.keyboard.down('Alt'); await wait(1100); await page.mouse.click(8, 400); await wait(300); const held = await sheet(); await page.keyboard.up('Alt'); await wait(300);
+      await holdOption(); await page.locator('.lk-sheet-head').first().click(); await wait(300); const inside = await sheet();
+      await page.mouse.click(8, 400); await wait(300);
+      return is([held, inside?.keys, await sheet()], [null, true, null]);
+    });
+    await step('Escape gives the keys back to the bullet being written, the caret where it was and its words untouched', async () => {
+      const own = await page.evaluate(async u => (await window.logseq.api.append_block_in_page(u, 'Words being written')).uuid, CHEN); await wait(1200);
+      await page.evaluate(u => window.logseq.api.edit_block(u), own); await wait(900);
+      await page.evaluate(() => document.activeElement.setSelectionRange(3, 3)); const was = await page.evaluate(() => document.activeElement.value);
+      await holdOption(); const up = (await sheet())?.keys; await page.keyboard.press('Escape'); await wait(700);
+      const got = await page.evaluate(() => [document.activeElement.tagName, document.activeElement.selectionStart, document.activeElement.value]);
+      await page.keyboard.press('Escape'); await wait(500);
+      return is([up, got], [true, ['TEXTAREA', 3, was]]);
+    });
+    await step('a key changed in Logseq\'s own settings shows on the sheet as it now is', async () => {
+      const set = keys => box.frame().evaluate(shortcuts => logseq.App.setCurrentGraphConfigs({ shortcuts }), keys);
+      await set({ 'editor/undo': ['mod+shift+9'], 'editor/redo': [] }); await wait(1500);
+      await holdOption(); const got = (await lines()).filter(line => line.startsWith('Undo, redo')); await page.keyboard.press('Escape'); await wait(300);
+      await set({}); await wait(1000);
+      return is(got, ['Undo, redo = ⌘⇧9']);
+    });
+    await step('Show the keys in the command palette opens the sheet staying; Option brings none over that palette', async () => {
+      await page.keyboard.press('Meta+Shift+p'); await wait(700); await holdOption(); const over = await sheet();
+      await page.keyboard.type('Show the keys', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(900);
+      const got = await sheet(); await page.keyboard.press('Escape'); await wait(300);
+      return is([over, got?.stays, got?.keys, await sheet()], [null, true, true, null]);
+    });
+    }
+    {
+    // ---- Export: the window the owner chose again (26 November 2026), Markdown and the one paper template
+    const written = () => page.evaluate(async () => JSON.stringify(await window.logseq.api.datascript_query('[:find (count ?b) (max ?u) :where [?b :block/uuid _] [?b :block/updated-at ?u]]')));
+    const preview = () => page.evaluate(() => document.querySelector('.lk-xp iframe:not(.lk-xp-coming)')?.contentDocument.body.innerText || '');
+    // A real press on words in the preview. The preview is drawn smaller or larger (zoom), so the point is worked out here.
+    const pressWords = async words => { const at = await page.evaluate(w => { const frame = document.querySelector('.lk-xp iframe:not(.lk-xp-coming)'), zoom = Number(frame.style.zoom) || 1, piece = [...frame.contentDocument.querySelectorAll('p.x-p, pre')].find(el => el.textContent.includes(w)), a = frame.getBoundingClientRect(), r = piece.getBoundingClientRect(); return { x: a.left + (r.left + 30) * zoom, y: a.top + (r.top + 7) * zoom }; }, words); await page.mouse.click(at.x, at.y); await wait(200); };
+    let untouched = '';
+    await step('the corner opens the export window on this page, the preview the sheet as it will print', async () => {
+      await goto(CHEN); untouched = await written();
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2500);
+      const said = await preview();
+      return is([await page.locator('.lk-xp-what').innerText(), await page.locator('.lk-xp-tabs button').allInnerTexts(), ['Dr. Mei Chen', 'Specialty', 'Oncology', 'Consultant medical oncologist'].every(w => said.includes(w)), await page.evaluate(() => document.querySelector('.lk-xp iframe').contentDocument.querySelectorAll('.sheet').length)], ['Export this page', ['PDF', 'Markdown'], true, 1]);
+    });
+    await step('the column unfolds; a property left out leaves the preview, and comes back ticked', async () => {
+      if (!(await page.locator('.lk-xp-side').isVisible())) await page.locator('.lk-xp-column').click();
+      await wait(400);
+      const box = page.locator('.lk-xp-prop', { hasText: 'Specialty' }).locator('input');
+      await box.click(); await wait(1200); const without = (await preview()).includes('Oncology');
+      await box.click(); await wait(1200);
+      return is([without, (await preview()).includes('Oncology')], [false, true]);
+    });
+    await step('words changed in the preview stay through a change of paper, and go, said, when what is written changes', async () => {
+      await pressWords('Consultant'); await page.keyboard.press('End'); await page.keyboard.type(' Walked.', { delay: 20 }); await wait(1200);
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300); await page.locator('.lk-menu .lk-item', { hasText: 'Letter' }).click(); await wait(1300);
+      const kept = [(await preview()).includes('Walked.'), await page.evaluate(() => document.querySelector('.lk-xp iframe').style.width)];
+      await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1300);
+      const gone = [(await preview()).includes('Walked.'), await page.getByText('the words changed in it went').count() > 0];
+      await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1200);
+      return is([...kept, ...gone], [true, '856px', false, true]);
+    });
+    await step('Enter takes the line the arrows are on, in a list of the export window', async () => {   // seen by hand, 26 November 2026: Enter did nothing
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300);
+      await page.locator('.lk-menu .lk-item', { hasText: 'A4' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
+      const took = [await count('.lk-menu'), await page.locator('.lk-xp [data-pick="paper"]').innerText().then(t => /A4/.test(t))];
+      await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300);   // back to Letter, which the steps after this expect
+      await page.locator('.lk-menu .lk-item', { hasText: 'Letter' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
+      return is(took, [0, true]);
+    });
+    await step('Layout turns the page into bullets and back to paragraphs', async () => {
+      const bullets = () => page.evaluate(() => document.querySelector('.lk-xp iframe').contentDocument.querySelectorAll('li.x-li').length);
+      const pickLayout = async word => { await page.locator('.lk-xp [data-pick="text"]').click(); await wait(300); await page.locator('.lk-menu .lk-item', { hasText: word }).click(); await wait(1300); };
+      const before = await bullets(); await pickLayout('Bullets'); const as = await bullets(); await pickLayout('Paragraphs');
+      return is([as > before, await bullets()], [true, before]);
+    });
+    await step('Escape closes an open list first, then the export window', async () => {
+      await page.locator('.lk-xp [data-pick="margins"]').click(); await wait(300); await page.keyboard.press('Escape'); await wait(300);
+      const first = [await count('.lk-menu'), await count('.lk-xp')];
+      await page.keyboard.press('Escape'); await wait(400);
+      return is([...first, await count('.lk-xp')], [0, 1, 0]);
+    });
+    await step('Save PDF hands the sheet, with the words changed in it, to the print window; the export window stays', async () => {
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2500);
+      await pressWords('Consultant'); await page.keyboard.press('End'); await page.keyboard.type(' Printed.', { delay: 20 }); await wait(1200);
+      // The Mac's print window is not opened by the walk: the page's print is taken over as the frame appears.
+      await page.evaluate(() => { window.__printed = ''; new MutationObserver((list, watch) => { for (const r of list) for (const n of r.addedNodes) if (n.classList?.contains('lk-print')) { n.contentWindow.print = () => { window.__printed = n.contentDocument.documentElement.outerHTML; }; watch.disconnect(); } }).observe(document.body, { childList: true }); });
+      await page.locator('.lk-xp [data-do="pdf"]').click(); await wait(2500);
+      const got = await page.evaluate(() => [window.__printed.includes('Printed.'), window.__printed.includes('size: Letter'), window.__printed.includes('class="sheet'), document.querySelectorAll('.lk-print').length, !!document.querySelector('.lk-xp:not([hidden])')]);
+      return is(got, [true, true, false, 0, true]);
+    });
+    await step('Copy Markdown copies the text as changed in the preview, and closes the window', async () => {
+      await page.locator('.lk-xp-tabs [data-target="md"]').click(); await wait(1300);
+      const shown = await preview();
+      await pressWords('# Dr. Mei Chen'); await page.keyboard.press('Meta+ArrowDown'); await page.keyboard.type('Added by hand', { delay: 20 }); await wait(400);
+      // The Mac's own clipboard is left alone.
+      await page.evaluate(() => { window.__copied = ''; navigator.clipboard.writeText = async text => { window.__copied = text; }; });
+      await page.keyboard.press('Meta+Enter'); await wait(900);
+      const copied = await page.evaluate(() => { delete navigator.clipboard.writeText; return window.__copied; });
+      await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
+      await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2200);
+      const remembered = await page.locator('.lk-xp-tabs .on').innerText();
+      await page.locator('.lk-xp-tabs [data-target="pdf"]').click(); await wait(400); await page.locator('.lk-xp [data-do="close"]').click(); await wait(400);
+      return is([shown.startsWith('# Dr. Mei Chen'), copied.startsWith('# Dr. Mei Chen'), copied.includes('Added by hand'), remembered, await count('.lk-xp')], [true, true, true, 'Markdown', 0]);
+    });
+    await step('a bullet\'s right-click menu exports that bullet alone', async () => {
+      await page.locator('#main-content-container .ls-page-blocks .bullet-container').first().click({ button: 'right' }); await wait(700);
+      await page.getByText('PDF or Markdown…').first().click(); await wait(2500);
+      const got = [await page.locator('.lk-xp-what').innerText().catch(() => ''), (await preview()).includes('Consultant medical oncologist'), (await preview()).includes('Specialty')];
+      await page.keyboard.press('Escape'); await wait(400);
+      return is(got, ['Export this bullet', true, false]);
+    });
+    await step('exporting wrote nothing to the graph', async () => is(await written(), untouched));
+    }
+    await step('nothing the plugin did was said as an error', async () => is(errors, []));
+  } finally {
+    if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }
+  }
+  if (faults.length) { console.log(`The walk found ${faults.length} of ${n} steps wrong:\n  ` + faults.join('\n  ')); process.exit(1); }
+  console.log(`The walk passed: ${n} steps in a real Logseq.`);
+  process.exit(0);
+})().catch(error => { console.error('The walk could not run: ' + (error.message || error)); process.exit(2); });
