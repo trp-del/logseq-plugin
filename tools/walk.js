@@ -997,6 +997,26 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(500); await page.keyboard.press('Escape'); await wait(500);
       return is([on, off], [[2, []], [0, []]]);
     });
+    await step('a value says where it is changed: a mark opens Logseq’s list or calendar, a name leads to its node, an empty one holds a faint mark', async () => {   // the owner, 27 November 2026: "it is not visually clear where I would click to edit"; "there should be some mark when property is empty to click on"
+      const BOX = '#main-content-container .lk-row[data-uuid="6a000000-0000-4000-8000-000000000013"]', CALL = '#main-content-container .lk-row[data-uuid="6a000000-0000-4000-8000-000000000006"]';
+      const open = async (at, box) => { await goto('home'); await goto(at); if (!(await page.locator(`${box} .lk-editor`).count())) { await page.locator(`${box} > .lk-fold`).click({ force: true }); await wait(2500); } };
+      const row = (box, name) => page.locator(`${box} .lk-editor :is(.property-pair, .bottom-property-pill)`).filter({ has: page.locator('.property-k', { hasText: new RegExp(`^${name}$`) }) }).first();
+      const asked = () => page.evaluate(() => { const up = [...document.querySelectorAll('.ui__dropdown-menu-content, [class*="popover-content"]')].find(el => el.getClientRects().length); return up ? (up.querySelector('table') ? 'calendar' : 'list') : 'nothing'; });
+      // A day's mark and several values' stand as the last piece of Logseq's own row round them.
+      const mark = async name => {
+        await open('1a000000-0000-4000-8000-000000000020', BOX); await row(BOX, name).scrollIntoViewIfNeeded(); await page.mouse.move(5, 5); await wait(300);
+        const read = () => row(BOX, name).evaluate(r => { const holder = r.querySelector('.property-value-inner > .jtrigger, .property-value-inner [class*="multi-value"]'), last = holder.lastElementChild.getBoundingClientRect(); return { seen: getComputedStyle(holder, '::after').opacity, x: last.right + 16, y: last.y + last.height / 2 }; });
+        const rest = await read(); await page.mouse.move(rest.x, rest.y); await wait(300); const near = await read();
+        await page.mouse.click(near.x, near.y); await wait(1200); const said = await asked(); await page.keyboard.press('Escape'); await wait(500);
+        return [rest.seen, near.seen, said];
+      };
+      const day = await mark('Date'), several = await mark('Agent');
+      await open('dr. sofia alvarez', CALL); await row(CALL, 'Topic').locator('a.page-ref span').first().click(); await wait(1500);
+      const led = await page.evaluate(() => window.logseq.api.get_current_page().then(p => p && p.title));
+      await goto('home'); await goto('ferrous sulphate');
+      const empty = await page.locator('#main-content-container .property-pair .property-value-inner.empty-value').first().evaluate(el => getComputedStyle(el, '::after').opacity);
+      return is([day, several, led, empty], [['0', '1', 'calendar'], ['0', '1', 'list'], 'Colon cancer', '0.6']);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

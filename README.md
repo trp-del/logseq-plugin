@@ -105,7 +105,7 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   with no small picture before it. A link to a node is the ink with a faint underline, never blue, never in brackets. A web
   link is the same with a small grey arrow ↗ after it, wherever it stands. This
   holds on Logseq's own pages, in the sidebar and inside an opened node, as in the plugin's lists. On Logseq's own pages a
-  property with nothing in it is its name, fainter.
+  property with nothing in it is its name, fainter, and where its value would be stands a very faint dash to press.
 - A value in words starts on the same edge as every other value: no bullet stands before it, and no room is left for one.
 - Logseq's own list of places for a bullet's property (its name, "UI position") answers a mouse press: the place pressed is
   saved, as Return saves it.
@@ -387,8 +387,12 @@ show their empty ones as faint names, so they have no +.
 
 A node opened in place is Logseq's own editor for it, laid out one way whatever the node is. A tagged bullet's properties,
 which Logseq draws as capsules in one clipped strip, and a page's, which it draws as rows, are one kind of row here: the names
-in one column as wide as the longest of them, the values in the next. Every row stays Logseq's: a press on a value opens
-Logseq's own list, date picker or field, and Cmd-Z takes a change back. A property with no value is not listed. A property is
+in one column as wide as the longest of them, the values in the next. Every row stays Logseq's: what changes a value
+is Logseq's own list, date picker or field, and Cmd-Z takes a change back. Under the pointer one mark stands after a value,
+taking no room: a small arrow down after a node or a choice from a set list, a + where a property holds several, a calendar
+after a day. A press on the mark opens Logseq's list or calendar (several values go on to a second line, never past the edge). A press on a node's name or on a day goes there (Shift: the
+right sidebar), under a bullet as on a page; a press on a number or on words writes in place. The same marks stand after the
+properties on Logseq's own pages. A property with no value is not listed (where Logseq is asked to show it, a faint dash stands in its value's place). A property is
 said once: where Logseq is set to show all of a node's properties (P then A), one that already stands under its words, at its
 line's start or end or as its status circle is not listed a second time. What points at the node stands under its rows, under
 the word Relations and a thin line.
@@ -396,14 +400,15 @@ the word Relations and a thin line.
 A value that is a node has a small arrow before it. A press on the arrow digs: that node opens under its value (its name is not
 said again), starting a step in from where
 the value's words start, with a guide line down from the arrow. It reads the same way (its rows, its Relations) and its own
-values are dug into in turn. A second press on the arrow closes it. A press on the value's name stays Logseq's: it goes to
-that page, and with Shift, Cmd, Ctrl or Option it does what Logseq does (the sidebar, a new window).
+values are dug into in turn. A second press on the arrow closes it. A press on the value's name goes to
+that page, with Shift in the sidebar; with Cmd, Ctrl or Option it stays Logseq's.
 
 | Do | Result |
 |---|---|
 | Click the arrow before a value | The node opens under its value; a second click closes it |
 | Escape, once nothing is being written | Back one node: the deepest dug node first, then the opened row |
 | Click the value's name | Goes to that node, as in Logseq |
+| Click the mark after a value | Logseq's list or calendar to change it |
 
 A page opened from a row keeps Logseq's faint dot for a first bullet; a dug page has none, so no level ends in an empty line.
 

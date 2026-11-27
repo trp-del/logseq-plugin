@@ -7,6 +7,8 @@
      touch.writing()          the text box of the bullet being written in, or null
      touch.edit(uuid)         the caret put into a node's words
      touch.digs(fn)           fn(editor, uuid) -> true takes a plain press on the arrow before a value that is a node
+     touch.goes()             under a bullet too, a press on a node's name in a property goes to that node (Shift: in the
+                              sidebar); gives back what stops it
      touch.once(placed)       in every opened node, a property Logseq lists although it already stands in its own place is
                               left out (placed: the names of properties standing at a line's start or end)
      touch.seat(editor, uuid) where a node dug into stands under its value's row: { top, left, row, mark } or null
@@ -105,6 +107,23 @@ function digs(fn) {
     const link = event.target.closest?.(VALUE), editor = link?.closest('.lk-editor');
     if (!link || !editor || !link.closest(ROW) || event.clientX - link.getBoundingClientRect().left > 18) return;   // only the arrow
     if (event.type === 'click' && !fn(editor, String(link.getAttribute('data-uuid')).toLowerCase())) return;
+    event.preventDefault(); event.stopPropagation();
+  };
+  for (const type of types) doc.addEventListener(type, on, true);
+  return () => { for (const type of types) doc.removeEventListener(type, on, true); };
+}
+/* Under a bullet Logseq opens its list on a press on a node's own name; on a page the name leads to the node. One way in
+   both: a plain press on the name goes there (Shift: in the right sidebar), and the mark after it (MARKS) opens Logseq's list.
+   The arrow before the name still digs, and a press with Cmd, Ctrl or Option stays Logseq's. Gives back what stops it. */
+const NAMED = '.bottom-property-pill .property-value-inner .select-item > a.page-ref[data-uuid]';
+function goes() {
+  const doc = host(), types = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'];
+  const on = event => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey) return;
+    const link = event.target.closest?.(NAMED);
+    if (!link?.closest('#main-content-container, #right-sidebar, .lk-editor')) return;
+    if (link.closest('.lk-editor') && event.clientX - link.getBoundingClientRect().left <= 18) return;   // the arrow
+    if (event.type === 'click') open(String(link.getAttribute('data-uuid')), event.shiftKey);
     event.preventDefault(); event.stopPropagation();
   };
   for (const type of types) doc.addEventListener(type, on, true);
@@ -1174,6 +1193,7 @@ const OPENED = `
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-k { display: block !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: var(--lk-small) !important; line-height: 20px !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-container { min-height: var(--lk-line-h) !important; display: flex !important; align-items: center !important; flex-wrap: wrap; overflow: visible !important; white-space: normal !important; min-width: 0; font-size: var(--lk-line-size) !important; line-height: 20px !important; padding: 0 !important; }
 .lk-editor :is(.bottom-property-pill, .property-pair) .property-value-inner { background: none !important; }
+.lk-editor .bottom-property-pill .property-value-inner [class*="multi-value"] { row-gap: 4px; padding-block: 2px; }   /* the first of two lines level with the property's name */
 .lk-editor .ls-properties-area, .lk-editor .properties-panel { margin: 0 !important; padding: 0 !important; overflow: visible !important; border-radius: 0 !important; }
 .lk-editor .ls-properties-area { display: block !important; }   /* Logseq drops these rows in a place narrower than 430px (the sidebar, a deep level); the rows here fit, so they stay */
 .lk-editor .ls-block-content-indent { padding-left: 42px !important; }   /* a bullet's other properties start where its first ones do */
@@ -1271,6 +1291,28 @@ const OPENED = `
    place too; how that node's rows are laid out, and its property names, is OPENED's, above. Looks only: nothing of Logseq's
    is moved or taken away. */
 const IN = ':is(#main-content-container, #right-sidebar, .lk-editor)', OWN = ':is(#main-content-container, #right-sidebar)';
+/* Where a value is changed, said under the pointer (the owner, 27 November 2026: "it is not visually clear where I would
+   click to edit"; chosen from three drawn ways): after a value that opens a list or the calendar, one mark, a small arrow
+   down, a + where the property holds several, a calendar for a day. At rest there is nothing, and it takes no room. It is
+   drawn by the stylesheet on Logseq's own piece round the value, so a press on it is a press on that piece and Logseq opens
+   its own list or calendar. */
+const VROWS = ':is(.property-pair, .bottom-property-pill)';
+const ONE = '.property-value-inner:is([data-type="node"], [data-type="page"], [data-type="class"], [data-type="property"]) .jtrigger:not([class*="multi-value"]) > .select-item, .property-value-inner[data-type="default"] .jtrigger > .select-item .inline';
+const SEVERAL = '.property-value-inner:not(.empty-value) [class*="multi-value"]';
+const DAY = '.property-value-inner:is([data-type="date"], [data-type="datetime"]):not(.empty-value) > .jtrigger';
+// A value that holds nothing: one Logseq says is empty, or words whose every line is blank and is not being written.
+const BLANK = '.property-value-inner.empty-value:not(:has([role="checkbox"])), .property-value-inner:has(.property-block-container [data-block-title=""]):not(:has(textarea, [data-block-title]:not([data-block-title=""])))';
+/* One value's mark hangs after the piece that holds it (placed: 'after'). Several values and a day are held by a row of
+   Logseq's own, which opens on a press past its last piece: there the mark is that row's last item ('last'). */
+const valueMark = (rows, value, icon, placed = 'after') => {
+  const on = `${rows} :is(${value})`, near = `${rows}:is(:hover, :focus-within) :is(${value})`;
+  const look = `var(--lk-ic-${icon}) center / 14px 14px no-repeat`, wash = 'radial-gradient(circle closest-side, rgb(0 0 0 / .08) 98%, transparent)';
+  return `
+${placed === 'after' ? `${on} { position: relative; overflow: visible !important; }` : `${on} { overflow: visible !important; }`}
+${on}::after { content: ""; width: 24px; height: 22px; opacity: 0; pointer-events: none; background: var(--lk-quiet); -webkit-mask: ${look}; mask: ${look}; ${placed === 'after' ? 'position: absolute; left: 100%; top: 50%; margin-top: -11px;' : 'flex: none; align-self: center; margin: -1px -24px -1px -4px;'} }
+${near}::after { opacity: 1; pointer-events: auto; }
+${near}:hover:not(:has(a:hover))::after { background: var(--lk-text); -webkit-mask: ${look}, ${wash}; mask: ${look}, ${wash}; }`;
+};
 const MARKS = `
 /* A tag that moves to a line of its own starts on the words' edge: the # and the × Logseq keeps room for before it hang there
    instead (26 November 2026: "the text must be aligned"). */
@@ -1284,8 +1326,14 @@ ${IN} .ls-block:has(> .block-main-container .block-left.positioned-properties [c
 ${OWN} a.property-k:not(.lk-editor a) { font-family: var(--lk-prop-face) !important; font-weight: var(--lk-prop-weight) !important; font-size: var(--lk-prop-size) !important; letter-spacing: -.01em; color: var(--lk-quiet) !important; }
 ${OWN} .property-key-inner > .property-icon { display: none !important; }
 ${IN} :is(.property-panel-row-empty, .bottom-property-pill:has(.empty-value)) a.property-k { color: var(--lk-off) !important; }
-${OWN} .empty-value :is(.empty-text-btn, .ui__button):not(.lk-editor *) { opacity: 0; }
-${OWN} :is(.property-pair, .bottom-property-pill):is(:hover, :focus-within) .empty-value :is(.empty-text-btn, .ui__button):not(.lk-editor *) { opacity: .5; }
+/* An empty property that shows holds a very faint dash where its value would be (the owner, 27 November 2026: "there should
+   be some mark when property is empty to click on. it can be very very faint"; "the emptyines could also just be a line or
+   dash"): one mark for every kind, on the values' own edge. It lies over Logseq's own press, which takes the click; Logseq's
+   word for it stays unseen. A box to tick is its own mark. */
+${IN} .empty-value :is(.empty-text-btn, .ui__button) { opacity: 0; }
+${IN} :is(${BLANK}) { position: relative; margin-left: 0 !important; }
+${IN} :is(${BLANK})::after { content: "\\2013"; position: absolute; left: 0; top: 0; line-height: 24px; pointer-events: none; color: var(--lk-off); opacity: .6; }
+${IN} ${VROWS}:is(:hover, :focus-within) :is(${BLANK})::after { color: var(--lk-text); opacity: 1; }
 ${IN} a.page-ref { color: var(--lk-text) !important; text-decoration: underline !important; text-decoration-color: var(--lk-link) !important; text-decoration-thickness: var(--lk-link-width) !important; text-underline-offset: 3px; }
 ${IN} a.page-ref:hover { text-decoration-color: currentColor !important; }
 ${IN} .page-reference > .bracket { display: none !important; }
@@ -1299,7 +1347,12 @@ a.external-link:not(:has(img))::after { content: "\\2197"; display: inline-block
 ${OWN} .ls-page-properties:not(.lk-editor *) { margin-left: 10px; }   /* a page's property names and Add property on the edge its title and its bullets stand on */
 ${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
 ${OWN} .property-pair .property-block-container:not(.lk-editor *) { margin-left: 0 !important; }   /* and none of the 20 Logseq pulls a value in words back by, to make room for that bullet */
-`;
+${IN} .bottom-property-pill .property-value-inner [class*="multi-value"] { flex-wrap: wrap !important; }   /* several values go on to a second line, never past the edge: their + stands after the last */
+${valueMark(`${IN} ${VROWS}`, ONE, 'chevron')}
+${valueMark(`${IN} ${VROWS}`, SEVERAL, 'plus', 'last')}
+${valueMark(`${IN} .property-pair`, DAY, 'calendar', 'last')}
+${valueMark('.lk-editor .bottom-property-pill', DAY, 'calendar', 'last')}
+`;   /* a day under a bullet on Logseq's own page keeps Logseq's pencil unless that line is quieted (CALM.pills) */
 /* Where one of Logseq's own controls does not do what it offers, set right with as little as will do it; Logseq still does the
    work. A property's "UI position" list reads the choice from the very element pressed, and a mouse press always lands on a
    piece inside the line, which carries none: with those pieces letting the press through, the line gets it and Logseq saves
@@ -1341,7 +1394,8 @@ function emptiesAt(target) {
   const shown = own.filter(drawn), words = [...block.querySelectorAll('.block-title-wrap')].find(el => el.closest('.ls-block[blockid]') === block);
   const lines = words?.getClientRects(), end = shown.length ? rowEnd(shown[shown.length - 1]) : lines?.[lines.length - 1];
   if (!end) return null;
-  return { uuid: block.getAttribute('blockid').toLowerCase(), x: Math.round(Math.min(end.right + 6, block.getBoundingClientRect().right - 22)), y: Math.round(end.top + end.height / 2 - 11), rows };
+  const marked = shown[shown.length - 1]?.querySelector(`:is(${ONE}, ${SEVERAL}, ${DAY})`);
+  return { uuid: block.getAttribute('blockid').toLowerCase(), x: Math.round(Math.min(end.right + (marked ? 30 : 6), block.getBoundingClientRect().right - 22)), y: Math.round(end.top + end.height / 2 - 11), rows };
 }
 function fillEmpty(row) {
   const doc = row.ownerDocument, win = doc.defaultView;
@@ -1510,7 +1564,8 @@ ${PILLS}${OUT} .bottom-property-pill:focus-within::after { inset: 1px -6px !impo
 ${PILLS}${OUT} .bottom-property-pill > div:first-child { color: var(--lk-quiet) !important; }
 ${PILLS}${OUT} .bottom-property-pill:has(.empty-value):not(:focus-within) { display: none !important; }
 ${PILLS}${OUT} .bottom-property-pill input.ui__input { field-sizing: content; width: auto !important; min-width: 3ch; max-width: 40ch; height: 24px !important; padding: 0 2px !important; border: 0 !important; box-shadow: none !important; outline: none !important; background: transparent !important; }
-${AREA} .ls-block .bottom-property-edit-icon${OUT} { display: none !important; }`,
+${AREA} .ls-block .bottom-property-edit-icon${OUT} { display: none !important; }
+${valueMark(`${PILLS}${OUT} .bottom-property-pill`, DAY, 'calendar', 'last')}`,
   /* The right sidebar, as it was before 0.9 (the owner, 25 November 2026: "the sidebar is not correctlt styled like pre 0.9
      version"; "you can keep same content of section in sidebar but remove asthetic stuff like shadow spacing lines, etc").
      What a section holds is Logseq's own, untouched. What goes is the dress: Logseq's row on top (Contents, Page graph, Help),
@@ -1864,5 +1919,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { notices, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();
