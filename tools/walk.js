@@ -681,14 +681,28 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await view('Timeline', 'Hidden');
       return is([dots, /^showing /.test(said), free, await list.locator('.lk-time').count()], [all, true, 0, 0]);
     });
-    await step('the Recycle list shows what Logseq keeps deleted, and Delete asks first with the keyboard on Leave it', async () => {
+    await step('the Recycle list shows what Logseq keeps deleted, and Delete asks first as every delete does: a red yes, and the keyboard on Cancel', async () => {   // the owner, 25 November 2026: "that color should be red and leave it should be cancel"
       await page.keyboard.press('Meta+Shift+p'); await wait(700); await page.keyboard.type('the Recycle list', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(2000);
       const rows = await page.locator('.lk-recycle-row').count(), told = await page.locator('.lk-recycle-top').innerText().catch(() => '');
       let asked = 'nothing to delete';
-      if (rows) { await page.locator('.lk-recycle-row [data-do="delete"]').first().click(); await wait(400); asked = await page.evaluate(() => document.activeElement?.innerText || ''); await page.keyboard.press('Enter'); await wait(400); }
+      if (rows) { await page.locator('.lk-recycle-row [data-do="delete"]').first().click(); await wait(400); asked = await page.evaluate(() => [document.activeElement?.innerText || '', document.querySelector('.lk-recycle .lk-ask-gone [data-do="yes"]')?.className || '']); await page.keyboard.press('Enter'); await wait(400); }
       const after = await page.locator('.lk-recycle-row').count();
+      return is([told.length > 0, asked, after, await count('.lk-recycle .lk-ask-gone')], [true, rows ? ['Cancel', 'lk-del'] : 'nothing to delete', rows, 0]);
+    });
+    await step('the Recycle list says a bullet is back only when Logseq brought it back', async () => {   // F70 of the rundown, 27 November 2026: “…” is back was said whatever Logseq answered
+      const made = await box.frame().evaluate(async () => { const pg = await logseq.Editor.createPage('Zzrecycle page', {}, { redirect: false }), bullet = await logseq.Editor.appendBlockInPage(pg.uuid, 'Zzrecycle bullet'); await logseq.Editor.removeBlock(bullet.uuid); await logseq.Editor.deletePage('Zzrecycle page'); return { page: String(pg.uuid), bullet: String(bullet.uuid) }; });
+      await wait(1500);
+      const live = () => box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?t :where [?b :block/title ?t] [(contains? #{"Zzrecycle page" "Zzrecycle bullet"} ?t)] (not [?b :logseq.property/deleted-at])]')).flat().sort());
+      const press = async (words, what) => { await page.locator('.lk-recycle-row', { hasText: words }).first().locator(`[data-do="${what}"]`).click(); await wait(1500); };
+      const notice = async () => { const all = await page.locator('.ui__toast').allInnerTexts(); return all.filter(text => /Zzrecycle/.test(text)).pop() || ''; };
+      await goto(CHEN); await page.keyboard.press('Meta+Shift+p'); await wait(700); await page.keyboard.type('the Recycle list', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(2000);
+      await press('Zzrecycle bullet', 'restore');
+      const refused = [await notice(), await live(), await page.locator('.lk-recycle-row', { hasText: 'Zzrecycle bullet' }).count()];
+      await press('Zzrecycle page', 'restore'); await press('Zzrecycle bullet', 'restore');
+      const back = [await notice(), await live()];
+      await box.frame().evaluate(() => logseq.Editor.deletePage('Zzrecycle page')); await wait(800);
       await goto(CHEN);
-      return is([told.length > 0, rows ? asked : 'nothing to delete', after], [true, rows ? 'Leave it' : 'nothing to delete', rows]);
+      return is([/was not brought back/.test(refused[0]) && /Zzrecycle page/.test(refused[0]), refused[1], refused[2], /is back/.test(back[0]), back[1]], [true, [], 1, true, ['Zzrecycle bullet', 'Zzrecycle page']]);
     });
     {
     // ---- Beside: two pages side by side (the owner chose the old feature, 26 November 2026)
