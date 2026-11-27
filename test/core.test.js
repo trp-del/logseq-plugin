@@ -656,3 +656,23 @@ test('several of a kind are said one way: the list\'s head, its count and its na
   assert.equal(view.shape({ rows: [node('a', 'Child'), node('b', 'Child')] }, {}, {}, 20261127).of, 'Children');
   assert.deepEqual(['Person of', 'Child of', 'Symptom of'].map(title => reads.back(title)), ['People', 'Children', 'Symptoms']);
 });
+// F74 of the round rundown-070 (27 November 2026): "chen" typed in Todo's line took "Call [[Dr. Mei Chen]] back" out of the
+// list, and grouped by parent its heading read the linked node's id in place of its name.
+test('Todo finds a task by a linked name, and a heading says a name, never an id', () => {
+  const CHEN = '6502f1c3-0b1c-4e7e-9a55-3b1f1d0c9a11', names = new Map([[CHEN, 'Dr. Mei Chen']]);
+  const call = { uuid: 'a', words: `Call [[${CHEN}]] back`, day: 0, at: [{ uuid: 'j', words: 'Nov 27th, 2026', day: 20261127 }, { uuid: 'v', words: `Visit with [[${CHEN}]] about the scan` }] };
+  const mail = { uuid: 'b', words: 'Sort the **mail**', day: 0, at: [{ uuid: 'p', words: 'Clinic', day: 0 }] };
+  const found = typed => todo.holding([call, mail], typed, names).map(task => task.uuid);
+  assert.deepEqual(found('chen'), ['a']);
+  assert.deepEqual(found('MEI back'), ['a'], 'every word typed, in any case and any order');
+  assert.deepEqual(found('mail'), ['b']);
+  assert.deepEqual(found('chen mail'), []);
+  assert.deepEqual(found('6502f1c3'), [], 'an id is no word of the task');
+  assert.deepEqual(found('  '), ['a', 'b'], 'nothing typed narrows nothing');
+  assert.equal(todo.under('parent', call, names), 'Visit with Dr. Mei Chen about the scan');
+  assert.equal(todo.under('parent', mail, names), 'Clinic');
+  assert.equal(todo.under('page', call, names, 20261127), 'Nov 27');
+  assert.equal(todo.under('page', mail, names), 'Clinic');
+  assert.equal(todo.under('parent', { uuid: 'c', words: 'x', at: [{ uuid: 'p', words: `About [[${CHEN.replace('65', '66')}]]`, day: 0 }] }, names), 'About …', 'a node no name is known for reads as …');
+  assert.equal(todo.under('page', { uuid: 'd', words: 'x' }, names), '');
+});

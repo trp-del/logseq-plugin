@@ -43,24 +43,27 @@ G.part({
         return made;
       }, 'The task could not be added');
       const field = holder.firstElementChild.firstElementChild, hint = doc.createElement('span'); hint.className = 'lk-todo-hint'; field.after(hint); hint.after(viewEl);
-      // What is typed in that line narrows the list to the tasks holding every word of it; Return still adds it as a new task.
+      // What is typed in that line narrows the list to the tasks holding every word of it (G.todo.holding: a link is read as the
+      // name of its node, so a task is found by a name it links); Return still adds it as a new task.
       let typed = '';
-      const holds = task => { const words = String(task.words).toLowerCase(); return typed.split(/\s+/).every(word => words.includes(word)); };
       // What is listed (the statuses left out), how it is grouped and how it is sorted are kept for the next time, on this Mac.
       const kept = (key, fallback) => { try { return JSON.parse(store.getItem(key)) ?? fallback; } catch (error) { return fallback; } };
       const keep = (key, value) => { try { store.setItem(key, JSON.stringify(value)); } catch (error) { /* this sitting only */ } };
       const BY = { day: 'By day', page: 'By page', parent: 'By parent', tag: 'By tag', priority: 'By priority', status: 'By status' };
       let by = BY[kept('lk.todo-by', 'day')] ? kept('lk.todo-by', 'day') : 'day', sort = kept('lk.todo-sort', 'day') === 'name' ? 'name' : 'day', out = new Set(kept('lk.todo-out', []));
       let dayAt = kept('lk.todo-date-at', 'end');   // where a task's day stands: 'start' or 'end' of its line
-      const plain = words => String(words || '').replace(/\[\[|\]\]/g, '');
       let held = new Set();   // every open task, listed or not
       const read = async () => {
         const [all, statuses] = await Promise.all([G.read.tasks(), G.read.statuses()]), today = G.days.number(new Date());
         held = new Set(all.map(task => task.uuid));
         const titleOf = new Map(statuses.map(status => [status.id, status.title])), open = statuses.filter(status => all.some(task => task.status === status.id));
         const listed = all.filter(task => !out.has(titleOf.get(task.status) || ''));
+        // Where each task sits: its page, then the bullet it is under. Said under a task's words, except what the group's own heading says.
+        const sits = await G.read.where(listed.map(task => task.id));
+        // The names of the nodes linked in a task's words and in the words of where it sits: a link reads as its name, never as its id.
+        const names = await G.read.names([...new Set([...listed.map(task => task.words), ...[...sits.values()].flat().map(step => step.words)].flatMap(G.words.named))]);
         // The strip of time: every listed task that has a day, a late one in red; a press on a dot goes to its line.
-        const dots = listed.filter(task => task.day).map(task => ({ day: task.day, title: plain(task.words), uuid: task.uuid, late: task.day < today }));
+        const dots = listed.filter(task => task.day).map(task => ({ day: task.day, title: G.words.plain(task.words, names), uuid: task.uuid, late: task.day < today }));
         timeEl.hidden = dots.length < 5;   // a strip of two or three dots says less than the lines under it
         if (dots.length >= 5) G.timeline.strip(timeEl, dots, today, dot => { const line = holder.querySelector(`.lk-row[data-uuid="${dot.uuid}"] > .lk-line`); if (line) { line.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); line.focus({ preventScroll: true }); } });
         const left = open.filter(status => out.has(status.title)), shown = open.filter(status => !out.has(status.title));
@@ -68,15 +71,13 @@ G.part({
         showEl.textContent = left.length ? (shown.length <= 2 ? shown.map(status => status.title).join(', ') : `${shown.length} statuses`) : 'All open'; showEl.classList.toggle('on', !!left.length);
         byEl.textContent = BY[by]; byEl.classList.toggle('on', by !== 'day' || sort !== 'day');
         showEl.lkOpen = open;
-        // Where each task sits: its page, then the bullet it is under. Said under a task's words, except what the group's own heading says.
-        const sits = await G.read.where(listed.map(task => task.id));
-        const tasks = (typed ? listed.filter(holds) : listed).map(task => { const at = sits.get(task.id) || []; return { ...task, at, where: by === 'page' ? at.slice(1) : by === 'parent' ? [] : at.slice(0, 1).filter(step => !step.day) }; });   // a journal is only a day, and a task says one day: its own
+        const tasks = G.todo.holding(listed, typed, names).map(task => { const at = sits.get(task.id) || []; return { ...task, at, where: by === 'page' ? at.slice(1) : by === 'parent' ? [] : at.slice(0, 1).filter(step => !step.day) }; });   // a journal is only a day, and a task says one day: its own
         if (by === 'day') return G.todo.groups(tasks, today, sort);
         if (by === 'status') return G.todo.by('status', tasks, today, task => titleOf.get(task.status) || '', statuses.map(status => status.title), sort);
         if (by === 'tag') return G.todo.by('tag', tasks, today, task => task.tag && task.tag !== 'Task' ? task.tag : '', [], sort);
         if (by === 'priority') return G.todo.by('priority', tasks, today, task => task.priority, PRIORITIES, sort);
-        if (by === 'parent') return G.todo.by('parent', tasks, today, task => plain(task.at[task.at.length - 1]?.words), [], sort);
-        return G.todo.by('page', tasks, today, task => task.at[0]?.day ? G.days.short(task.at[0].day) : plain(task.at[0]?.words), [], sort);
+        if (by === 'parent') return G.todo.by('parent', tasks, today, task => G.todo.under('parent', task, names), [], sort);
+        return G.todo.by('page', tasks, today, task => G.todo.under('page', task, names), [], sort);
       };
       // A task's right-click: its priority and its deadline, each from a short list, with the way back at the task's line.
       const more = (row, at) => {

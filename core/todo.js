@@ -1,4 +1,4 @@
-/* Tasks, grouped by when they are due. No Logseq here.
+/* Tasks, grouped by when they are due, narrowed to typed words, and the day said in a new task's words. No Logseq here.
    groups(tasks, today) answers the lists a Todo shows, in order, empty ones left out:
      Overdue    due before today and still open, the longest overdue first, each saying its day (late: true)
      Today      due today
@@ -7,7 +7,8 @@
    A task: { uuid, words, day } with day the day it is due (0 for none). Shaped as the lists of what points at a node are, so
    one piece draws both. */
 (function (root) {
-const D = typeof module !== 'undefined' && module.exports ? require('./days.js') : root.PluginDoor.days;
+const node = typeof module !== 'undefined' && module.exports;
+const D = node ? require('./days.js') : root.PluginDoor.days, W = node ? require('./words.js') : root.PluginDoor.words;
 function groups(tasks, today, sort = 'day') {
   const by = { late: [], today: [], coming: [], any: [] };
   for (const task of tasks) (task.day ? (task.day < today ? by.late : task.day === today ? by.today : by.coming) : by.any).push(task);
@@ -31,6 +32,21 @@ function by(what, tasks, today, name, order = [], sort = 'day') {
   const words = (a, b) => String(a.words).localeCompare(String(b.words)) || String(a.uuid).localeCompare(String(b.uuid));
   return [...lists.keys()].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).map(key => ({ key: `todo:${what}:${key}`, kind: 'group', name: key || none, tag: '',
     rows: lists.get(key).sort((a, b) => (sort === 'name' ? 0 : (a.day || 99999999) - (b.day || 99999999)) || words(a, b)).map(task => ({ ...task, tagShown: what !== 'tag' && !!task.tag && task.tag !== 'Task', dayShown: task.day, late: !!task.day && task.day < today })) }));
+}
+/* The tasks a line of typed words narrows a list to: holding(tasks, typed, names) answers those whose words hold every word
+   typed, in any case. The words are read as a person reads them (core/words.js): a link is the name of the node it leads to
+   (names: uuid -> name), never its id, so "chen" finds "Call [[…]] back" where the link leads to Dr. Mei Chen. */
+function holding(tasks, typed, names) {
+  const wanted = String(typed || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!wanted.length) return tasks;
+  return tasks.filter(task => { const words = W.plain(task.words, names).toLowerCase(); return wanted.every(word => words.includes(word)); });
+}
+/* The heading a task stands under by where it sits: under('page' | 'parent', task, names, today), with task.at the steps
+   read.where answers (its page, then the bullet it is under). A journal page is said as its day; any other step by its words
+   as a person reads them, a link in them the name of its node. '' for a task that sits nowhere known. */
+function under(what, task, names, today) {
+  const at = task.at || [], step = what === 'page' ? at[0] : at[at.length - 1];
+  return !step ? '' : what === 'page' && step.day ? D.short(step.day, today) : W.plain(step.words, names);
 }
 /* A day said in a task's words, read before the task is made: dayIn("Call Sam by friday", today) -> { day, words: "Call Sam" },
    or null when the words name no day. Read: today, tomorrow; a weekday ("friday", "by friday", "next friday": the coming one,
@@ -70,7 +86,7 @@ function dayIn(text, today) {
   }
   return null;
 }
-const api = { groups, by, dayIn };
+const api = { groups, by, holding, under, dayIn };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).todo = api;
 })(typeof window !== 'undefined' ? window : globalThis);
