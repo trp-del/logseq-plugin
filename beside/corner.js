@@ -32,14 +32,11 @@ G.part({
     const make = words => G.write.newPage(words).then(uuid => G.touch.open(uuid)).catch(error => G.say(`The page could not be made: ${error?.message || 'Logseq refused'}`, 'warning'));
     // The words typed in the list, as a new bullet at the end of today's journal; you stay where you were, and Cmd-Z takes it back.
     const jot = async words => {
-      let resume = () => {};
       try {
-        resume = await G.touch.setDown();   // a bullet being written is left for the moment of the write, then opened again
         const made = await G.write.addBullet(await G.write.day(G.days.number(new Date())), words, { page: true });
         if (!made) throw new Error('Logseq refused');
         G.say('Added to Today');
       } catch (error) { G.say(`“${words}” could not be added to Today: ${error?.message || 'Logseq refused'}`, 'warning'); }
-      finally { await resume(); }
     };
     const taken = () => G.setting('cornerTakesCommandKey') !== false;
     let shut = null;

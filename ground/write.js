@@ -4,6 +4,7 @@
    from the plugin each went back with one Undo, the Task tag Logseq had added going with the status).
      write.setStatus(uuid, title)   a task's status, by the name Logseq shows it under
      write.remove(uuid, isPage)     a bullet deleted; a page sent to Logseq's Recycle
+     (the four that add a bullet, addTask, addNode, addBullet and addLine, set down the bullet being written for the moment)
      write.addTask(words, day)      a new bullet at the end of today's journal, its status Todo, its Deadline the day when one is given; answers its uuid
      write.setPriority(uuid, title) a task's priority by its name, or taken off with none
      write.setDeadline(uuid, day)   a task's deadline, or taken off with 0
@@ -37,6 +38,13 @@
 (function () {
 const G = window.PluginDoor;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/* A write that adds a bullet. The bullet being written is left for the moment of it and opened again after: when a new bullet
+   lands after or under the one being written, Logseq saves that one's box as it reads, and a #tag in it then makes a tag named
+   by an id (tried in Logseq 2.0.2, 27 November 2026). */
+async function adding(write) {
+  const resume = await G.touch.setDown();
+  try { return await write(); } finally { await resume(); }
+}
 const sure = uuid => { if (!UUID.test(String(uuid || ''))) throw new Error('a node is changed by its id, and none was given'); return String(uuid); };
 G.write = {
   setStatus: (uuid, title) => logseq.Editor.upsertBlockProperty(sure(uuid), 'logseq.property/status', String(title)),
@@ -54,7 +62,7 @@ G.write = {
     const today = G.days.number(new Date());
     const page = await G.read.journal(today) || String((await logseq.Editor.createJournalPage(new Date()))?.uuid || '');
     if (!UUID.test(page)) throw new Error('today’s journal could not be found');
-    const made = await logseq.Editor.appendBlockInPage(page, text, { properties: { 'logseq.property/status': 'Todo', ...(G.days.valid(day) ? { 'logseq.property/deadline': new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100).getTime() } : {}) } });
+    const made = await adding(() => logseq.Editor.appendBlockInPage(page, text, { properties: { 'logseq.property/status': 'Todo', ...(G.days.valid(day) ? { 'logseq.property/deadline': new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100).getTime() } : {}) } }));
     return String(made?.uuid || '');
   },
   setNode(uuid, ident, id) {
@@ -109,15 +117,17 @@ G.write = {
     if (!/^user\.property\/[\w.-]+$/.test(String(ident)) || !Number.isSafeInteger(id) || id <= 0) throw new Error('a new node points at a node of the graph through one of your properties');
     const to = page ? sure(page) : await G.read.journal(G.days.number(new Date())) || String((await logseq.Editor.createJournalPage(new Date()))?.uuid || '');
     if (!UUID.test(to)) throw new Error('today’s journal could not be found');
-    const made = String((await logseq.Editor.appendBlockInPage(to, String(words || '')))?.uuid || '');
-    if (tag) await logseq.Editor.addBlockTag(sure(made), sure(tag));
-    await logseq.Editor.upsertBlockProperty(sure(made), ident, id, { entityId: true });
-    return { uuid: made, steps: tag ? 3 : 2 };
+    return adding(async () => {
+      const made = String((await logseq.Editor.appendBlockInPage(to, String(words || '')))?.uuid || '');
+      if (tag) await logseq.Editor.addBlockTag(sure(made), sure(tag));
+      await logseq.Editor.upsertBlockProperty(sure(made), ident, id, { entityId: true });
+      return { uuid: made, steps: tag ? 3 : 2 };
+    });
   },
   setWords: (uuid, words) => logseq.Editor.updateBlock(sure(uuid), String(words ?? '')),
   async addBullet(at, words, { under = false, page = false } = {}) {
     const text = String(words ?? '');
-    const made = page ? await logseq.Editor.appendBlockInPage(sure(at), text) : await logseq.Editor.insertBlock(sure(at), text, { sibling: !under });
+    const made = await adding(() => page ? logseq.Editor.appendBlockInPage(sure(at), text) : logseq.Editor.insertBlock(sure(at), text, { sibling: !under }));
     return String(made?.uuid || '');
   },
   // Set in as Logseq's Tab does: the last bullet under the one before it.
@@ -161,7 +171,7 @@ G.write = {
   range(uuid, ids) { if (!ids.every(id => Number.isSafeInteger(id) && id > 0)) throw new Error('a property takes tags by their ids'); return logseq.Editor.setPropertyNodeTags(sure(uuid), ids); },
   toPage: (uuid, page) => logseq.Editor.moveBlock(sure(uuid), sure(page), { children: true }),
   // A new, empty line at the end of what a node keeps under it; answers its uuid.
-  async addLine(uuid, isPage) { const made = isPage ? await logseq.Editor.appendBlockInPage(sure(uuid), '') : await logseq.Editor.insertBlock(sure(uuid), '', { sibling: false }); return String(made?.uuid || ''); },
+  async addLine(uuid, isPage) { const made = await adding(() => isPage ? logseq.Editor.appendBlockInPage(sure(uuid), '') : logseq.Editor.insertBlock(sure(uuid), '', { sibling: false })); return String(made?.uuid || ''); },
   // Logseq's Recycle: a page or a bullet brought back, or deleted for good (which nothing takes back). Logseq's own two calls.
   restore: uuid => G.host().defaultView.logseq.api.restore_page(sure(uuid)),
   deleteForGood: uuid => G.host().defaultView.logseq.api.delete_recycled_page_permanently(sure(uuid)),

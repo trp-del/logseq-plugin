@@ -1112,6 +1112,40 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
         const props = all.findIndex(one => one.querySelector(':scope > .ls-page-properties')), rel = all.findIndex(one => one.classList.contains('lk-relwrap'));
         return [props > -1, rel > props, rel === all.length - 1]; }), [true, true, true]);
     });
+    await step('an addition that lands by the bullet being written leaves it its own tag and the caret where it was', async () => {   // found on 27 November 2026 adding from the corner: Logseq made a tag named by an id
+      const today = await box.frame().evaluate(async () => (await logseq.Editor.createJournalPage(new Date().toLocaleDateString('en-CA'))).uuid);
+      const tagsOf = uuid => page.evaluate(async u => (await window.logseq.api.datascript_query(`[:find ?t :where [?b :block/uuid #uuid "${u}"] [?b :block/tags ?g] [?g :block/title ?t]]`)).map(r => r[0]).sort(), uuid);
+      const model = (name, request) => page.evaluate(([name, request]) => window.logseq.api.invoke_external_plugin_cmd('logseq-plugin', 'models', name, [request]), [name, request]);
+      const ways = {
+        'Todo’s add': () => box.frame().evaluate(() => window.PluginDoor.write.addTask('Zz a task')),
+        'a bullet at the end of a page': () => box.frame().evaluate(u => window.PluginDoor.write.addBullet(u, 'Zz at the end', { page: true }), today),
+        'a bullet after it': (at) => box.frame().evaluate(u => window.PluginDoor.write.addBullet(u, 'Zz after'), at),
+        'a new line under it': (at) => box.frame().evaluate(u => window.PluginDoor.write.addLine(u), at),
+        'a list’s + line': () => box.frame().evaluate(async () => { const G = window.PluginDoor, prop = [...(await G.read.schema()).props.values()].find(one => one.type === 'node'), [to] = await G.read.byUuids(['1a000000-0000-4000-8000-00000000000e']); return G.write.addNode('', prop.ident, to.id, { words: 'Zz pointing' }); }),
+        'Alfred’s add to a page': () => model('append', { page: today, words: 'Zz from Alfred' }),
+        'Alfred’s Todo': () => model('todoAdd', { words: 'Zz Alfred task' }),
+      };
+      // Only these bullets on today: a long journal in the feed draws its last bullets late, and the step presses the last one.
+      await box.frame().evaluate(async u => { for (const one of await logseq.Editor.getPageBlocksTree(u)) await logseq.Editor.removeBlock(one.uuid); }, today);
+      const got = [];
+      for (const [way, add] of Object.entries(ways)) {
+        const uuid = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, 'Zz seen #Person here')).uuid, today);
+        await page.evaluate(() => window.logseq.api.push_state('home')); await wait(1200);
+        await page.locator(`#main-content-container .ls-block[blockid="${uuid}"] .block-content`).first().click({ position: { x: 4, y: 8 } }); await wait(900);
+        const before = await page.evaluate(() => [document.activeElement.value, document.activeElement.selectionStart]);
+        const held = () => page.evaluate(async () => (await window.logseq.api.datascript_query('[:find ?b ?t :where [?b :block/title ?t] [(clojure.string/starts-with? ?t "Zz ")]]')).length);
+        const was = await held(), line = way === 'a new line under it' ? 1 : 0;   // an empty line has no words to count
+        await add(uuid); await wait(1600);
+        if (!line && await held() <= was) got.push(`${way}: added nothing`);
+        const after = await page.evaluate(() => [document.activeElement.value, document.activeElement.selectionStart]);
+        await page.keyboard.press('Escape'); await wait(800);
+        const tags = await tagsOf(uuid);
+        if (way !== 'a new line under it' && JSON.stringify(after) !== JSON.stringify(before)) got.push(`${way}: the caret went from ${JSON.stringify(before)} to ${JSON.stringify(after)}`);
+        if (JSON.stringify(tags) !== '["Person"]') got.push(`${way}: tagged ${tags.join(', ') || 'nothing'}`);
+        await box.frame().evaluate(async ([today, junk]) => { for (const one of await logseq.Editor.getPageBlocksTree(today)) if (/^Zz /.test(one.title || one.content || '')) await logseq.Editor.removeBlock(one.uuid); for (const name of junk) await logseq.Editor.deletePage(name); }, [today, tags.filter(tag => /^[0-9a-f]{8}-/.test(tag))]); await wait(900);
+      }
+      return is(got, []);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

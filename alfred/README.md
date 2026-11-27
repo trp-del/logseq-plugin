@@ -74,8 +74,10 @@ The toast says what was added, or what went wrong, for the commands without a pa
 the commands: `page`, `picture`, `page-selection` and `selection-prepare`. Each panel is a folder `<name>.alfredui` with its
 `ui.json` (Alfred UI's JSON) and small scripts that run `logseq.js panel-<command>`, which answers in Alfred UI's JSON actions.
 A panel's ↩ that leads elsewhere closes it with where to go, and the workflow opens the next panel by its External Trigger.
-Alfred UI reads braces in a launch argument as placeholders, so a selection travels to its panel as base64. Words, links and pages go
-through Logseq's HTTP API (`appendBlockInPage`, `createPage`, `addBlockTag`). Files go to the Logseq Plugin, through the
+Alfred UI reads braces in a launch argument as placeholders, so a selection travels to its panel as base64. Words and links added at the end of a page go to the
+plugin (`append`), which sets down a bullet being written in Logseq for the moment, so Logseq makes no tag named by an id out of
+a #tag in it; without the plugin, and for pages, they go through Logseq's HTTP API (`appendBlockInPage`, `createPage`,
+`addBlockTag`). Files go to the Logseq Plugin, through the
 API's `logseq.App.invokeExternalPluginCmd`, as `["logseq-plugin", "models", "add", [{ files, where }]]`; the plugin pastes
 each file into an empty bullet of the page, as Logseq's own paste handler takes a dropped file, because the API has no call
 that makes an asset node.

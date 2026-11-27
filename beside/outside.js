@@ -9,6 +9,7 @@
      markdown({ node, uuid })        { text, said }: a bullet with the bullets under it (uuid), or the node whole, as Markdown
    A change answers { ok, steps, said, node, lit }: how many steps of Logseq's Undo it took, what to say, the node read afresh,
    and the line to light. node is the uuid of the node shown; uuid the bullet (or the node itself) the change is made to:
+     append({ page, words })                  a new bullet at the end of any page, answered { ok, uuid }
      setWords({ node, uuid, words })          a bullet's words
      newBullet({ node, after, words })        a new bullet after the bullet `after`, or last in the node when there is none
      move({ node, uuid, way })                way 'in' or 'out', as Tab and Shift-Tab in Logseq
@@ -177,6 +178,13 @@ const answers = {
     const read = G.todo.dayIn(words, D.number(new Date())), text = read ? read.words : String(words || '').trim();
     const uuid = await Wr.addTask(text, read ? read.day : 0);
     return { ok: true, uuid, words: text, day: read ? D.short(read.day) : '' };
+  },
+  /* A bullet with these words at the end of a page, for what Alfred adds itself (today, the open page, a selection): written here
+     so the bullet being written in Logseq is set down first, as for every addition of the plugin's. { uuid } */
+  async append({ page, words }) {
+    const uuid = await Wr.addBullet(String(page || ''), String(words ?? ''), { page: true });
+    if (!uuid) fail('Logseq refused');
+    return { ok: true, uuid };
   },
   /* A note from outside Logseq, at the end of today's journal, with the tag asked for: { uuid, page, tag, wrote }. */
   async note({ words, tag }) {

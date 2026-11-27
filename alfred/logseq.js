@@ -150,7 +150,13 @@ function pageNamed(words) {
   return { page: page, made: made, tags: tags };
 }
 
+// A bullet at the end of a page. The plugin writes it where it runs: it sets down a bullet being written in Logseq first, since
+// Logseq otherwise makes a tag named by an id out of a #tag in it. Without the plugin (or its Alfred part) Logseq writes it.
 function appendTo(page, content) {
+  // null: the plugin is off or older. A failed call is not caught: it may still be written, and must never be written twice.
+  const got = api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", "append", [{ page: nodeUuid(page), words: content }]], 12);
+  if (got && got.ok) return { uuid: got.uuid };
+  if (got && got.ok === false && !/switched off/.test(String(got.said))) throw new Error(got.said || "Logseq refused");
   return api("logseq.Editor.appendBlockInPage", [nodeUuid(page), content, {}]);
 }
 

@@ -659,7 +659,7 @@ The Alfred workflow in `alfred/` (its own README says what its panels do) asks t
 which must be switched on in Logseq's settings. The plugin answers by name: `find` (Logseq's own search), `node` (a node
 whole: its name and tags, each property its tags give it with what it holds and its set choices, its bullets as an outline,
 and what points at it, as Relations lists it), `candidates` (what a node property can hold), `tags`, `markdown` (a bullet
-with those under it, or a node whole, written by `core/markdown.js`), and one name for each change: `setWords`, `newBullet`,
+with those under it, or a node whole, written by `core/markdown.js`), `append` (a bullet at the end of a page), and one name for each change: `setWords`, `newBullet`,
 `move`, `remove`, `setValue`, `tag`, `status`, `undo`. A property set to "Hide by default" in Logseq is not among a node's
 properties, as it is not on the node's own page. Every change answers the node read afresh and how many steps of
 Logseq's Undo it took. A day typed as words ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot
@@ -671,6 +671,9 @@ Only what you do: in Ontology a tag moved, merged, renamed or deleted, propertie
 **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
 window's local storage, and the export window's choices in the plugin's settings. Export writes nothing to the graph; the only
 file it writes is the one you save.
+
+A bullet added while another is being written (from Todo, a list's + line, the corner or Alfred) leaves that one for a moment and
+opens it again, the caret where it was: Logseq 2.0.2 would otherwise make a tag named by an id out of a #tag in it.
 
 ## Checking
 

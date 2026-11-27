@@ -347,16 +347,17 @@ function keepPlace() {
   const uuid = block?.getAttribute('blockid'), at = el?.selectionStart;
   return () => { if (el?.isConnected && el !== host().body) el.focus({ preventScroll: true }); else if (uuid) logseq.Editor.editBlock(uuid, { pos: at }); };
 }
-/* The bullet being written left as Logseq's Escape leaves it, for a write elsewhere: a write while it stands open has Logseq
-   save its box as it reads, and a #tag in it then makes a tag named by an id (tried in Logseq 2.0.2, 27 November 2026).
-   Gives back what opens the bullet again, the caret where it was. */
+/* The bullet being written left as Logseq's Escape leaves it, for a write that adds a bullet (ground/write.js): a bullet landing
+   after or under the one being written has Logseq save its box as it reads, and a #tag in it then makes a tag named by an id
+   (tried in Logseq 2.0.2, 27 November 2026). Gives back what opens the bullet again, the caret where it was; it never fails, so
+   a write that was made is never answered as refused. */
 async function setDown() {
   const el = writing(), uuid = el?.closest('.ls-block[blockid]')?.getAttribute('blockid'), at = el?.selectionStart;
   let held = false; try { held = !!(await logseq.Editor.checkEditing()); } catch (error) { /* not known: the box on screen says */ }
   if (!uuid && !held) return () => {};   // Logseq can still hold a bullet as being written after its box has gone
   await logseq.Editor.exitEditingMode(false);
   await new Promise(done => host().defaultView.setTimeout(done, 200));
-  return uuid ? () => logseq.Editor.editBlock(uuid, { pos: at }) : () => {};
+  return uuid ? async () => { try { await logseq.Editor.editBlock(uuid, { pos: at }); } catch (error) { console.warn('Logseq Plugin: the bullet could not be opened again', error); } } : () => {};
 }
 /* FOCUSING INTO A BULLET AND OUT, where it meets Logseq's screen (beside/glide.js decides which bullet moves, and when). Only
    the main view. Logseq swaps the whole view in one frame, and every way in and out goes through the app's history, so the view
