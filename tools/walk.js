@@ -956,6 +956,26 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await hide(false); await wait(1500);
       return is([before, first, asked, kept, hidden, await after() > 0], [true, [false, true, false], true, true, 0, true]);
     });
+    await step('with every property shown, an opened task says each property once', async () => {   // the owner, 27 November 2026: "why are properties being repeated?"
+      const ROW = '.lk-todo .lk-row[data-uuid="8a000000-0000-4000-8000-000000000090"]';   // a task with a priority and a deadline
+      await goto(CHEN);
+      if (!(await page.locator('.lk-todo').first().isVisible().catch(() => false))) { await page.locator('.lk-corner > button').click({ force: true }); await wait(500); await page.keyboard.type('Todo', { delay: 30 }); await wait(400); await page.keyboard.press('Enter'); await wait(2500); }
+      // Of the opened node: whether Logseq lists under it what already stands in its own place (the status circle, the day under the
+      // words), and the names that are nevertheless seen twice.
+      const read = () => page.evaluate(sel => { const block = document.querySelector(`${sel} .lk-editor .ls-block[blockid="${document.querySelector(sel).dataset.uuid}"]`);
+        const own = selector => [...block.querySelectorAll(selector)].filter(el => el.closest('.ls-block[blockid]') === block), name = row => row.querySelector('.property-k')?.textContent.trim();
+        const seen = el => el.getClientRects().length > 0, under = own('.bottom-property-pill'), pairs = own('.property-pair');
+        const placed = [...under.map(name), ...(own('.positioned-properties.block-left [class*="ls-icon-"]').some(seen) ? ['Status'] : [])];
+        const shown = [...placed, ...pairs.filter(seen).map(name)];
+        return [pairs.filter(pair => placed.includes(name(pair))).length, shown.filter((one, i) => shown.indexOf(one) !== i)]; }, ROW);
+      const all = async () => { await page.keyboard.press('p'); await wait(150); await page.keyboard.press('a'); await wait(2000); };
+      await page.locator(`${ROW} > .lk-fold`).click({ force: true }); await wait(2500);
+      await page.locator(`${ROW} .lk-editor .block-title-wrap`).first().click({ position: { x: 20, y: 8 } }); await wait(700); await page.keyboard.press('Escape'); await wait(700);
+      await all(); const on = await read();
+      await all(); const off = await read();
+      await page.keyboard.press('Escape'); await wait(500); await page.keyboard.press('Escape'); await wait(500);
+      return is([on, off], [[2, []], [0, []]]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }

@@ -385,8 +385,10 @@ show their empty ones as faint names, so they have no +.
 A node opened in place is Logseq's own editor for it, laid out one way whatever the node is. A tagged bullet's properties,
 which Logseq draws as capsules in one clipped strip, and a page's, which it draws as rows, are one kind of row here: the names
 in one column as wide as the longest of them, the values in the next. Every row stays Logseq's: a press on a value opens
-Logseq's own list, date picker or field, and Cmd-Z takes a change back. A property with no value is not listed. What points at
-the node stands under its rows, under the word Relations and a thin line.
+Logseq's own list, date picker or field, and Cmd-Z takes a change back. A property with no value is not listed. A property is
+said once: where Logseq is set to show all of a node's properties (P then A), one that already stands under its words, at its
+line's start or end or as its status circle is not listed a second time. What points at the node stands under its rows, under
+the word Relations and a thin line.
 
 A value that is a node has a small arrow before it. A press on the arrow digs: that node opens under its value (its name is not
 said again), starting a step in from where

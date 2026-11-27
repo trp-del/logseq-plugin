@@ -7,6 +7,8 @@
      touch.writing()          the text box of the bullet being written in, or null
      touch.edit(uuid)         the caret put into a node's words
      touch.digs(fn)           fn(editor, uuid) -> true takes a plain press on the arrow before a value that is a node
+     touch.once(placed)       in every opened node, a property Logseq lists although it already stands in its own place is
+                              left out (placed: the names of properties standing at a line's start or end)
      touch.seat(editor, uuid) where a node dug into stands under its value's row: { top, left, row, mark } or null
      touch.emptiesAt(target), touch.fillEmpty(row)   a node's empty properties kept out of sight, found under the pointer and
                               opened to be filled
@@ -131,6 +133,25 @@ function names(editor) {
     range.selectNodeContents(key); wide = Math.max(wide, range.getBoundingClientRect().width);
   }
   return Math.ceil(wide);
+}
+/* With every property shown (Logseq's P then A, "Toggle display hidden properties"), Logseq lists under a node those that
+   already stand in their own place too: under its words, or at its line's start or end. Inside an opened node all are drawn as
+   one kind of row, so each was said twice (the owner, 27 November 2026: "why are properties being repeated?"). The listed one
+   is marked, and left out. placed: the names of the person's own properties that stand at a line's start or end. */
+const sameValue = (stands, listed) => {
+  const words = stands.textContent.trim(), icon = [...stands.querySelectorAll('[class*="ls-icon-"]')].flatMap(el => [...el.classList]).find(name => name.startsWith('ls-icon-') && name !== 'ls-icon-color-wrap');
+  return words ? words === listed.textContent.trim() : icon ? !!listed.querySelector('.' + CSS.escape(icon)) : stands.dataset.type === listed.dataset.type;
+};
+function once(placed) {
+  for (const row of host().querySelectorAll('.lk-editor .ls-properties-area .property-pair')) {
+    const block = row.closest('.ls-block[blockid]'), name = row.querySelector('.property-k')?.textContent.trim();
+    if (!block || !name) continue;
+    const own = selector => [...block.querySelectorAll(selector)].filter(el => el.closest('.ls-block[blockid]') === block && el.getClientRects().length);
+    let twice = own('.positioned-properties.block-below .bottom-property-pill .property-k').some(key => key.textContent.trim() === name);
+    const value = !twice && (name === 'Status' || name === 'Priority' || placed.has(name)) && row.querySelector('.property-value-inner');
+    if (value) twice = own('.positioned-properties:is(.block-left, .block-right) .property-value-inner').some(stands => sameValue(stands, value));
+    row.toggleAttribute('data-lk-twice', twice);
+  }
 }
 // The caret put into a node's words, wherever Logseq shows the node.
 const edit = uuid => logseq.Editor.editBlock(String(uuid));
@@ -1141,6 +1162,8 @@ const OPENED = `
 .lk-editor .bottom-property-pill > div:first-child > .select-none { display: none !important; }
 .lk-editor .bottom-property-pill .bottom-property-edit-icon, .lk-editor .property-panel-edit-btn { display: none !important; }
 .lk-editor .bottom-property-pill:has(.empty-value), .lk-editor .property-pair.property-panel-row.property-panel-row-empty, .lk-editor .ls-new-property { display: none !important; }
+/* A property Logseq lists although it already stands in its own place (touch.once). */
+:is(#lk-none, .lk-editor) .property-pair[data-lk-twice] { display: none !important; }
 /* Pressed, Logseq's "Show hidden properties" brings the node's other properties: the person asked for all of them, so the ones
    with no value are listed too, to be filled here. */
 .lk-editor:has(.bottom-property-hidden-toggle-btn > .ls-icon-chevron-up) :is(.bottom-property-pill:has(.empty-value), .property-pair.property-panel-row.property-panel-row-empty) { display: grid !important; }
@@ -1796,5 +1819,5 @@ function presses(fn) {
   return () => { for (const type of types) view.removeEventListener(type, on, true); };
 }
 const beside = { mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

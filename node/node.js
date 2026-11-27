@@ -12,7 +12,8 @@
                                                  place lets its rows be ticked: on(row) whether the row has a tick box, has(uuid)
                                                  whether it is ticked, flip(...) told of a press on one. Gives back { off(), again() }
      G.node.adder(holder, name, add, failed)     a line at the head of holder that adds (a task, a tag); gives back what removes it
-     G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away */
+     G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away
+     G.node.once(base)                           keeps every opened node saying each property once (touch.once) */
 (function () {
 const G = window.PluginDoor, L = G.lists, D = G.days, W = G.words;
 const ARROW = '<svg viewBox="0 0 192 512" fill="currentColor" aria-hidden="true"><path d="M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z"/></svg>';
@@ -413,7 +414,15 @@ function adder(holder, name, add, failed) {
   field.addEventListener('keydown', onKey);
   return () => { field.removeEventListener('keydown', onKey); line.remove(); };
 }
-G.node = { toggle, open, close, roll, rollUp, back, listing, lists, related, adder, folded, hit, ARROW, CHEV };
+// Every opened node says each property once, whatever Logseq is set to list under it (touch.once).
+function once(base) {
+  let placed = new Set();   // the names of the person's own properties that stand at a line's start or end
+  const load = async () => { placed = new Set([...(await G.read.schema()).props.values()].filter(prop => /^block-(left|right)$/.test(prop.at)).map(prop => prop.title)); G.touch.once(placed); };
+  load().catch(() => {});   // before the graph is up there is none; the next change brings them
+  base.onStop(G.touch.changed(() => load().catch(() => {})));
+  base.onStop(G.touch.watch(() => G.touch.once(placed)));
+}
+G.node = { toggle, open, close, roll, rollUp, back, listing, lists, related, adder, folded, hit, once, ARROW, CHEV };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }

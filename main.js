@@ -30,6 +30,7 @@ async function main() {
   G.touch.editor.start(); root.onStop(() => G.touch.editor.stop());
   root.onStop(G.touch.here());
   G.empty.start(root);
+  G.node.once(root);
   for (const part of G.parts) {
     if (!G.on(part.key)) continue;
     const base = G.base(part.key); bases.push(base);
