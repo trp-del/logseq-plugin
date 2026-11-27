@@ -179,8 +179,8 @@ G.part({
       };
       // A line found in a note says where it sits, so two lines of the same words are told apart; a journal is the day at the end.
       const placed = async (rows, tagShown) => {
-        const sits = await G.read.where(rows.filter(node => !node.isPage).map(node => node.id));
-        return rows.slice(0, 120).map(node => ({ ...node, tagShown, dayShown: node.day, where: node.isPage ? [] : (sits.get(node.id) || []).filter(step => !step.day).slice(0, 2) }));
+        const some = rows.slice(0, 120), sits = await G.read.where(some.filter(node => !node.isPage).map(node => node.id));   // where a bullet sits is asked only of the rows the list is given
+        return some.map(node => ({ ...node, tagShown, dayShown: node.day, where: node.isPage ? [] : (sits.get(node.id) || []).filter(step => !step.day).slice(0, 2) }));
       };
       // Plain words, no kind: Logseq's own search; what holds the words first, then what holds them in a value, said after its words.
       const searched = async words => {
@@ -376,7 +376,7 @@ G.part({
     base.onStop(() => { G.arrive = { ...(G.arrive || {}), search() {} }; });
     // The key shows Search and, pressed while Search is on screen, takes it away (the owner, 27 November 2026).
     base.onStop(G.touch.key('mod+k', () => { if (G.setting('searchTakesSearchKey') === false) return false; const box = onScreen(); if (box) hide(box); else focus(); }));
-    base.onStop(G.touch.changed(() => { kept.clear(); for (const box of boxes) if (box.holder.isConnected) box.again(); }));
+    base.onStop(G.touch.changed(() => kept.clear()));   // what is kept of a kind is forgotten; the list itself reads again at a change (node/node.js), once
   },
 });
 })();
