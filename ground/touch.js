@@ -1543,11 +1543,17 @@ ${AREA} :is(.ls-table-row, .ls-table-header) .sticky-columns { background: var(-
 ${AREA} .ls-table-row:hover .sticky-columns { background: color-mix(in srgb, var(--lk-text) 7%, var(--lk-paper)) !important; }
 ${AREA} .ls-table :is(.text-muted-foreground, .text-gray-500) { color: var(--lk-quiet) !important; }
 ${AREA} .ls-table-cell .page-reference > .bracket { display: none; }
+/* Logseq hangs them 4 past the end of the name, which cuts what is there: they stand 1 inside it, the room their hairline
+   needs (27 November 2026: "its cut off the right edge"). */
+${AREA} .table-block-title > .absolute { right: 1px !important; border-radius: var(--lk-corner-round) !important; transition: background-color .14s ease, box-shadow .14s ease; }
 ${AREA} .table-block-title > .absolute button { background: transparent !important; border-radius: var(--lk-corner-round) !important; }
+/* The buttons and their backing fade in and out as one (27 November 2026: "somewhat flashy, not smooth"). */
+${AREA} .table-block-title > .absolute button { transition: opacity .14s ease !important; }
 ${AREA} .table-block-title > .absolute button:hover { background: var(--lk-wash) !important; }
 /* They stand over the row's words: on the page's paper with a hairline round them, so the two never run into each other (26
-   November 2026: "no background so they blend in with the text"). */
-${AREA} .ls-table-row:is(:hover, :focus-within) .table-block-title > .absolute { background: var(--lk-paper) !important; border-radius: var(--lk-corner-round) !important; box-shadow: 0 0 0 1px var(--lk-line), -8px 0 8px var(--lk-paper); }
+   November 2026: "no background so they blend in with the text"). The backing comes and goes with the buttons, which Logseq shows only
+   while the pointer is on the name (27 November 2026: "only appear when mouse is right there like the native behavior"). */
+${AREA} .table-block-title > .absolute:has(button.opacity-100, button:focus-visible) { background: var(--lk-paper) !important; box-shadow: 0 0 0 1px var(--lk-line), -8px 0 8px var(--lk-paper); }
 ${AREA} .table-block-title > .absolute button:first-child { width: auto !important; padding: 0 6px !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-quiet); }
 ${AREA} .table-block-title > .absolute button:first-child svg { display: none; }
 ${AREA} .table-block-title > .absolute button:first-child::before { content: "Open"; }
