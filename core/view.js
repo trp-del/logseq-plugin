@@ -3,6 +3,8 @@
      day      the day the row goes by when nothing is chosen (its Date, else the journal day it is written on)
      written  the journal day it is written on; dates: what it holds under each date property, Deadline and Scheduled too
      held     what it holds under each of the person's properties, as words; changed, made: times in milliseconds
+   A list's hidden: [name], the properties set to "Hide by default": none is said after a line unasked, nor asked for where it
+   lacks; words still find by them, and View can still be set to them.
    A view: { group, date, sort } kept for the list, and { kind } for this visit.
      group  '' | 'Tag' | 'Month' | a property's name        date  '' | 'Journal' | 'none' | a date property's name
      sort   '' (by day, newest first) | 'changed' | 'name' | 'tag'
@@ -73,13 +75,13 @@ const holds = (row, want) => {
   return want.every(word => own.includes(word) || tag.includes(word) || day.split(' ').some(part => part.startsWith(word)) || values.some(value => value.includes(word)));
 };
 function shape(list, view = {}, find = {}, today = 0) {
-  const all = list.rows || [], own = list.own || 0, since = view.since || 0;
+  const all = list.rows || [], own = list.own || 0, since = view.since || 0, quiet = new Set(list.hidden || []);
   const every = kinds(all), isNew = row => !!since && (row.made || 0) > since;
   const fresh = all.filter(isNew).length;
   // A property four in five of the list hold: a node without it is marked ("no Topic?"). Only from five nodes up.
   const lacked = new Map();
   if (all.length >= 5) { const n = new Map(); for (const row of all) for (const name of Object.keys(row.held || {})) n.set(name, (n.get(name) || 0) + 1);
-    const common = [...n].filter(([, count]) => count < all.length && count >= all.length * 0.8).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+    const common = [...n].filter(([name, count]) => !quiet.has(name) && count < all.length && count >= all.length * 0.8).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
     for (const row of all) { const name = common.find(one => !(row.held || {})[one]); if (name) lacked.set(row.uuid, name); } }
   // While words or a day narrow the list, its kinds count what was found, and the head says how many there are today.
   const found = all.filter(row => holds(row, tokens(find.words)) && !(find.upTo && dayBy(row, view.date || '') > find.upTo)), counted = find.words || find.upTo ? kinds(found) : every;
@@ -108,7 +110,7 @@ function shape(list, view = {}, find = {}, today = 0) {
   if (oneTag && rows.length) {
     const held = new Map(), types = list.types || {};
     for (const row of rows) for (const [name, values] of Object.entries(row.held || {})) {
-      if (name === list.own_name || /^(node|page|date|datetime|url)$/.test(types[name] || 'default') || !values.length || values.some(value => !value || String(value).length > 24)) continue;
+      if (name === list.own_name || quiet.has(name) || /^(node|page|date|datetime|url)$/.test(types[name] || 'default') || !values.length || values.some(value => !value || String(value).length > 24)) continue;
       if (!held.has(name)) held.set(name, { nodes: 0, values: new Set() });
       const at = held.get(name); at.nodes++; for (const value of values) at.values.add(value);
     }

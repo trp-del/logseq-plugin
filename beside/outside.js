@@ -44,10 +44,11 @@ async function whole(uuid) {
     return { uuid: line.uuid, depth: line.depth, words: line.words, task: task(about.get(line.id)?.status), tag: about.get(line.id)?.tag || '', under };
   });
   // The properties its tags give it (those of the tags above them too), then any other it holds; by name, so they never jump.
+  // One set to "Hide by default" is left out, as Logseq's own page leaves it out.
   const idents = new Set();
   for (const id of own.filter(tag => tagIndex.has(tag))) for (const up of G.tags.above(id, tagIndex)) for (const ident of schema.byTag.get(up) || []) idents.add(ident);
   for (const ident of held.keys()) idents.add(ident);
-  const props = [...idents].map(ident => schema.props.get(ident)).filter(Boolean).sort((a, b) => a.title.localeCompare(b.title) || a.ident.localeCompare(b.ident))
+  const props = [...idents].map(ident => schema.props.get(ident)).filter(prop => prop && !prop.hidden).sort((a, b) => a.title.localeCompare(b.title) || a.ident.localeCompare(b.ident))
     .map(prop => ({ ident: prop.ident, name: prop.title, kind: choices.has(prop.ident) ? 'choice' : kindOf(prop.type), many: !!prop.many, values: held.get(prop.ident) || [], choices: choices.get(prop.ident) || [] }));
   const shaped = G.lists.lists({ links: pointing.links, mentions: pointing.mentions, own: at.day });
   const names = await R.names([...W.named(me.words), ...shaped.flatMap(list => list.rows.flatMap(one => W.named(one.words)))]);

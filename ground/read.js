@@ -37,7 +37,8 @@
      read.pageNames()         every page of the person's own by name, journal days left out: [{ id, uuid, title }]
      read.folded(uuids)       what each folded node holds under it: uuid -> { task, done, image, pdf, file, due } (tasks open
                               and done at any depth, files right under it, the nearest day an open task is due)
-     read.schema()            { props: ident -> { ident, title, type, range: [tag id], many }, byTag: tag id -> [ident] }
+     read.schema()            { props: ident -> { ident, title, type, hidden, range: [tag id], many }, byTag: tag id -> [ident] }
+                              hidden: the property is set to "Hide by default" in Logseq
      read.writing(uuid)       what a bullet's words say, as core/sure.js takes it; null for a bullet with no tag of the person's
      read.typed(uuid)         a bullet's words as Logseq keeps them; null for a page, code or maths, and a property's value
      read.outline(uuid, isPage)  a node's bullets in their order: [{ id, uuid, depth, words }], words as a person reads them
@@ -71,8 +72,8 @@ const kept = new Map();
 const once = (name, ask) => { if (!kept.has(name)) { const asked = ask(); kept.set(name, asked); asked.catch(() => kept.delete(name)); } return kept.get(name); };
 
 const properties = () => once('properties', async () => {
-  const rows = await q('[:find ?i ?t ?u ?ty :where [?p :block/tags :logseq.class/Property] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/title ?t] [?p :block/uuid ?u] [(get-else $ ?p :logseq.property/type :default) ?ty]]');
-  return new Map(rows.map(([ident, title, uuid, type]) => [bare(ident), { ident: bare(ident), title: String(title), uuid: String(uuid), type: bare(type) }]));
+  const rows = await q('[:find ?i ?t ?u ?ty ?h :where [?p :block/tags :logseq.class/Property] [?p :db/ident ?i] [(namespace ?i) ?ns] [(= ?ns "user.property")] [?p :block/title ?t] [?p :block/uuid ?u] [(get-else $ ?p :logseq.property/type :default) ?ty] [(get-else $ ?p :logseq.property/hide? false) ?h]]');
+  return new Map(rows.map(([ident, title, uuid, type, hide]) => [bare(ident), { ident: bare(ident), title: String(title), uuid: String(uuid), type: bare(type), hidden: hide === true }]));
 });
 // The tags a line is named by: the person's own, and Logseq's Task. Logseq's other tags (Page, Journal, Tag) say nothing a line needs.
 const lineTags = () => once('lineTags', async () => {
@@ -529,7 +530,7 @@ function sheetProperties(attrs, props, known) {
       const text = thing ? String(thing.value ?? thing.title) : typeof v === 'object' ? '' : String(v);
       return text ? { text, ...(prop.type === 'url' ? { url: text } : {}) } : null;
     }).filter(Boolean);
-    if (said.length) out.push({ ident: name, name: prop.title, type: prop.type, values: said });
+    if (said.length) out.push({ ident: name, name: prop.title, type: prop.type, values: said, ...(prop.hidden ? { hidden: true } : {}) });
   }
   const dated = p => p.type === 'date' || p.type === 'datetime';
   return out.sort((a, b) => (dated(b) - dated(a)) || a.name.localeCompare(b.name));

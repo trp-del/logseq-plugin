@@ -23,7 +23,11 @@
      state(task)                'todo' | 'doing' | 'done' | 'off', Logseq's four
      inline(words, names)       the words in parts, as core/words.js reads them, with { kind: 'math' | 'image' } beside
      propertiesIn(sheet, role)  every property the sheet carries, with how often: role 'head' (the page's own; for bullets,
-                                the chosen bullets') or 'nodes' (those under)
+                                the chosen bullets') or 'nodes' (those under); hidden where it is set to "Hide by default"
+     leftOut(sheet, role, choices)   the properties of that list left unticked: what the person left out, and what is set to
+                                "Hide by default" and was not ticked on purpose
+     ticks(sheet, role, choices, ticked)   the choices to keep once the list's boxes stand so (ticked: [ident]); what other
+                                pages left out or asked for is kept
      choices(saved)             what the export window keeps, from the words it was saved as, each value one it offers
      options(sheet, choices, today)   the choices as the writers take them
      lines(choices, sheet), withLines(choices, sheet, lines)   the line above and under the title, kept for each page
@@ -182,7 +186,7 @@ function inline(words, names) {
 
 function propertiesIn(sheet, role) {
   const found = new Map();
-  const add = p => { const one = found.get(p.ident) || { ident: p.ident, name: p.name, type: p.type, count: 0 }; one.count += 1; found.set(p.ident, one); };
+  const add = p => { const one = found.get(p.ident) || { ident: p.ident, name: p.name, type: p.type, hidden: !!p.hidden, count: 0 }; one.count += 1; found.set(p.ident, one); };
   if (role !== 'nodes') for (const p of sheet.properties || []) add(p);
   for (const n of everything(sheet)) if (!role || headNode(sheet, n) === (role === 'head')) for (const p of n.properties) add(p);
   return [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -198,7 +202,7 @@ const OFFERED = {
   zoom: [['fit', 'Fit the window'], ['75', '75%'], ['100', '100%'], ['125', '125%'], ['150', '150%']],
 };
 const DEFAULTS = { target: 'pdf', text: 'prose', paper: 'A4', margins: 'wide', size: 'normal', links: 'plain', zoom: 'fit', footer: '', preparedBy: '', folder: '',
-  pageNumbers: true, tags: true, tasks: true, titleDate: true, frontMatter: false, side: false, hiddenHead: [], hiddenNodes: [], titles: {} };
+  pageNumbers: true, tags: true, tasks: true, titleDate: true, frontMatter: false, side: false, hiddenHead: [], hiddenNodes: [], askedHead: [], askedNodes: [], titles: {} };
 function choices(saved) {
   let kept = saved;
   if (typeof saved === 'string') { try { kept = JSON.parse(saved); } catch (error) { kept = null; } }
@@ -220,10 +224,21 @@ function withLines(chosen, sheet, next) {
   if (next.kicker || next.subtitle) titles[sheet.title] = { kicker: next.kicker || '', subtitle: next.subtitle || '' }; else delete titles[sheet.title];
   return { ...chosen, titles };
 }
-const shownBut = (sheet, role, hidden) => hidden.length ? new Set(propertiesIn(sheet, role).map(p => p.ident).filter(ident => !hidden.includes(ident))) : null;
+// Where each list keeps what was left out, and what was ticked although it is set to "Hide by default".
+const KEPT = { head: ['hiddenHead', 'askedHead'], nodes: ['hiddenNodes', 'askedNodes'] };
+function leftOut(sheet, role, chosen) {
+  const [out, asked] = KEPT[role];
+  return [...new Set([...chosen[out], ...propertiesIn(sheet, role).filter(p => p.hidden && !chosen[asked].includes(p.ident)).map(p => p.ident)])];
+}
+function ticks(sheet, role, chosen, ticked) {
+  const here = propertiesIn(sheet, role), listed = new Set(here.map(p => p.ident)), on = new Set(ticked), [out, asked] = KEPT[role];
+  const kept = (key, those) => [...chosen[key].filter(ident => !listed.has(ident)), ...those.map(p => p.ident)];
+  return { [out]: kept(out, here.filter(p => !p.hidden && !on.has(p.ident))), [asked]: kept(asked, here.filter(p => p.hidden && on.has(p.ident))) };
+}
+const shownBut = (sheet, role, chosen) => { const out = leftOut(sheet, role, chosen); return out.length ? new Set(propertiesIn(sheet, role).map(p => p.ident).filter(ident => !out.includes(ident))) : null; };
 function options(sheet, chosen, today, locale) {
   return { text: chosen.text, tags: chosen.tags, tasks: chosen.tasks, links: chosen.links, frontMatter: chosen.frontMatter, names: sheet.names, locale,
-    shownHead: shownBut(sheet, 'head', chosen.hiddenHead), shownNodes: shownBut(sheet, 'nodes', chosen.hiddenNodes),
+    shownHead: shownBut(sheet, 'head', chosen), shownNodes: shownBut(sheet, 'nodes', chosen),
     title: sheet.title ? { ...lines(chosen, sheet), date: chosen.titleDate ? today : 0, preparedBy: chosen.preparedBy.trim() } : null };
 }
 
@@ -238,7 +253,7 @@ async function freeName(name, taken) {
   return next;
 }
 
-const api = { node, written, kids, empty, all, everything, said, meta, tags, state, layout, prose, outline, head, inline, propertiesIn, OFFERED, choices, lines, withLines, options, fileName, freeName };
+const api = { node, written, kids, empty, all, everything, said, meta, tags, state, layout, prose, outline, head, inline, propertiesIn, leftOut, ticks, OFFERED, choices, lines, withLines, options, fileName, freeName };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).export = api;
 })(typeof window !== 'undefined' ? window : globalThis);

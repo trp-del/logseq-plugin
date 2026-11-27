@@ -79,9 +79,9 @@ function open(sheet, what) {
   const group = (name, rows, target = '') => `<div class="lk-xp-group" role="group" aria-label="${name}"${target ? ` data-for="${target}"` : ''}><div class="lk-xp-head">${name}</div>${rows}</div>`;
   const blocks = sheet.kind === 'blocks';
   const lists = [['hiddenHead', 'head', blocks ? (sheet.nodes.length > 1 ? 'Properties of the bullets chosen' : 'Properties of the bullet chosen') : 'Properties of the page'],
-    ['hiddenNodes', 'nodes', blocks ? 'Properties of those under' : 'Properties of the nodes']].map(([key, role, name]) => ({ key, name, properties: E.propertiesIn(sheet, role) })).filter(list => list.properties.length);
-  const list = ({ key, name, properties }) => `<div class="lk-xp-whose"><span>${name}</span><span><button type="button" class="lk-btn lk-low" data-all="1" data-list="${key}">all</button><button type="button" class="lk-btn lk-low" data-all="0" data-list="${key}">none</button></span></div>${properties.map(p =>
-    `<label class="lk-xp-prop"><input type="checkbox" class="lk-tick" data-list="${key}" value="${esc(p.ident)}"${chosen[key].includes(p.ident) ? '' : ' checked'}><span title="${esc(p.name)}">${esc(p.name)}</span></label>`).join('')}`;
+    ['hiddenNodes', 'nodes', blocks ? 'Properties of those under' : 'Properties of the nodes']].map(([key, role, name]) => ({ key, role, name, properties: E.propertiesIn(sheet, role) })).filter(list => list.properties.length);
+  const list = ({ key, role, name, properties }) => `<div class="lk-xp-whose"><span>${name}</span><span><button type="button" class="lk-btn lk-low" data-all="1" data-list="${key}">all</button><button type="button" class="lk-btn lk-low" data-all="0" data-list="${key}">none</button></span></div>${properties.map(p =>
+    `<label class="lk-xp-prop"><input type="checkbox" class="lk-tick" data-list="${key}" value="${esc(p.ident)}"${E.leftOut(sheet, role, chosen).includes(p.ident) ? '' : ' checked'}><span title="${esc(p.name)}">${esc(p.name)}</span></label>`).join('')}`;
   const titles = E.lines(chosen, sheet);
   root.innerHTML = `<div class="lk-xp-what" style="height:${G.touch.dragBand()}px">Export ${esc(what)}</div>
 <div class="lk-xp-bar" role="toolbar" aria-label="Export">
@@ -102,7 +102,7 @@ function open(sheet, what) {
   const q = selector => root.querySelector(selector), desk = q('.lk-xp-desk');
   const remember = () => { const words = JSON.stringify(chosen); if (words !== G.setting('exportChoices')) { try { G.touch.keep({ exportChoices: words }); } catch (error) { console.warn('Logseq Plugin: the export’s choices could not be kept', error); } } };
   // What decides the words in the preview. Anything else (the paper, the footer, the size) leaves changed words where they are.
-  const keyOf = target => JSON.stringify([chosen.tags, chosen.tasks, chosen.hiddenHead, chosen.hiddenNodes, E.lines(chosen, sheet), chosen.titleDate, chosen.preparedBy, target === 'md' ? [chosen.links, chosen.frontMatter] : chosen.text]);
+  const keyOf = target => JSON.stringify([chosen.tags, chosen.tasks, chosen.hiddenHead, chosen.hiddenNodes, chosen.askedHead, chosen.askedNodes, E.lines(chosen, sheet), chosen.titleDate, chosen.preparedBy, target === 'md' ? [chosen.links, chosen.frontMatter] : chosen.text]);
   const changed = target => edits[target]?.key === keyOf(target) ? edits[target].value : null;
 
   function describe() {
@@ -206,15 +206,15 @@ function open(sheet, what) {
     } else if (press.dataset.all) {
       const boxes = [...root.querySelectorAll(`input[data-list="${press.dataset.list}"]`)];
       for (const box of boxes) box.checked = press.dataset.all === '1';
-      leftOut(press.dataset.list);
+      boxed(press.dataset.list);
     } else if (press.classList.contains('lk-xp-column')) { chosen = { ...chosen, side: !chosen.side }; remember(); describe(); fit(); }
   });
-  // What is left out: what this page lists unticked, and whatever was left out on another page, which this one does not list.
-  function leftOut(key) {
-    const boxes = [...root.querySelectorAll(`input[data-list="${key}"]`)], here = new Set(boxes.map(box => box.value));
-    take({ [key]: [...chosen[key].filter(ident => !here.has(ident)), ...boxes.filter(box => !box.checked).map(box => box.value)] });
+  // The boxes of one list as they now stand, kept (core/export.js says what of it is remembered).
+  function boxed(key) {
+    const ticked = [...root.querySelectorAll(`input[data-list="${key}"]`)].filter(box => box.checked).map(box => box.value);
+    take(E.ticks(sheet, lists.find(one => one.key === key).role, chosen, ticked));
   }
-  root.addEventListener('change', event => { if (event.target.dataset.list) leftOut(event.target.dataset.list); });
+  root.addEventListener('change', event => { if (event.target.dataset.list) boxed(event.target.dataset.list); });
   root.addEventListener('input', event => {
     const key = event.target.dataset?.field;
     if (!key) return;

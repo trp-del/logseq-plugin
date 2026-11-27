@@ -199,9 +199,10 @@ function related(el, uuid, from = '') {
     const made = L.lists({ ...pointing, dues, own: node.day || 0 }).filter(list => !(list.kind === 'property' && hidden.has(list.prop.ident)));
     const said = made.filter(list => list.kind === 'mentions').flatMap(list => list.rows.map(row => row.id));
     const [held, sits] = await Promise.all([G.read.held(made.flatMap(list => list.rows.map(row => row.id))), G.read.where(said)]);
-    const types = Object.fromEntries([...(await G.read.schema()).props.values()].map(prop => [prop.title, prop.type]));
+    const props = [...(await G.read.schema()).props.values()], types = Object.fromEntries(props.map(prop => [prop.title, prop.type]));
+    const quiet = props.filter(prop => prop.hidden).map(prop => prop.title);   // set to "Hide by default": not said after a line
     for (const list of made) {
-      list.types = types; list.own_name = list.prop?.title || '';
+      list.types = types; list.hidden = quiet; list.own_name = list.prop?.title || '';
       if (list.kind === 'property') list.name = G.reads.back(list.prop.title, named);   // read from this end: "Prescribed by" is "Prescribed" here
       if (from) list.rows = list.rows.filter(row => row.uuid !== from);   // never back to the node it was opened from (the owner's marked page, 26 Nov)
       list.rows = list.rows.map(row => ({ ...row, held: held.get(row.id) || {}, where: list.kind === 'mentions' && !row.isPage ? (sits.get(row.id) || []) : [] }));

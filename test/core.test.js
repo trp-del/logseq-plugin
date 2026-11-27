@@ -324,6 +324,15 @@ test('a node without a property four in five of its list hold is marked', () => 
   assert.deepEqual(view.shape({ rows }, {}, {}, 20261125).rows.map(r => r.lacks).sort(), ['', '', '', '', 'Topic']);
 });
 
+test('a property set to "Hide by default" is not said after a line, nor asked for where it lacks, and words still find it', () => {
+  const lacking = ['a', 'b', 'c', 'd', 'e'].map((u, i) => R(u, u, 'T', 20261001 + i, { held: i ? { Topic: ['x'] } : {} }));
+  assert.deepEqual(view.shape({ rows: lacking, hidden: ['Topic'] }, {}, {}, 20261125).rows.map(r => r.lacks), ['', '', '', '', '']);
+  const rows = ['a', 'b', 'c'].map((u, i) => R(u, u, 'T', 20261001 + i, { held: { Amount: [String(10 + i)] } }));
+  assert.equal(view.shape({ rows }, {}, {}, 20261125).rows.every(r => r.tell), true);
+  assert.equal(view.shape({ rows, hidden: ['Amount'] }, {}, {}, 20261125).rows.some(r => r.tell), false);
+  assert.deepEqual(view.shape({ rows, hidden: ['Amount'] }, {}, { words: '11', upTo: 0 }, 20261125).rows.map(r => r.hits.map(h => h.name)), [['Amount']]);
+});
+
 // ---- where nodes fall in time
 const time = require('../core/time.js');
 test('a timeline runs from the first node\'s month to today, a dot on each node\'s day, months ticked', () => {
@@ -528,6 +537,22 @@ test('the export\'s choices come back only as the window offers them, and lines 
   assert.deepEqual(X.lines(kept, { title: 'Fatigue' }), { kicker: 'Notes', subtitle: '' });
   assert.deepEqual(X.lines(kept, { title: 'Other' }), { kicker: '', subtitle: '' });
   assert.deepEqual(X.withLines(kept, { title: 'Fatigue' }, { kicker: '', subtitle: '' }).titles, {});
+});
+test('a property set to "Hide by default" starts unticked in the export, and one ticked on purpose stays ticked', () => {
+  const sheet = { kind: 'page', title: 'Chen', tags: [], tagged: [], names, nodes: [], properties: [{ ident: 'open', name: 'Works at', type: 'default', values: [{ text: 'Northgate' }] }, { ident: 'shy', name: 'Specialty', type: 'default', hidden: true, values: [{ text: 'Oncology' }] }] };
+  const shown = chosenNow => [...(X.options(sheet, chosenNow, 20261126, 'en-GB').shownHead || ['open', 'shy'])];
+  assert.deepEqual([X.leftOut(sheet, 'head', X.choices('')), shown(X.choices(''))], [['shy'], ['open']]);
+  const ticked = { ...X.choices(''), ...X.ticks(sheet, 'head', X.choices(''), ['open', 'shy']) };
+  assert.deepEqual([X.leftOut(sheet, 'head', ticked), shown(X.choices(JSON.stringify(ticked)))], [[], ['open', 'shy']]);
+  const none = { ...ticked, ...X.ticks(sheet, 'head', ticked, []) };
+  assert.deepEqual([X.leftOut(sheet, 'head', none).sort(), shown(none)], [['open', 'shy'], []]);
+  // What another page left out is kept.
+  const other = { ...X.choices(''), hiddenHead: ['elsewhere'], askedHead: ['gone'] };
+  const kept = X.ticks(sheet, 'head', other, ['open']);
+  assert.deepEqual([kept.hiddenHead, kept.askedHead], [['elsewhere'], ['gone']]);
+  // Never recorded as left out by the person: set to show again, it is ticked again.
+  const shownAgain = { ...sheet, properties: sheet.properties.map(p => ({ ...p, hidden: false })) };
+  assert.deepEqual(X.leftOut(shownAgain, 'head', { ...X.choices(''), ...X.ticks(sheet, 'head', X.choices(''), ['open']) }), []);
 });
 test('a file\'s name is the page\'s, and one that is there is left alone', async () => {
   assert.equal(X.fileName({ title: 'A/B: notes?', nodes: [], names }), 'A B notes');

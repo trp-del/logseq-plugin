@@ -64,6 +64,10 @@ A row:
 | Space | Picks the node, for the bar of what is done to several |
 | Click a list's name | Folds the list; it stays folded on every page |
 
+A property set to "Hide by default" in Logseq is not said after a line, and no line is asked for lacking it. A list named by
+it still stands, since it is what points at the page; Search and a list's find line still find nodes by it; View can still
+group or sort by it; and the day at a line's end stays, though it comes from a hidden date.
+
 ### What a list of Relations can do
 
 Everything the plugin's Relations did before the rebuild, built again on the rebuild's pieces (`core/view.js`, `core/time.js`,
@@ -561,7 +565,7 @@ footer) or **Markdown** (page links as words, as `[[wikilinks]]` or as links to 
 matter), **Title** (today's date, a line above, a subtitle, "Prepared by"; the two lines are kept for each page), and **Show**
 (tags, task marks, and the page's properties and the nodes' own, each ticked or left out, with all and none). A row that holds
 one of several opens the plugin's menu; Up and Down walk the rows. Every choice is remembered; a property left out stays left
-out on later exports.
+out on later exports. A property set to "Hide by default" in Logseq starts unticked; ticked on purpose, it stays ticked.
 
 **What is written:** the title, the page's properties and tags, then its words: headings, bold, italics, code, highlights,
 links, tags, tasks (Logseq's four states as a circle, `- [ ]` in Markdown) with their deadline, scheduled day and priority,
@@ -589,7 +593,8 @@ which must be switched on in Logseq's settings. The plugin answers by name: `fin
 whole: its name and tags, each property its tags give it with what it holds and its set choices, its bullets as an outline,
 and what points at it, as Relations lists it), `candidates` (what a node property can hold), `tags`, `markdown` (a bullet
 with those under it, or a node whole, written by `core/markdown.js`), and one name for each change: `setWords`, `newBullet`,
-`move`, `remove`, `setValue`, `tag`, `status`, `undo`. Every change answers the node read afresh and how many steps of
+`move`, `remove`, `setValue`, `tag`, `status`, `undo`. A property set to "Hide by default" in Logseq is not among a node's
+properties, as it is not on the node's own page. Every change answers the node read afresh and how many steps of
 Logseq's Undo it took. A day typed as words ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot
 read is refused, never guessed. The part can be switched off in the plugin's settings like any other.
 

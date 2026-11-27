@@ -910,6 +910,22 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       }
       return is(got, [[0, 1, false, ['Topic'], [true, 1], false, 0], [0, 1, false, ['Topic'], [true, 1], false, 0]]);
     });
+    await step('a property set to "Hide by default" is not said after a list\'s lines, and starts unticked in the export', async () => {   // 26 November 2026: lists and the export showed what Logseq was told to hide
+      const hide = on => box.frame().evaluate(async on => { for (const name of ['Severity', 'Specialty']) { const [uuid] = (await logseq.DB.datascriptQuery(`[:find ?u :where [?p :block/title "${name}"] [?p :db/ident ?i] [(namespace ?i) ?n] [(= ?n "user.property")] [?p :block/uuid ?u]]`))[0]; await logseq.Editor.upsertBlockProperty(uuid, 'logseq.property/hide?', on); } }, on);
+      const after = () => page.locator('#main-content-container .lk-relpage .lk-tell').count();
+      const sheet = () => page.evaluate(() => document.querySelector('.lk-xp iframe:not(.lk-xp-coming)')?.contentDocument.body.innerText || '');
+      const open = async () => { await page.locator('.lk-corner > button').click({ force: true }); await wait(400); await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2500); if (!(await page.locator('.lk-xp-side').isVisible())) { await page.locator('.lk-xp-column').click(); await wait(400); } };
+      const tick = () => page.locator('.lk-xp-prop', { hasText: 'Specialty' }).locator('input');
+      const leave = async () => { await page.locator('.lk-xp [data-do="close"]').click(); await wait(500); };
+      await goto(FATIGUE); const before = await after() > 0;
+      await hide(true); await wait(1500); await goto(CHEN);
+      await open(); const first = [await tick().isChecked(), await page.locator('.lk-xp-prop', { hasText: 'Works at' }).locator('input').isChecked(), (await sheet()).includes('Oncology')];
+      await tick().click(); await wait(1200); const asked = (await sheet()).includes('Specialty'); await leave();
+      await open(); const kept = await tick().isChecked(); await tick().click(); await wait(1000); await leave();
+      await goto(FATIGUE); const hidden = await after();
+      await hide(false); await wait(1500);
+      return is([before, first, asked, kept, hidden, await after() > 0], [true, [false, true, false], true, true, 0, true]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }
