@@ -972,6 +972,25 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(400);
       return is([...first, await count('.lk-xp')], [0, 1, 0]);
     });
+    await step('a bullet that holds more lines than a sheet goes on over the next sheets, every line on one, as bullets and as paragraphs', async () => {   // the rundown of 27 November 2026: of 120 lines under one bullet 85 stood on no sheet
+      const dealt = layout => box.frame().evaluate(async layout => {
+        const G = window.PluginDoor, E = G.export, doc = G.host();
+        let n = 0; const node = (words, children = []) => Object.assign(E.node({ uuid: `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`, words }), { children });
+        const under = Array.from({ length: 120 }, (_, i) => node(`Line ${i + 1} under the first bullet, with a few more words so it reads as a line`));
+        const sheet = { kind: 'page', title: 'A long outline', tags: [], properties: [], nodes: [node('The first bullet holds everything', under), node('The second bullet')], tagged: [], names: {} };
+        const chosen = { ...E.choices(''), text: layout }, look = { paper: 'A4', margins: 'wide', size: 'normal', footer: '', pageNumbers: true };
+        const frame = doc.createElement('iframe'); frame.style.cssText = 'position:absolute;left:-10000px;top:0;width:834px;height:600px;border:0;visibility:hidden';
+        const loaded = new Promise(done => { frame.onload = () => { if (frame.contentDocument.querySelector('.x-doc')) done(); }; });
+        frame.srcdoc = G.paper.page(G.paper.html(sheet, { ...E.options(sheet, chosen, 20261127), picture: () => '' }), look, 'A long outline'); doc.body.appendChild(frame); await loaded;
+        const inner = frame.contentDocument, said = el => el.textContent.replace(/\s+/g, ''), before = said(inner.querySelector('.x-doc'));
+        const sheets = G.sheets.paginate(inner, look), range = inner.createRange();
+        let under_the_foot = 0;   // lines of words that end under their sheet's foot, where the sheet hides them
+        for (const body of inner.querySelectorAll('.sheet-body')) { const foot = body.getBoundingClientRect().bottom, texts = inner.createTreeWalker(body, 4);
+          for (let text; (text = texts.nextNode());) { range.selectNodeContents(text); for (const line of range.getClientRects()) if (line.height && line.bottom > foot + 1) under_the_foot += 1; } }
+        const got = [sheets, under_the_foot, said(G.sheets.gather(inner)) === before]; frame.remove(); return got;
+      }, layout);
+      return is([await dealt('outline'), await dealt('prose')], [[4, 0, true], [3, 0, true]]);   // four and three sheets: the pages Chromium prints of it
+    });
     await step('Save PDF hands the sheet, with the words changed in it, to the print window; the export window stays', async () => {
       await page.locator('.lk-corner > button').click({ force: true }); await wait(400);
       await page.keyboard.type('Export: this page', { delay: 20 }); await wait(300); await page.keyboard.press('Enter'); await wait(2500);

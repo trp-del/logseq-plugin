@@ -621,7 +621,8 @@ bullets picked, "this page" means the bullets picked.
 **The export window** lies over Logseq. Its bar has the column's icon, **PDF** and **Markdown** as two tabs, and at the right
 the button that does the export (**Save PDF…**, or **Copy Markdown** beside **Save as file…**), then ×. Under it is the
 preview: for PDF the sheets as they will print, with the margins, footer and page numbers chosen, broken where the print
-breaks; for Markdown the text. Over the preview, at the right, how large it is drawn. **Press into the words of the preview
+breaks (a bullet with more under it than a sheet holds, or a paragraph longer than a sheet, goes on over the next sheets, the
+items under it one by one, its words line by line); for Markdown the text. Over the preview, at the right, how large it is drawn. **Press into the words of the preview
 to change them for this export**; your notes do not change. The changed words stay through a change of paper, margins, text
 size or footer, and while you look at the other tab; when something changes what is written (a property, the tags, a title
 line, the links) the preview is drawn again from the page and a notice says the changed words went. Cmd-Enter presses the
