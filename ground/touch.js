@@ -22,6 +22,7 @@
                               start(), can(), show(el, uuid) -> what takes it out again
      touch.open(uuid, side)   go to a node's page, or open it in the sidebar
      touch.openUrl(url)       a web address, in the browser
+     touch.addresses(base)    a web address held as plain text in a property's row said short, opened by Cmd-click
      touch.floating(el)       whether an element lies in one of Logseq's own menus, lists or windows
      touch.busy()             whether one of Logseq's own menus, lists or windows is open
      touch.left(fn)           fn(uuid) runs a moment after a bullet whose words changed stops being written in; gives back what
@@ -1306,6 +1307,32 @@ function foldedSpots() {
 const FOLDED = `.ls-block:not([data-collapsed="true"]) > .block-main-container .lk-held-note { display: none; }
 .block-head-wrap > a.asset-ref + .lk-held-note { margin-right: auto; align-self: center; flex: none; }`;
 const openUrl = url => logseq.App.openExternalLink(url);
+/* A web address held by a plain-text property stands in Logseq as bare text, cut off at the edge (the owner, 27 November
+   2026). Its row says it very short in the look of every web link, and Cmd-click opens it (Ctrl away from the Mac); a plain
+   press stays Logseq's. Nothing of Logseq's words is changed: the element is marked, and the stylesheet draws the short form
+   in their place. */
+const STRING = ':is(.property-pair, .bottom-property-pill) .property-value-inner[data-type="string"] > .ls-string';
+function addresses(base) {
+  const doc = host(), view = doc.defaultView, mac = /Mac|iPhone|iPad/.test(view.navigator.platform);
+  const mark = () => {
+    for (const el of doc.querySelectorAll(STRING)) {
+      const url = el.textContent.trim(), short = G.words.shortAddress(url);
+      if (!short) { if (el.dataset.lkShort) { delete el.dataset.lkShort; el.removeAttribute('title'); } continue; }
+      if (el.dataset.lkShort !== short) el.dataset.lkShort = short;
+      if (el.title !== url) el.title = url;
+    }
+  };
+  const on = event => {
+    const el = event.target.closest?.('[data-lk-short]');
+    if (!el || event.button !== 0 || !(mac ? event.metaKey : event.ctrlKey)) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (event.type === 'click') openUrl(el.textContent.trim());
+  };
+  const off = watch(mark), words = new view.MutationObserver(mark);
+  words.observe(doc.body, { subtree: true, characterData: true });   // an address edited in place
+  for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) base.listen(view, type, on, true);
+  base.onStop(() => { off(); words.disconnect(); for (const el of doc.querySelectorAll('[data-lk-short]')) { delete el.dataset.lkShort; el.removeAttribute('title'); } });
+}
 
 /* Where the plugin's lists stand, Logseq's own for the same thing are taken away: its Linked references and its two-way
    property tabs. Only where the plugin's stand (:has), so a plugin that failed to draw leaves Logseq's in place. */
@@ -1516,6 +1543,10 @@ a.external-link:not(:has(img))::after { content: "\\2197"; display: inline-block
 ${OWN} .ls-page-properties:not(.lk-editor *) { margin-left: 10px; }   /* a page's property names and Add property on the edge its title and its bullets stand on */
 ${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
 ${OWN} .property-pair .property-block-container:not(.lk-editor *) { margin-left: 0 !important; }   /* and none of the 20 Logseq pulls a value in words back by, to make room for that bullet */
+.ls-string[data-lk-short] { font-size: 0 !important; min-width: 0; }
+.ls-string[data-lk-short]::before { content: attr(data-lk-short); font-size: var(--lk-line-size); color: var(--lk-text); text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
+.ls-string[data-lk-short]:hover::before { text-decoration-color: currentColor; }
+.ls-string[data-lk-short]::after { content: "\\2197"; font-size: var(--lk-line-size); margin-left: .2em; color: var(--lk-quiet); }
 ${IN} .bottom-property-pill .property-value-inner [class*="multi-value"] { flex-wrap: wrap !important; }   /* several values go on to a second line, never past the edge: their + stands after the last */
 ${valueMark(`${IN} ${VROWS}`, ONE, 'chevron')}
 ${valueMark(`${IN} ${VROWS}`, SEVERAL, 'plus', 'last')}
@@ -2123,5 +2154,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

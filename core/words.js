@@ -62,7 +62,16 @@ function firstLine(words) {
   const text = String(words == null ? '' : words).replace(/^\s+/, ''), cut = text.indexOf('\n');
   return cut < 0 ? { line: text, more: false } : { line: text.slice(0, cut), more: text.slice(cut).trim() !== '' };
 }
-const api = { parts, named, plain, firstLine };
+/* A value that is one web address and nothing else, said very short: the site's name, with … when the address goes further
+   ("theirc.wd1.myworkdayjobs.com/en-US/…" reads "myworkdayjobs.com/…"). '' for anything else. */
+function shortAddress(value) {
+  const m = String(value == null ? '' : value).trim().match(/^https?:\/\/(?:[^\s\/?#@]*@)?([^\s\/?#:]+)(?::\d+)?(\S*)$/i);
+  if (!m) return '';
+  const names = m[1].replace(/\.$/, '').split('.'), number = /^\d+$/.test(names[names.length - 1]);
+  const two = names.length > 2 && names[names.length - 1].length === 2 && /^(com|co|org|net|gov|edu|ac)$/i.test(names[names.length - 2]);   // bbc.co.uk keeps three
+  return (number ? names : names.slice(two ? -3 : -2)).join('.') + (m[2].replace(/^\/$/, '') ? '/…' : '');
+}
+const api = { parts, named, plain, firstLine, shortAddress };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).words = api;
 })(typeof window !== 'undefined' ? window : globalThis);

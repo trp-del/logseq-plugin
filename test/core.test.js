@@ -9,6 +9,13 @@ test('a link reads as the node\'s name, a tag as a tag', () => {
   assert.deepEqual(words.parts(`Saw [[${A}]] about #[[${B}]]`, names), [
     { kind: 'text', text: 'Saw ' }, { kind: 'link', uuid: A, text: 'Dr. Mei Chen' }, { kind: 'text', text: ' about ' }, { kind: 'tag', uuid: B, text: 'Fatigue' }]);
 });
+test('an address that is a whole value is said very short', () => {
+  assert.equal(words.shortAddress('https://theirc.wd1.myworkdayjobs.com/en-US/External_Careers/job/x_REQ1'), 'myworkdayjobs.com/…');
+  assert.equal(words.shortAddress('https://www.bbc.co.uk/news?id=1'), 'bbc.co.uk/…');
+  assert.equal(words.shortAddress('https://vanguard.com/'), 'vanguard.com');
+  assert.equal(words.shortAddress('http://127.0.0.1:8080/a'), '127.0.0.1/…');
+  for (const other of ['vanguard.com', 'See https://vanguard.com', 'https://a.com and more', '']) assert.equal(words.shortAddress(other), '');
+});
 test('a link with words of its own keeps them', () => {
   assert.deepEqual(words.parts(`Paid [the bill]([[${A}]]) today`, names)[1], { kind: 'link', uuid: A, text: 'the bill' });
   assert.deepEqual(words.parts('See [the site](https://example.org/a) now', names)[1], { kind: 'url', href: 'https://example.org/a', text: 'the site' });

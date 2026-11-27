@@ -384,6 +384,10 @@ When you leave a bullet you wrote in, what its words already say for certain is 
 Nothing is written where two things could be meant, into a property that already holds a value, or on a bullet you did not
 change. Each value is one step of Logseq's own Undo.
 
+A web address held by a plain-text property reads very short in the property's row: the site's name, `/…` when the address
+goes further, underlined with the arrow like other web links. Cmd-click opens it; the full address shows under the pointer,
+and a plain click stays Logseq's. Nothing in the graph is changed.
+
 A web address typed without http:// in front is made a link when you leave its bullet: `vanguard.com` is written as
 `[vanguard.com](https://vanguard.com)`, so it reads as typed, with the arrow after it, and one step of Undo takes it back.
 An address starts with www. or ends in a common ending (.com, .org, .gov …); .in, .me, .app and the like need www. before

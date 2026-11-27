@@ -32,6 +32,7 @@ async function main() {
   G.empty.start(root);
   G.node.once(root);
   root.onStop(G.touch.goes());
+  G.touch.addresses(root);
   for (const part of G.parts) {
     if (!G.on(part.key)) continue;
     const base = G.base(part.key); bases.push(base);
