@@ -1775,11 +1775,6 @@ ${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `${AREA} .ls-table[data-lk-less="${n}"] :is(
 .left-sidebar-inner .cp__graphs-selector .thumb { display: none !important; }
 .left-sidebar-inner .cp__graphs-selector .ls-icon-selector { opacity: 0; }
 .left-sidebar-inner .cp__graphs-selector:hover .ls-icon-selector { opacity: 1; }
-/* With the pictures gone, a name's face says what it is (the owner, 27 November 2026): a tag in the tag's face, a property in
-   the property's, a page as it stands. Logseq's own hidden picture tells which; one given a picture of its own reads as a page. Each face is sized so its small
-   letters stand as tall as the page face's beside it (.546 of the size, Inter's; the owner, 27 November 2026). */
-.left-sidebar-inner :is(.recent-item, .favorite-item) .link-item:has(> .page-icon .ls-icon-hash) > .page-title { font-family: var(--lk-tag-face); font-size-adjust: .546; }
-.left-sidebar-inner :is(.recent-item, .favorite-item) .link-item:has(> .page-icon .ls-icon-letter-p) > .page-title { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size-adjust: .546; letter-spacing: -.01em; }
 `,
   /* Logseq's search button at the top left (Cmd-K opens the plugin's Search) and its ? at the bottom right (the corner holds the
      plugin's commands there) go (the owner, on "A Leaner Logseq", 26 November 2026). */
