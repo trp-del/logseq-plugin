@@ -7,6 +7,10 @@
      touch.changed(fn, atOnce) fn runs a moment after the graph changed (atOnce: at every change, so it must be light); gives
                               back what stops it
      touch.writing()          the text box of the bullet being written in, or null
+     touch.writingIn()        the id of the bullet being written in, wherever it is shown (the main view, the sidebar, a node
+                              opened in place), or null: read from the box on screen, and where no box has the keys asked of
+                              Logseq itself. Asked right before a bullet's words are written: Logseq puts words written to
+                              the bullet being written in into its open box, over what was typed since
      touch.edit(uuid)         the caret put into a node's words
      touch.digs(fn)           fn(editor, uuid) -> true takes a plain press on the arrow before a value that is a node
      touch.goes()             under a bullet too, a press on a node's name in a property goes to that node (Shift: in the
@@ -27,8 +31,10 @@
      touch.addresses(base)    a web address held as plain text in a property's row said short, opened by Cmd-click
      touch.floating(el)       whether an element lies in one of Logseq's own menus, lists or windows
      touch.busy()             whether one of Logseq's own menus, lists or windows is open
-     touch.left(fn)           fn(uuid) runs a moment after a bullet whose words changed stops being written in; gives back what
-                              stops it. Only looks on: nothing of Logseq's editor is touched while it is written in
+     touch.left(fn)           fn(uuid, words) runs a moment after a bullet whose words changed stops being written in; words
+                              are what its box held when it was left, as a person reads them (a link by its name, where
+                              the graph keeps its id). Gives back what stops it. Only looks on: nothing of Logseq's editor is
+                              touched while it is written in
      touch.tagList(say)       words after each tag's name in Logseq's own list of tags (the one on "#"): say(name) -> words
      touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k', 'mod+.'), matched by its place on the keyboard; gives
                               back what lets it go. fn answers false to leave the press to Logseq after all
@@ -227,6 +233,14 @@ function once(placed) {
 const edit = uuid => logseq.Editor.editBlock(String(uuid));
 // The text box of the bullet being written in, or null.
 const writing = () => { const el = host().activeElement; return el?.tagName === 'TEXTAREA' && el.closest('.ls-block[blockid]') ? el : null; };
+/* The id of the bullet being written in, wherever Logseq shows it, or null. The box that has the keys says first: Logseq names
+   it after its bullet ("edit-block-" and the id), and it lies in that bullet. With no such box the answer is Logseq's own
+   (checkEditing), which is the very test its updateBlock makes before it puts the words it was given into the open box. */
+async function writingIn() {
+  const el = writing(), named = /^edit-block-(.+)$/.exec(el?.id || '')?.[1] || el?.closest('.ls-block[blockid]')?.getAttribute('blockid');
+  if (named) return named.toLowerCase();
+  try { const held = await logseq.Editor.checkEditing(); return typeof held === 'string' && held ? held.toLowerCase() : null; } catch (error) { return null; }
+}
 
 /* A page in Logseq's right sidebar. Logseq draws it with no title of its own (its name stands in the section's head), so which
    page a section shows is read from Logseq's own list of what the sidebar holds, in the sections' order. Answers the page's
@@ -679,14 +693,15 @@ ${STEPS} > a.lk-out:focus-visible { background: var(--lk-wash); }`,
 // Whether one of Logseq's own floats is open (a menu, a list to pick from, a window): a key pressed then is Logseq's.
 const busy = () => !!host().querySelector('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac');
 const floating = el => !!el?.closest?.('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac, [data-radix-popper-content-wrapper]');
-// The bullet being written in is the one whose text box has the keys. It is "left" when another one has them, or none.
+// The bullet being written in is the one whose text box has the keys. It is "left" when another one has them, or none. What
+// its box held last is handed on with its id, so a write that follows can see that the graph still holds those very words.
 function left(fn) {
   const doc = host();
   let at = null, timer = 0;   // at: { uuid, was, now }
   const boxNow = () => { const el = doc.activeElement; const block = el?.tagName === 'TEXTAREA' ? el.closest('.ls-block[blockid]') : null; return block ? { el, uuid: block.getAttribute('blockid').toLowerCase() } : null; };
   const look = () => {
     const box = boxNow();
-    if (at && (!box || box.uuid !== at.uuid)) { const gone = at; at = null; if (gone.now !== gone.was) setTimeout(() => { try { fn(gone.uuid); } catch (error) { console.error('Logseq Plugin: a bullet just left could not be read', error); } }, 250); }
+    if (at && (!box || box.uuid !== at.uuid)) { const gone = at; at = null; if (gone.now !== gone.was) setTimeout(() => { try { fn(gone.uuid, gone.now); } catch (error) { console.error('Logseq Plugin: a bullet just left could not be read', error); } }, 250); }
     if (box && !at) at = { uuid: box.uuid, was: box.el.value, now: box.el.value };
     else if (box && at) at.now = box.el.value;
   };
@@ -2277,5 +2292,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, writingIn, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();
