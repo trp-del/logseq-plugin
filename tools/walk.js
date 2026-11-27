@@ -922,6 +922,23 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     }
     {
+    await step('a read that fails behind a folded bullet is said once, and asked again only when the screen next changes', async () => {   // the rundown of 27 November 2026: it was asked again at once, without end
+      const asks = await box.frame().evaluate(async () => {
+        const G = window.PluginDoor, read = G.read.folded, spots = G.touch.foldedSpots; let asked = 0;
+        G.read.folded = () => new Promise((_, fail) => { asked += 1; setTimeout(() => fail(new Error('the walk made this read fail')), 5); });
+        G.touch.foldedSpots = () => [{ uuid: '00000000-0000-4000-8000-00000000f01d', at: null, put() {} }];
+        const stir = () => { const el = G.host().createElement('i'); G.host().body.appendChild(el); el.remove(); };   // the screen changes, so the part looks again
+        const pause = ms => new Promise(done => setTimeout(done, ms));
+        stir(); await pause(700); const first = asked;
+        stir(); await pause(400); const second = asked;
+        G.read.folded = read; G.touch.foldedSpots = spots; stir(); await pause(200);
+        return [first > 0 && first < 10, second > first && second < 20];   // not one for one: Logseq's own page may change meanwhile
+      });
+      await wait(200);
+      const mine = line => line.includes('what a folded bullet holds could not be read'), said = errors.filter(mine).length;
+      for (let i = errors.length - 1; i >= 0; i--) if (mine(errors[i])) errors.splice(i, 1);   // this step's own, made on purpose
+      return is([asks, said], [[true, true], 1]);
+    });
     // ---- Export: the window the owner chose again (26 November 2026), Markdown and the one paper template
     const written = () => page.evaluate(async () => JSON.stringify(await window.logseq.api.datascript_query('[:find (count ?b) (max ?u) :where [?b :block/uuid _] [?b :block/updated-at ?u]]')));
     const preview = () => page.evaluate(() => document.querySelector('.lk-xp iframe:not(.lk-xp-coming)')?.contentDocument.body.innerText || '');
