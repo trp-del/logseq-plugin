@@ -7,10 +7,10 @@ G.part({
   key: 'settings', title: 'Plugin settings', about: 'One short page: hidden menu items, the plugin’s keys, and each part on or off.',
   start(base) {
     base.style('settings', `
-.lk-set-page { max-width: 36rem; margin: 0; padding: 0 16px 64px 0; font-size: var(--lk-line-size); line-height: 24px; }
+.lk-set-page { max-width: 36rem; margin: 0; padding: 0 16px 64px 0; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-set-page h2:first-child { margin-top: 8px; }
 .lk-set-page h2 { margin: 28px 0 6px; font-size: var(--lk-small); font-weight: 600; color: var(--lk-quiet); }
-.lk-set-line { display: flex; align-items: center; gap: 10px; min-height: 32px; border-top: 1px solid var(--lk-hair); }
+.lk-set-line { display: flex; align-items: center; gap: 10px; min-height: var(--lk-line-h); border-top: 1px solid var(--lk-hair); }
 .lk-set-line > span:first-of-type { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lk-set-line small { color: var(--lk-quiet); font-size: var(--lk-small); white-space: nowrap; }
 .lk-set-line input.lk-tick { margin: 0; opacity: 1; }

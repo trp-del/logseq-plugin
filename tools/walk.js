@@ -631,14 +631,16 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await step('u p has Logseq load the plugin again from its folder and says in one line what that brought; typed in a bullet it is letters', async () => {   // the owner, 25 November 2026: "can you add update plugins with `u p`?"
       const run = () => box.frame().evaluate(() => (window.lkRun = (window.lkRun || 0) + 1));   // 1 in a plugin just loaded
       const toast = async () => { for (let i = 0; i < 40; i++) { const text = await page.evaluate(() => [...document.querySelectorAll('.ui__toast-description')].map(el => el.innerText.trim()).find(t => /^Plugins /.test(t)) || ''); if (text) return text; await wait(250); } return ''; };
+      // It says at once that it has begun (the rundown of 27 November 2026: nothing was said until the end, up to a minute a plugin).
+      const begun = async () => { for (let i = 0; i < 30; i++) { if (await page.evaluate(() => [...document.querySelectorAll('.ui__toast-description')].some(el => el.innerText.trim() === 'Updating plugins…'))) return true; await wait(100); } return false; };
       await goto(CHEN); await run();
       await page.locator('#main-content-container .block-add-button').first().click(); await wait(900);
       await page.keyboard.type('up', { delay: 150 }); await wait(2500);
       const typed = [await page.evaluate(() => document.activeElement?.value), await run()];
       await page.keyboard.press('Meta+z'); await page.keyboard.press('Escape'); await wait(700);
       await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('u'); await wait(150); await page.keyboard.press('p');
-      const said = await toast(); await wait(4500);
-      return is([typed, /^Plugins up to date: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, 1]);
+      const first = await begun(), said = await toast(); await wait(4500);
+      return is([typed, first, /^Plugins up to date: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, true, 1]);
     });
     // ---- Relations as it was: kinds, View, picking, the find line, the timeline
     await step('a list of several kinds names them with their counts; a kind pressed narrows the list, All gives it back', async () => {   // the owner, 25 November 2026: "relations from original was quite developed. take all the features from it"
@@ -958,6 +960,23 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     });
     }
     {
+    await step('a read that fails behind a folded bullet is said once, and asked again only when the screen next changes', async () => {   // the rundown of 27 November 2026: it was asked again at once, without end
+      const asks = await box.frame().evaluate(async () => {
+        const G = window.PluginDoor, read = G.read.folded, spots = G.touch.foldedSpots; let asked = 0;
+        G.read.folded = () => new Promise((_, fail) => { asked += 1; setTimeout(() => fail(new Error('the walk made this read fail')), 5); });
+        G.touch.foldedSpots = () => [{ uuid: '00000000-0000-4000-8000-00000000f01d', at: null, put() {} }];
+        const stir = () => { const el = G.host().createElement('i'); G.host().body.appendChild(el); el.remove(); };   // the screen changes, so the part looks again
+        const pause = ms => new Promise(done => setTimeout(done, ms));
+        stir(); await pause(700); const first = asked;
+        stir(); await pause(400); const second = asked;
+        G.read.folded = read; G.touch.foldedSpots = spots; stir(); await pause(200);
+        return [first > 0 && first < 10, second > first && second < 20];   // not one for one: Logseq's own page may change meanwhile
+      });
+      await wait(200);
+      const mine = line => line.includes('what a folded bullet holds could not be read'), said = errors.filter(mine).length;
+      for (let i = errors.length - 1; i >= 0; i--) if (mine(errors[i])) errors.splice(i, 1);   // this step's own, made on purpose
+      return is([asks, said], [[true, true], 1]);
+    });
     // ---- Export: the window the owner chose again (26 November 2026), Markdown and the one paper template
     const written = () => page.evaluate(async () => JSON.stringify(await window.logseq.api.datascript_query('[:find (count ?b) (max ?u) :where [?b :block/uuid _] [?b :block/updated-at ?u]]')));
     const preview = () => page.evaluate(() => document.querySelector('.lk-xp iframe:not(.lk-xp-coming)')?.contentDocument.body.innerText || '');
@@ -988,6 +1007,15 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-xp [data-switch="tasks"]').click(); await wait(1200);
       return is([...kept, ...gone], [true, '856px', false, true]);
     });
+    await step('a key typed in the preview does not write the whole page out; the changed words are read when the preview is drawn again', async () => {   // the rundown of 27 November 2026: at every key the page was copied and written out as text, pictures and all
+      await box.frame().evaluate(() => { const S = window.PluginDoor.sheets, own = S.gather; window.lkWrittenOut = 0; S.gather = (...given) => { window.lkWrittenOut += 1; return own(...given); }; window.lkGatherBack = () => { S.gather = own; }; });
+      await pressWords('Consultant'); await page.keyboard.type('Typed ', { delay: 20 }); await wait(1000);
+      const atKeys = await box.frame().evaluate(() => window.lkWrittenOut);
+      await page.locator('.lk-xp [data-switch="pageNumbers"]').click(); await wait(1300);
+      const kept = (await preview()).includes('Typed '), read = await box.frame().evaluate(() => { window.lkGatherBack(); return window.lkWrittenOut; });
+      await page.locator('.lk-xp [data-switch="pageNumbers"]').click(); await wait(1300);
+      return is([atKeys, kept, read > 0, (await preview()).includes('Typed ')], [0, true, true, true]);
+    });
     await step('Enter takes the line the arrows are on, in a list of the export window', async () => {   // seen by hand, 26 November 2026: Enter did nothing
       await page.locator('.lk-xp [data-pick="paper"]').click(); await wait(300);
       await page.locator('.lk-menu .lk-item', { hasText: 'A4' }).focus(); await page.keyboard.press('Enter'); await wait(1300);
@@ -1007,6 +1035,25 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const first = [await count('.lk-menu'), await count('.lk-xp')];
       await page.keyboard.press('Escape'); await wait(400);
       return is([...first, await count('.lk-xp')], [0, 1, 0]);
+    });
+    await step('a bullet that holds more lines than a sheet goes on over the next sheets, every line on one, as bullets and as paragraphs', async () => {   // the rundown of 27 November 2026: of 120 lines under one bullet 85 stood on no sheet
+      const dealt = layout => box.frame().evaluate(async layout => {
+        const G = window.PluginDoor, E = G.export, doc = G.host();
+        let n = 0; const node = (words, children = []) => Object.assign(E.node({ uuid: `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`, words }), { children });
+        const under = Array.from({ length: 120 }, (_, i) => node(`Line ${i + 1} under the first bullet, with a few more words so it reads as a line`));
+        const sheet = { kind: 'page', title: 'A long outline', tags: [], properties: [], nodes: [node('The first bullet holds everything', under), node('The second bullet')], tagged: [], names: {} };
+        const chosen = { ...E.choices(''), text: layout }, look = { paper: 'A4', margins: 'wide', size: 'normal', footer: '', pageNumbers: true };
+        const frame = doc.createElement('iframe'); frame.style.cssText = 'position:absolute;left:-10000px;top:0;width:834px;height:600px;border:0;visibility:hidden';
+        const loaded = new Promise(done => { frame.onload = () => { if (frame.contentDocument.querySelector('.x-doc')) done(); }; });
+        frame.srcdoc = G.paper.page(G.paper.html(sheet, { ...E.options(sheet, chosen, 20261127), picture: () => '' }), look, 'A long outline'); doc.body.appendChild(frame); await loaded;
+        const inner = frame.contentDocument, said = el => el.textContent.replace(/\s+/g, ''), before = said(inner.querySelector('.x-doc'));
+        const sheets = G.sheets.paginate(inner, look), range = inner.createRange();
+        let under_the_foot = 0;   // lines of words that end under their sheet's foot, where the sheet hides them
+        for (const body of inner.querySelectorAll('.sheet-body')) { const foot = body.getBoundingClientRect().bottom, texts = inner.createTreeWalker(body, 4);
+          for (let text; (text = texts.nextNode());) { range.selectNodeContents(text); for (const line of range.getClientRects()) if (line.height && line.bottom > foot + 1) under_the_foot += 1; } }
+        const got = [sheets, under_the_foot, said(G.sheets.gather(inner)) === before]; frame.remove(); return got;
+      }, layout);
+      return is([await dealt('outline'), await dealt('prose')], [[4, 0, true], [3, 0, true]]);   // four and three sheets: the pages Chromium prints of it
     });
     await step('Save PDF hands the sheet, with the words changed in it, to the print window; the export window stays', async () => {
       await page.locator('.lk-corner > button').click({ force: true }); await wait(400);

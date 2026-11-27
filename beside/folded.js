@@ -30,7 +30,7 @@ G.part({
   start(base) {
     base.style('folded', `${G.touch.FOLDED}
 .lk-held-note { display: inline-flex; align-items: baseline; gap: .25em; margin-left: .5em; white-space: nowrap; user-select: none; cursor: default; font-size: var(--lk-small); color: var(--lk-quiet); font-weight: 400; }
-.lk-held-note svg, .lk-held-note .ti { align-self: center; width: 14px; height: 14px; }
+.lk-held-note .lk-pair > :first-child { align-self: center; width: 14px; height: 14px; }
 .lk-held-note .lk-pair { display: inline-flex; align-items: baseline; gap: .15em; }
 .lk-held-note .lk-pair + .lk-pair { margin-left: .35em; }
 .lk-held-note .lk-sep { margin: 0 .1em; }`);
@@ -52,11 +52,18 @@ G.part({
       }
       if (missing.length) read(missing);
     };
+    /* A read that fails is said once and left: the bullets are asked about again when the screen or the graph next changes
+       (draw runs then), never at once, which went round without end while the graph could not be read. */
+    let failing = false;
     const read = async uuids => {
       for (const uuid of uuids) asked.add(uuid);
-      try { const found = await G.read.folded(uuids); if (stopped) return; for (const uuid of uuids) held.set(uuid, found.get(uuid) || null); }
-      catch (error) { console.error('Logseq Plugin: what a folded bullet holds could not be read', error); }
+      let found = null;
+      try { found = await G.read.folded(uuids); }
+      catch (error) { if (!failing) console.error('Logseq Plugin: what a folded bullet holds could not be read', error); failing = true; }
       for (const uuid of uuids) asked.delete(uuid);
+      if (stopped || !found) return;
+      failing = false;
+      for (const uuid of uuids) held.set(uuid, found.get(uuid) || null);
       draw();
     };
     base.onStop(G.touch.watch(draw));

@@ -42,7 +42,7 @@ label.lk-xp-row { cursor: text; }
 .lk-xp-zoom { display: flex; justify-content: flex-end; padding: 0 0 12px; }
 .lk-xp-zoom .lk-btn { font-size: var(--lk-small); }
 .lk-xp-desk > iframe { display: block; margin: 0 auto; width: 794px; max-width: none; height: 600px; border: 0; color-scheme: light; background: transparent; }
-.lk-xp-desk > iframe.lk-xp-text { background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22); }
+.lk-xp-desk > iframe.lk-xp-text { background: ${G.sheets.PAPER.white}; box-shadow: ${G.sheets.PAPER.shadow}; }
 .lk-xp-desk > iframe.lk-xp-coming { position: absolute; visibility: hidden; pointer-events: none; left: -10000px; }`;
 
 const lookOf = chosen => ({ paper: chosen.paper, margins: chosen.margins, size: chosen.size, footer: chosen.footer, pageNumbers: chosen.pageNumbers });
@@ -69,7 +69,11 @@ function open(sheet, what) {
   shut?.();
   const doc = G.host(), win = doc.defaultView, esc = G.esc, icon = (name, size = 16) => G.touch.icon(name, size);
   let chosen = read(), busy = false, gone = false, drawing = 0, timer = 0, again = 0, frame = null;
-  const edits = {};   // for each destination, the words as changed in the preview: { key, value }
+  /* For each destination, the words as changed in the preview: { key, value }, or { key, live } while the preview that holds
+     them stands. They are read out of a standing preview only when they are needed (the export, a drawing again), never at
+     a key typed: a page with pictures is many million letters long. */
+  const edits = {};
+  const wordsIn = (inner, text) => text ? inner.querySelector('pre').innerText : G.sheets.gather(inner).innerHTML;
   const root = doc.createElement('div');
   root.className = 'lk-xp'; root.tabIndex = -1; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', `Export ${what}`);
   const offered = key => E.OFFERED[key];
@@ -103,7 +107,9 @@ function open(sheet, what) {
   const remember = () => { const words = JSON.stringify(chosen); if (words !== G.setting('exportChoices')) { try { G.touch.keep({ exportChoices: words }); } catch (error) { console.warn('Logseq Plugin: the export’s choices could not be kept', error); } } };
   // What decides the words in the preview. Anything else (the paper, the footer, the size) leaves changed words where they are.
   const keyOf = target => JSON.stringify([chosen.tags, chosen.tasks, chosen.hiddenHead, chosen.hiddenNodes, chosen.askedHead, chosen.askedNodes, E.lines(chosen, sheet), chosen.titleDate, chosen.preparedBy, target === 'md' ? [chosen.links, chosen.frontMatter] : chosen.text]);
-  const changed = target => edits[target]?.key === keyOf(target) ? edits[target].value : null;
+  const changed = target => { const kept = edits[target]; return kept?.key !== keyOf(target) ? null : kept.live ? wordsIn(kept.live, target === 'md') : kept.value; };
+  // A preview about to leave the window: the words changed in it are kept as they stand.
+  const settle = inner => { for (const [target, kept] of Object.entries(edits)) if (kept.live === inner) edits[target] = { key: kept.key, value: wordsIn(inner, target === 'md') }; };
 
   function describe() {
     for (const el of root.querySelectorAll('[data-for]')) el.hidden = el.dataset.for !== chosen.target;
@@ -126,7 +132,7 @@ function open(sheet, what) {
     const run = ++drawing, target = chosen.target, now = { ...chosen }, key = keyOf(target), text = target === 'md';
     if (edits[target] && edits[target].key !== key) { delete edits[target]; G.say(DRAWN_AGAIN, 'warning'); }
     const kept = changed(target);
-    const html = text ? `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light}html,body{margin:0;background:#fff;color:#111}body{padding:56px 64px}pre{margin:0;font:13px/1.55 Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;outline:none}</style></head><body><pre contenteditable="plaintext-only" spellcheck="false">${esc(kept ?? markdown(sheet, now))}</pre></body></html>`
+    const html = text ? `<!doctype html><html><head><meta charset="utf-8"><style>:root{color-scheme:light}html,body{margin:0;background:${G.sheets.PAPER.white};color:#111}body{padding:56px 64px}pre{margin:0;font:13px/1.55 Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;outline:none}</style></head><body><pre contenteditable="plaintext-only" spellcheck="false">${esc(kept ?? markdown(sheet, now))}</pre></body></html>`
       : G.paper.page(kept ?? await paperBody(sheet, now), lookOf(now), titleOf(sheet));
     if (gone || run !== drawing) return;
     const next = doc.createElement('iframe'); next.title = 'Preview'; next.className = `lk-xp-coming${text ? ' lk-xp-text' : ''}`;
@@ -138,14 +144,14 @@ function open(sheet, what) {
       if (gone || run !== drawing) { next.remove(); return; }
       if (!text) G.sheets.paginate(inner, lookOf(now));   // pictures first, so their height is known
       inner.addEventListener('input', () => {
-        edits[target] = { key, value: text ? inner.querySelector('pre').innerText : G.sheets.gather(inner).innerHTML };
+        edits[target] = { key, live: inner };
         clearTimeout(again);
         if (!text) again = setTimeout(() => { if (frame === next) { G.sheets.repaginate(inner, lookOf(chosen)); fit(); } }, 600);   // the sheets dealt again once writing pauses
         fit();
       });
       inner.addEventListener('keydown', event => { if (!keys(event)) event.stopPropagation(); }, true);
       inner.addEventListener('pointerdown', () => doc.querySelector('.lk-menu') && doc.body.dispatchEvent(new win.PointerEvent('pointerdown', { bubbles: true })));
-      frame?.remove(); frame = next; next.classList.remove('lk-xp-coming');
+      if (frame) { settle(frame.contentDocument); frame.remove(); } frame = next; next.classList.remove('lk-xp-coming');
       fit(); setTimeout(() => { if (frame === next) fit(); }, 300);
     };
     for (const old of desk.querySelectorAll('.lk-xp-coming')) old.remove();
