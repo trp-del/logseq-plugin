@@ -82,6 +82,9 @@ G.part({
       for (const page of G.touch.pages()) {
         // Where the plugin before the rebuild had it: under the title and the page's properties, above the page's own bullets.
         const wrap = page.el.querySelector('.lk-relwrap') || (!page.feed && G.touch.pageUnder(page.el, 'lk-relwrap')) || G.touch.pageFoot(page.el, 'lk-relwrap');
+        // Logseq draws a page's properties again when a folded page is unfolded, and puts them last in the title's block: the lists go
+        // back under them. Lists at the foot of a journal day, or of a page with no title, stay where they are.
+        if (wrap.nextElementSibling && wrap.parentElement !== page.el && !wrap.parentElement.classList.contains('lk-relfoot')) wrap.parentElement.appendChild(wrap);
         if (wrap.dataset.uuid === page.uuid) continue;
         kept.get(wrap.lastElementChild)?.off();
         wrap.dataset.uuid = page.uuid;

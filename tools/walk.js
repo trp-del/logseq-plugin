@@ -1104,6 +1104,14 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const empty = await page.locator('#main-content-container .property-pair .property-value-inner.empty-value').first().evaluate(el => getComputedStyle(el, '::after').opacity);
       return is([day, several, led, empty], [['0', '1', 'calendar'], ['0', '1', 'list'], 'Colon cancer', '0.6']);
     });
+    await step('a page folded and unfolded by its title\'s arrow keeps its properties above Relations', async () => {   // the owner, 27 November 2026: "trouble shoot wrong placement fo sections"
+      await goto('home'); await goto(CHEN);
+      const arrow = page.locator('#main-content-container .ls-page-title .is-page-title-row a.block-control').first();
+      await arrow.click({ force: true }); await wait(900); await arrow.click({ force: true }); await wait(900);
+      return is(await page.evaluate(() => { const block = document.querySelector('#main-content-container .ls-page-title .ls-block'), all = [...block.children];
+        const props = all.findIndex(one => one.querySelector(':scope > .ls-page-properties')), rel = all.findIndex(one => one.classList.contains('lk-relwrap'));
+        return [props > -1, rel > props, rel === all.length - 1]; }), [true, true, true]);
+    });
     await step('nothing the plugin did was said as an error', async () => is(errors, []));
   } finally {
     if (!keep) { await sandbox.stop(box); fs.rmSync(DIR, { recursive: true, force: true }); }
