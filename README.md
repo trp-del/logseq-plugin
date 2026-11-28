@@ -638,9 +638,11 @@ a small window), has its name on one line and its values under it. Where a list 
 narrower than 420 the days of its head have a line of their own under the head's words.
 
 One rule for the gaps, measured: a mark stands in a box 16 wide that ends 4 before its words; from the middle of one line to
-the middle of the next it is 26 inside a head, 32 from a head to what it heads, and 54 from one section to the next. A head's
-kinds, its + and ⋯ and its days are one run of words that wraps where it must; the bar under the kind in force stays inside
-that kind's own line.
+the middle of the next it is 26 from a head's name to its kinds, 32 between two lines of its kinds and days, 32 from a head to
+what it heads, and 54 from one section to the next. A head's kinds, its + and ⋯ and its days are one run of words that wraps
+where it must; the + and ⋯ are held to the last word, so they never stand on a line alone. The line under the kind in force
+stands one gap (4) under its word: nearer to its own letters (6.5) than to the letters of the line or the row under it (10
+and more), measured on one line and wrapped.
 
 ### Ontology (`tend/ontology.js`)
 
