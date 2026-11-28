@@ -330,7 +330,7 @@ G.menu.CSS = `
 .lk-menu-find { position: sticky; top: -4px; z-index: 1; background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); }
 .lk-menu-tree .lk-item { position: relative; gap: 0; }
 .lk-menu .lk-item-fold { flex: none; width: 16px; display: inline-flex; align-items: center; justify-content: center; align-self: stretch; color: var(--lk-off); opacity: 0; visibility: hidden; position: relative; z-index: 1; }
-.lk-menu .lk-item-fold svg { transform: rotate(90deg); transition: transform .12s ease; }
+.lk-menu .lk-item-fold svg { transform: rotate(90deg); transition: transform var(--lk-fade); }
 .lk-menu .lk-item.lk-kids > .lk-item-fold { visibility: visible; cursor: pointer; }
 .lk-menu .lk-item.lk-kids:is(:hover, :focus-visible, .lit, .lk-shut) > .lk-item-fold { opacity: 1; }
 .lk-menu .lk-item.lk-shut > .lk-item-fold svg { transform: none; }

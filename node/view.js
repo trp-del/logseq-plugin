@@ -35,6 +35,11 @@ function shape(state, list, names, today) {
   made.finding ||= !!(time.span || time.lane);
   made.finding = !!(view.find.words || view.find.upTo) || made.finding;
   made.kind = view.kinds.get(list.key) || '';
+  /* The tags every row of the list holds, beside the one the head already names as its kind: said once, on the head, and left
+     off the rows. Task is not counted on a row that shows its status circle. (A deciding piece: core/view.js shape should
+     answer it; until then it is worked out here.) */
+  const sayable = row => (row.tags || []).map(tag => tag.title).filter(title => title && !(title === 'Task' && row.status)), kindsHere = new Set(list.rows.map(row => row.tag));
+  made.shared = list.rows.length > 1 ? sayable(list.rows[0]).filter(title => !kindsHere.has(title) && list.rows.every(row => sayable(row).includes(title))) : [];   // not a tag the head counts as a kind: that one is said there already
   made.picking = view.picking.has(list.key);
   made.picked = view.picked.get(list.key) || new Set();
   return made;
@@ -49,6 +54,7 @@ function head(state, list, made, plus, today) {
     if (made.kind && made.kind !== '@new' && !made.tabs.some(one => one.kind === made.kind)) kinds += tab(made.kind, made.kind === '@none' ? 'No tag' : made.kind, made.count, true);
     if (made.more) kinds += `<button type="button" class="lk-tab lk-tabmore">and ${made.more} more</button>`;
   } else kinds = tab(made.one || '', made.one || 'All', made.count, !!made.one && made.kind === made.one);   // one kind: the same tab every head has, its name and count (the owner's marked page, 26 Nov: "Recommended, then Recommendations")
+  kinds += (made.shared || []).map(title => `<span class="lk-tag">${G.esc(title)}</span>`).join('');   // a tag every row holds, said once here (after the kinds, as a head says a tag after its name)
   if (made.fresh) kinds += tab('@new', `${made.fresh} new`, null, made.kind === '@new', ' lk-newtab');
   const dots = `<button type="button" class="lk-dots" title="View and more" aria-label="View and more">${icon('dots', 16)}</button>`;
   const said = made.said.length ? `<button type="button" class="lk-set" title="View">${G.esc(made.said.join(' · '))}</button>` : '';

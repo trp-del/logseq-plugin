@@ -43,8 +43,9 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 
 - one list for each of your properties that points at the page, named by the property; on a journal day, Logseq's Scheduled
   and Deadline; then **Mentioned in**, where a node that names the page inside the words of one of its values stands too;
-- a tag every row of a list shares is said once, beside the list's name; any other tag a node holds is said after that
-  row's words, and a list of one node, whose head names no kind, says its node's tag on the row;
+- a tag every row of a list shares is said once, on the list's head: its kind with the count, and any further tag they all
+  hold after the kinds. A tag only some rows hold is said after those rows' words, and a list of one node, whose head names
+  no kind, says its node's tags on the row. A row that shows a status circle never also says Task;
 - while a bullet is being written in, the lists do not read the graph at each pause: they read once, when the bullet is left;
 - a row you have open stays open, where it is, until you close it, also when its node no longer belongs to the list (you
   changed in it the very value that pointed here): it leaves when it is closed;
@@ -129,8 +130,9 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   took. Nothing lights. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow
   stands only for a change that was made: a press that changed nothing (a tag put where it already is) leaves none. It goes at
   the next change to the graph, when another graph is opened and when the plugin stops. A change of several steps goes back
-  one step after another; if you begin to write in a bullet meanwhile, the steps stop there and a notice says so, so that your
-  new words are never what is taken back. Move values keeps its own way back.
+  one step after another, and the arrow stays, faint and not pressable, until the last step has gone back. If you begin to
+  write in a bullet meanwhile, the steps stop there and a notice says so, so that your new words are never what is taken
+  back. One change shows one arrow: after a line's words, or at the bottom right, never both. Move values keeps its own way back.
 - Delete on a tag or a property, in whichever list shows one (Ontology, Search, a page's Relations), and Delete in the
   Recycle list, ask first, in a box under the line: what goes, what that takes with it, a red yes and Cancel. The keys wait on Cancel; only a press on the red yes deletes.
 - The presses are drawn as before the rebuild: the yes that decides filled in the ink, a plain press a quiet capsule, a

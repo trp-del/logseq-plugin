@@ -26,7 +26,7 @@ async function run(state, box, uuids, words, each, before = 0) {
   const did = (n = 1) => { steps += n; };
   box.dataset.busy = '1';
   try { for (const uuid of uuids) { const made = await each(uuid, did); if (typeof made === 'number') steps += made; done++; } }
-  catch (error) { refused(`It stopped after ${nodes(done)}`)(error); }
+  catch (error) { steps += Number(error?.steps) || 0; refused(`It stopped after ${nodes(done)}`)(error); }   // a refusal says the steps it left standing (a journal page made for a day)
   delete box.dataset.busy;
   view.picking.delete(key); view.picked.delete(key);
   const said = done || steps ? { key, words: words(done), way: null } : null;
@@ -79,7 +79,8 @@ async function value(at, prop, take) {
   if (type === 'node') return void askNode(at, prop, (id, node, before = 0) => take(async uuid => { await G.write.setNode(uuid, prop.ident, id); return 1; }, before));
   if (type === 'checkbox') return void G.menu(at, [true, false].map(yes => ({ word: yes ? 'Yes' : 'No', take: () => one(uuid => G.write.setText(uuid, prop.ident, yes)) })));
   if (type === 'date') {
-    const today = G.days.number(new Date()), on = day => one(uuid => G.write.setDay(uuid, prop.ident, day));
+    // setDay answers its steps: 2 where the day's journal page had to be made first, so the Undo takes the page back as well.
+    const today = G.days.number(new Date()), on = day => take(async uuid => { const made = await G.write.setDay(uuid, prop.ident, day); return typeof made === 'number' ? made : 1; }, 0);
     return void G.menu(at, [{ word: 'Today', take: () => on(today) }, { word: 'Tomorrow', take: () => on(G.days.shift(today, 1)) }], { find: 'A day: Oct 7, 2026-10-07',
       enter: words => { const day = G.days.typed(words); if (day) on(day); else G.say(`“${words}” is not a day I can read. Try Oct 7 or 2026-10-07.`, 'warning'); } });   // a year left out is this year's
   }
@@ -177,7 +178,12 @@ function act(state, event) {
   const what = press.dataset.do, uuids = [...picked()], el = press.closest('.lk-pickbar'), spot = press.getBoundingClientRect(), at = { x: spot.left, y: spot.bottom + 4, from: press };   // where the press was: the bar may be drawn again before a list opens
   if (what === 'clear') { view.picking.delete(key); view.picked.delete(key); state.redraw(); }
   else if (what === 'done') { view.did = null; state.redraw(); }
-  else if (what === 'undo') { const way = view.did?.way; view.did = null; state.redraw(); if (way) G.undo.back(way).then(() => state.again()); }   // the Undo arrow's own way back
+  else if (what === 'undo') {   // the Undo arrow's own way back: the line stays, at work, until the last step has gone back
+    const said = view.did, way = said?.way;
+    if (!way) { view.did = null; state.redraw(); return true; }
+    box.dataset.busy = '1';
+    G.undo.back(way).then(() => { delete box.dataset.busy; if (view.did === said) view.did = null; state.again(); });
+  }
   else if (what === 'open') { for (const uuid of uuids) G.touch.open(uuid, true); view.picking.delete(key); view.picked.delete(key); state.redraw(); }
   else if (what === 'tag') askTag(at, 'Set tag', tag => { const has = tagged(box.lkList, tag.id); return run(state, box, uuids, n => `${tag.title} put on ${nodes(n)}`, async uuid => { if (has.has(uuid)) return 0; await G.write.tag(uuid, tag.uuid); return 1; }); }).catch(refused('The tags could not be read'));   // a node that holds the tag already is not written to, so no step is counted for it
   else if (what === 'prop') askProperty(at, 'Set property', prop => value(at, prop, (write, before) => run(state, box, uuids, n => `${prop.title} set on ${nodes(n)}`, write, before)).catch(refused('The choices could not be read'))).catch(refused('The properties could not be read'));

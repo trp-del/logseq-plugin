@@ -267,6 +267,7 @@ function listing(el, read, opts = {}) {
   return {
     again: () => load(state),
     off() {
+      state.gone = true; state.turn++;   // a reading on its way is stopped: nothing of this list is drawn into what stands here next
       mounted.delete(el);
       for (const type of EVENTS) el.removeEventListener(type, onEvent);
       el.removeEventListener('lk-closed', onClosed);
@@ -309,6 +310,7 @@ function related(el, uuid, from = '') {
 }
 const lists = (el, uuid, from) => related(el, uuid, from).off;
 async function load(state) {
+  if (state.gone) return;   // the list was taken off
   const turn = ++state.turn;
   try {
     const [made, statuses] = await Promise.all([state.read(), G.read.statuses()]);
@@ -447,7 +449,7 @@ function draw(state, made, names, statuses) {
       if (ticking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = ticked; } else tick?.remove();
       const want = made?.finding ? G.search.tokens(state.view.find.words) : [];
       // A list of one node has a head that names no kind (nothing to count), so its row says the tag itself.
-      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown || (!!made && !list.count), day: front && made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
+      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown || (!!made && !list.count), said: made?.shared, day: front && made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
       if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; if (want.length) hit(line.querySelector('.lk-words'), want); }
       G.undo.dress(el);   // the node changed last keeps its arrow through a redraw
