@@ -630,7 +630,9 @@ Relations the day stands after the bullet, before the words.
 
 In the right sidebar a list gives its words the whole width: a line's day stays at the end (or the beginning) of its line, an outline steps in less, and
 a node opened in place takes the width of the list. A list of Relations does the same wherever it is narrower than 300: a
-row's arrow stands in the gutter, its bullet on the edge its head's words start on, its day under its words; a property of a
+row's arrow stands in the gutter and its bullet on the edge its head's words start on; narrower than 200 (both sidebars open
+in a small window) its day goes under its words, so the words keep the line. A tag after a line's words stays whole: where it
+does not fit it goes to the next line as one piece. A property of a
 node opened there, of a page in a narrow sidebar, and of the main page where it is narrower than 300 (both sidebars open in
 a small window), has its name on one line and its values under it. Where a list is
 narrower than 420 the days of its head have a line of their own under the head's words.

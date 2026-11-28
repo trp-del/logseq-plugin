@@ -167,7 +167,7 @@ G.line.CSS = `
 .lk-row > .lk-line, .lk-row > .lk-open { grid-column: 3; min-width: 0; }
 .lk-day-end > :where(.lk-rows) > .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
 .lk-day-end > :where(.lk-rows) > .lk-row > .lk-fold { grid-column: 1; grid-row: 1; }
-.lk-day-end > :where(.lk-rows) > .lk-row > .lk-day { grid-column: 3; grid-row: 1; z-index: 1; text-align: right; padding: 2px 6px 0 0; align-self: baseline; }
+.lk-day-end > :where(.lk-rows) > .lk-row > .lk-day { grid-column: 3; grid-row: 1; z-index: 1; text-align: right; padding: 2px 0 0 0; align-self: baseline; }   /* its letters end on the list's own right edge, where the days of the head and the hairline over the lists end (they ended 6 short of it) */
 .lk-day-end > :where(.lk-rows) > .lk-row > .lk-day.lk-late { color: var(--lk-going); }
 .lk-day-end > :where(.lk-rows) > .lk-row > .lk-day:empty, .lk-day-end > :where(.lk-rows) > .lk-row[data-open="1"] > .lk-day { display: none; }
 .lk-day-end > :where(.lk-rows) > .lk-row > .lk-line { grid-column: 2 / -1; grid-row: 1; align-self: baseline; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
@@ -211,6 +211,9 @@ a.lk-tag:hover { color: var(--lk-text); }
 /* A run in another face or size inside the words (a tag, a value said after them, "no Topic?"), and the day and the count
    beside them, keep to the words' own line: they take no more height than the words do, so every row is one height. */
 .lk-words :is(.lk-tag, .lk-why, .lk-tell, .lk-lacks) { line-height: 1; }
+/* A tag after a line's words stays whole: where it does not fit after them it goes to the next line as one piece ("Bill" was
+   left after the name and "payment" under it); only a tag longer than the whole line breaks, and then between its words. */
+.lk-words > .lk-tag { display: inline-block; max-width: 100%; overflow-wrap: break-word; }
 .lk-lacks { appearance: none; border: 0; background: none; padding: 0; font: inherit; font-size: var(--lk-small); white-space: nowrap; text-align: start; color: var(--lk-off); cursor: pointer; }
 .lk-lacks:hover, .lk-lacks:focus-visible { color: var(--lk-text); outline: none; }
 .lk-sits { display: block; font-size: var(--lk-small); line-height: 18px; color: var(--lk-quiet); margin: -2px 0 2px; }
@@ -226,9 +229,17 @@ a.lk-tag:hover { color: var(--lk-text); }
   /* Where the day stands at the right end it stays there, narrow or not. */
   .lk-day-end > :where(.lk-rows) > .lk-row { grid-template-columns: 18px minmax(0, 1fr) var(--lk-daycol, 0px); }
   .lk-day-end > :where(.lk-rows) > .lk-row > .lk-line { grid-column: 2 / -1; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
-  .lk-day-end > :where(.lk-rows) > .lk-row.lk-row > .lk-day.lk-day { grid-column: 3; grid-row: 1; padding: 2px 6px 0 0; margin-top: 0; line-height: 24px; font-size: var(--lk-small); }   /* said twice over, past the rule that steps a task's day in under its circle */
+  .lk-day-end > :where(.lk-rows) > .lk-row.lk-row > .lk-day.lk-day { grid-column: 3; grid-row: 1; padding: 2px 0 0 0; margin-top: 0; line-height: 24px; font-size: var(--lk-small); }   /* said twice over, past the rule that steps a task's day in under its circle */
   .lk-row[data-open="1"] { padding-left: 0; }
   .lk-more { margin-left: calc(18px + var(--lk-mark-box) + var(--lk-mark-gap)); }
   .lk-open > .lk-rel { margin-left: 8px; }
+}
+/* Narrower still (both sidebars open in a small window): a day beside the words left them a column a letter wide. The day goes
+   under the words, on the words' edge, and the words have the line. */
+@container lk-list (max-width: 200px) {
+  .lk-day-end > :where(.lk-rows) > .lk-row { grid-template-columns: 18px minmax(0, 1fr); }
+  .lk-day-end > :where(.lk-rows) > .lk-row > .lk-line { grid-column: 2; padding-right: 6px; }
+  .lk-day-end > :where(.lk-rows) > .lk-row.lk-row > .lk-day.lk-day { grid-column: 2; grid-row: 2; text-align: left; padding: 0 0 2px calc(var(--lk-mark-box) + var(--lk-mark-gap)); line-height: 18px; }
+  .lk-day-end > :where(.lk-rows) > .lk-row > .lk-day:empty { display: none; }
 }`;
 })();
