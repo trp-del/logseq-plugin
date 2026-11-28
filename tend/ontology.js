@@ -157,7 +157,6 @@ G.part({
 .lk-groups-foot { padding: 12px 0 0 38px; }
 .lk-groups-foot > .lk-add { position: static; max-width: 362px; margin-bottom: 0; }
 .lk-map > .lk-groups-foot { order: 6; flex: 0 0 100%; }
-.lk-ontology:not([data-tab="props"]) > .lk-groups-foot { display: none; }
 .lk-trow .lk-td > .lk-rename { flex: 1 1 auto; box-sizing: border-box; width: auto; min-width: 0; height: 22px; margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--lk-text); border-radius: 0; background: none; box-shadow: none; outline: 0; color: var(--lk-text); font-family: var(--lk-prop-face); font-size: var(--lk-line-size); }`);
     // What was changed is told to History once, whichever place it was changed in; Move values tells its moves here too.
     /* uuid: the node the Undo arrow was just set after for this change. Its line of History carries the arrow too, while it is
@@ -504,17 +503,23 @@ G.part({
         drop: (what, to) => what.group ? putGroup(what.group, to) : putProp(what.uuid, to),
       };
       tableOpts.groups = groupsOpts;
-      // New group, at the table's foot: the library's line that adds. A name that is there already is that group, made again never.
-      const foot = doc.createElement('div'); foot.className = 'lk-groups-foot'; rel.after(foot);
-      const offFoot = G.node.adder(foot, 'New group', async name => {
-        const there = G.groups.named(kept.read(graphName), name);
-        if (there) { rel.querySelector(`.lk-tgroup[data-group="${there.id}"]`)?.scrollIntoView({ block: 'nearest' }); return { uuid: '', steps: 0 }; }
-        const id = `g${Date.now().toString(36)}`;
-        regroup(g => G.groups.make(g, name, id), groupKey(id));
-        return { uuid: '', steps: 0 };   // nothing written to the graph: the arrow stands after the new group's name
-      }, 'The group could not be made');
-      const table = () => G.table(rel, tableOpts);
-      const mount = tab => tab === 'props' ? table() : G.node.listing(rel, read, { ...opts, none: NONE[tab] });
+      /* New group, at the table's foot: the library's line that adds. A name that is there already is that group, made again never.
+         It stands on Properties only: made with the table and taken away with it, so no other tab holds a second line to type in. */
+      let foot = null, offFoot = () => {};
+      const footOff = () => { offFoot(); offFoot = () => {}; foot?.remove(); foot = null; };
+      const footOn = () => {
+        if (foot) return;
+        foot = doc.createElement('div'); foot.className = 'lk-groups-foot'; rel.after(foot);
+        offFoot = G.node.adder(foot, 'New group', async name => {
+          const there = G.groups.named(kept.read(graphName), name);
+          if (there) { rel.querySelector(`.lk-tgroup[data-group="${there.id}"]`)?.scrollIntoView({ block: 'nearest' }); return { uuid: '', steps: 0 }; }
+          const id = `g${Date.now().toString(36)}`;
+          regroup(g => G.groups.make(g, name, id), groupKey(id));
+          return { uuid: '', steps: 0 };   // nothing written to the graph: the arrow stands after the new group's name
+        }, 'The group could not be made');
+      };
+      const table = () => { footOn(); return G.table(rel, tableOpts); };
+      const mount = tab => { if (tab !== 'props') footOff(); return tab === 'props' ? table() : G.node.listing(rel, read, { ...opts, none: NONE[tab] }); };
       lineFor(holder.dataset.tab);
       let list = mount(holder.dataset.tab);
       // Folding a tag, kept on this Mac: a press on its arrow, or Cmd-Up and Cmd-Down on its row.
@@ -799,7 +804,7 @@ ${!refused && rows.length ? `<div class="lk-ask-rows">${rows.slice(0, 4).map(({ 
         side.addEventListener('click', open); values?.addEventListener('click', ask_); (holder.querySelector(':scope > .lk-add') || holder.firstElementChild).after(...(values ? [values, side] : [side]));
         offSide = () => { side.removeEventListener('click', open); values?.removeEventListener('click', ask_); side.remove(); values?.remove(); };
       }
-      return () => { offFoot(); foot.remove(); sized?.disconnect(); offSide?.(); offRemoved(); field?.removeEventListener('input', onFind); field?.parentElement.removeEventListener('keydown', onFindKey, true); offAdd(); list.off(); listeners.delete(past); };
+      return () => { footOff(); sized?.disconnect(); offSide?.(); offRemoved(); field?.removeEventListener('input', onFind); field?.parentElement.removeEventListener('keydown', onFindKey, true); offAdd(); list.off(); listeners.delete(past); };
     };
     const section = G.touch.section('lk-ontology', 'Ontology', holder => draw(holder, false), TREE);
     const page = G.touch.page('lk-ontology', 'Ontology', holder => draw(holder, true));
