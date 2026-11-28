@@ -98,6 +98,15 @@ G.part({
       return { head, side: page.side, show() { if (line.getAttribute('aria-expanded') === 'false') fold(); find.hidden = false; field.focus(); field.select(); },
         off() { foot.removeEventListener('lk-drawn', onDrawn); lists.off(); } };
     };
+    // A right-click in the section is the section's own. The section stands inside Logseq's block for the page's title, so a
+    // right-click the plugin let pass opened Logseq's menu for the page, with Delete page in it. What has a menu of the plugin's
+    // (the word Relations, a list's head, a line) has taken the press by now; anywhere else in the section no menu opens. An
+    // opened node is Logseq's own editor and keeps Logseq's menus; the find line keeps the menu of a field.
+    const ownRight = event => {
+      if (event.target.closest('.lk-open') || (event.type !== 'contextmenu' && event.button !== 2)) return;
+      event.stopPropagation();
+      if (event.type === 'contextmenu' && !event.target.closest('input, textarea')) event.preventDefault();
+    };
     const pass = () => {
       for (const [foot, one] of kept) if (!foot.isConnected) { one.off(); kept.delete(foot); }
       for (const page of G.touch.pages()) {
@@ -106,6 +115,7 @@ G.part({
         // Logseq draws a page's properties again when a folded page is unfolded, and puts them last in the title's block: the lists go
         // back under them. Lists at the foot of a journal day, or of a page with no title, stay where they are.
         if (wrap.nextElementSibling && wrap.parentElement !== page.el && !wrap.parentElement.classList.contains('lk-relfoot')) wrap.parentElement.appendChild(wrap);
+        if (!wrap.lkOwnRight) { wrap.lkOwnRight = true; for (const type of ['contextmenu', 'mousedown', 'pointerdown']) wrap.addEventListener(type, ownRight); }
         if (wrap.dataset.uuid === page.uuid) continue;
         kept.get(wrap.lastElementChild)?.off();
         wrap.dataset.uuid = page.uuid;
