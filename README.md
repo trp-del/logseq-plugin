@@ -576,9 +576,13 @@ the values come out of, the property they go into (one there is of the same kind
 one's kind and node tags), and a tick, "Remove them from" the first. A tag takes its own nodes and those of the tags below it; a
 property takes every node that holds it. Before anything is written the box shows four of the nodes as they will read, what
 comes in green and what goes struck through in red, and the yes says how many: "Copy 16 values", or "Move 16 values" with the
-tick. A property that takes one value is never given a second: those nodes are left as they are and the box says how many.
-Afterwards one line says what was done, with one Undo that puts every value back and removes a property the move made; the
-line stays, Logseq closed and opened again, until Done.
+tick. A property that takes one value is never given a second, and a value that has bullets written under it stays where it
+is: those nodes are left as they are and the box says how many, and why. A date and time is shown as it reads ("Nov 27,
+09:00") and moved as the time it is. Afterwards one line says what was done, with one Undo that removes a property the move
+made and puts back every node that still holds what the move left; a node changed since is left as it is and named in a
+notice, so nothing written after the move is taken back. A second move gets a line of its own over the first. The lines stay,
+Logseq closed and opened again, until Done. Where Logseq refuses a write half way through a move, what was written by then
+keeps its line, its Undo and its line in History.
 
 ### The day at a line's end
 
