@@ -79,10 +79,16 @@ function api(method, args, seconds) {
   }
   if (status < 200 || status >= 300) {
     if (status === 401) throw new Error("Logseq rejected the API token");
-    throw new Error("Logseq API error " + status + ": " + messageFrom(parsed));
+    throw refusedBy(method, status, messageFrom(parsed));
   }
-  if (parsed && typeof parsed === "object" && parsed.error) throw new Error(messageFrom(parsed.error));
+  if (parsed && typeof parsed === "object" && parsed.error) throw refusedBy(method, status, messageFrom(parsed.error));
   return parsed;
+}
+// Logseq refusing a call: its own words go to Alfred's log (what the script writes to stderr), never to a toast or a panel, and
+// stay on the error (logseq) for the few places that tell one refusal from another by them.
+function refusedBy(method, status, words) {
+  console.log("Logseq refused " + method + " (" + status + "): " + words);
+  return Object.assign(new Error("Logseq refused it"), { logseq: words });
 }
 
 function requireDbGraph() {
@@ -144,7 +150,7 @@ function pageNamed(words) {
   if (!page || !nodeUuid(page)) throw new Error("The page “" + name + "” could not be made");
   tags.forEach(function (tag) {
     try { api("logseq.Editor.addBlockTag", [nodeUuid(page), tag]); }
-    catch (error) { throw new Error(/Not a tag/i.test(messageFrom(error)) ? "There is no tag named " + tag : messageFrom(error)); }
+    catch (error) { if (/Not a tag/i.test(error.logseq || messageFrom(error))) throw new Error("There is no tag named " + tag); throw error; }
   });
   return { page: page, made: made, tags: tags };
 }
@@ -155,7 +161,7 @@ function appendTo(page, content) {
   // null: the plugin is off or older. A failed call is not caught: it may still be written, and must never be written twice.
   const got = api("logseq.App.invokeExternalPluginCmd", [PLUGIN_ID, "models", "append", [{ page: nodeUuid(page), words: content }]], 12);
   if (got && got.ok) return { uuid: got.uuid };
-  if (got && got.ok === false && !/switched off/.test(String(got.said))) throw new Error(got.said || "Logseq refused");
+  if (got && got.ok === false && !/switched off/.test(String(got.said))) throw Object.assign(new Error(got.said || "Logseq refused it"), { told: Boolean(got.said) });
   return api("logseq.Editor.appendBlockInPage", [nodeUuid(page), content, {}]);
 }
 
@@ -445,8 +451,9 @@ const PLUGIN_OLD = "The Logseq Plugin in Logseq did not answer. It may be off, r
 function ask(name, request, seconds) {
   const got = pluginModel(name, request, seconds);
   if (got == null || got.ok === false) {
-    const error = new Error(got == null ? PLUGIN_OLD : got.said || "Logseq refused");
+    const error = new Error(got == null ? PLUGIN_OLD : got.said || "Logseq refused it");
     error.absent = got == null || /switched off/.test(String(got.said));
+    error.told = got != null && Boolean(got.said) && !error.absent;   // the plugin's own words already say what was not done
     throw error;
   }
   return got;
@@ -1441,8 +1448,16 @@ function main(argv) {
     if (command === "page-selection") return selectionToPage(items);
     throw new Error("Unknown workflow command");
   } catch (error) {
-    return "Error: " + messageFrom(error);
+    return "Error: " + toastSays(command, error);
   }
+}
+/* What a toast says went wrong: what was not done, then why in plain words. The plugin's refusals name what was not done
+   themselves; Logseq's own words are in Alfred's log (refusedBy). */
+const NOT_DONE = { today: "Nothing was added to Today", active: "Nothing was added to the open page", page: "The page was not found or made",
+  picture: "The picture was not added", "today-selection": "Nothing was added to Today", "page-selection": "Nothing was added" };
+function toastSays(command, error) {
+  const why = messageFrom(error).replace(/[\s.:]+$/, "");
+  return error && error.told ? why + (/[.!?…]$/.test(why) ? "" : ".") : (NOT_DONE[command] || "Nothing was done") + ": " + why + ".";
 }
 
 function run(argv) {
