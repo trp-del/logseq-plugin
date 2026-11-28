@@ -169,7 +169,12 @@ function start(state, box, group = null) {
 // The line begun from a list's own + stands at the list's end, after "Show more".
 function keep(state, box, list) {
   const d = state.draft, mine = !!d && d.key === list.key && d.group == null;
-  if (mine && !box.hidden) { if (d.el.parentElement !== box || d.el !== box.lastElementChild) { const had = box.ownerDocument.activeElement === field(d); box.appendChild(d.el); if (had) focus(d); } }
+  if (mine && !box.hidden) {
+    if (d.el.parentElement !== box || d.el !== box.lastElementChild) { const had = box.ownerDocument.activeElement === field(d); box.appendChild(d.el); if (had) focus(d); }
+    // It stands on the rows' own edge, wherever a place has set its rows (a page's Relations sets them a step out).
+    const rows = box.querySelector(':scope > .lk-rows'), edge = rows ? box.ownerDocument.defaultView.getComputedStyle(rows).marginLeft : '';
+    if (d.el.style.marginLeft !== edge) d.el.style.marginLeft = edge;
+  }
   else if (mine) drop(state, false);
 }
 G.adding = { start, item, keep, drop, el: state => state.draft?.el || null };
@@ -178,6 +183,13 @@ G.adding.CSS = `
 .lk-draft { display: grid; grid-template-columns: var(--lk-daycol, 0px) 18px minmax(0, 1fr); align-items: start; }
 .lk-draft > .lk-draft-room { grid-column: 2; }
 .lk-draft > .lk-draft-line { grid-column: 3; min-width: 0; display: flex; align-items: flex-start; gap: 4px; padding: 2px 6px 2px 0; line-height: 24px; cursor: text; }
+/* Where the list's rows have their day at the line's right end, a row is the arrow's column and then its line: the + line has
+   the same two, so its + stands where a row has its bullet and the name where a row's words start (it stood a day's column
+   further in, and read as a child of the last row). */
+.lk-day-end > .lk-draft, .lk-day-end > :where(.lk-rows) > .lk-draft { grid-template-columns: 18px minmax(0, 1fr); }
+.lk-day-end > .lk-draft > .lk-draft-room, .lk-day-end > :where(.lk-rows) > .lk-draft > .lk-draft-room { grid-column: 1; }
+.lk-day-end > .lk-draft > .lk-draft-line, .lk-day-end > :where(.lk-rows) > .lk-draft > .lk-draft-line { grid-column: 2; }
+.lk-day-end .lk-draft .lk-dayin { display: none; }
 .lk-draft .lk-draft-plus::before { content: none; }
 .lk-draft .lk-draft-plus { color: var(--lk-off); }
 .lk-list:not(:has(.lk-row .lk-dayin)) .lk-draft .lk-dayin { display: none; }
