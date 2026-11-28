@@ -440,6 +440,13 @@ test('with a kind taken, letters that read as a month but hold none of its nodes
   assert.deepEqual([may.rows.map(n => n.uuid), may.near.map(n => n.uuid), may.time.label], [['v1'], ['v2'], 'May 2026']);
   assert.equal(S.within(people, may.time), null);
 });
+// F157 (rundown-070): "Chase Checking" typed in Search marked only "Chase" in the row found.
+test('every typed word found in a row\'s words is marked, each once, none over another', () => {
+  assert.deepEqual(S.marks('Chase Checking', ['chase', 'checking']), [[0, 5], [6, 8]]);
+  assert.deepEqual(S.marks('Checking at Chase', ['chase', 'checking']), [[0, 8], [12, 5]]);
+  assert.deepEqual(S.marks('Chase Checking', ['che', 'checking', 'zzz']), [[6, 8]]);   // the longer of two that begin at one place
+  assert.deepEqual(S.marks('Chase', []), []);
+});
 test('a sentence reads a kind, a value of its nodes, a page and a time', () => {
   const today = new Date(2026, 10, 26);
   const names = { kinds: new Map([['consultation', { id: 1, title: 'Consultation' }]]), values: new Map([['dr. mei chen', { prop: 'Provider', label: 'Dr. Mei Chen' }]]), pages: new Map([['fatigue', { uuid: 'u', title: 'Fatigue' }]]) };

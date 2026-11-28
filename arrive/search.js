@@ -297,7 +297,17 @@ G.part({
       const more = () => [{ gap: true }, ...G.listview.dayPlaces(dayStart(), start => { try { win.localStorage.setItem(AT, start ? 'start' : 'end'); } catch (error) { /* this sitting only */ } for (const one of boxes) if (one.holder.isConnected) one.again(); })];
       const list = G.node.listing(rel, read, { few: 8, dayStart, more, next: group => { box.upTo.set(group.key, (box.upTo.get(group.key) || STEP) + STEP); again(); }, press: (row, event) => { G.touch.open(row.dataset.uuid, event.shiftKey); return true; },
         key: (row, event) => { if (event.key !== 'Enter') return false; G.touch.open(row.dataset.uuid, event.shiftKey); return true; } });
-      const mark = () => { const want = box.sentence ? box.want || [] : S.tokens(box.text); for (const words of rel.querySelectorAll('.lk-line > .lk-words')) G.node.hit(words, want); };
+      // Every typed word found in a row is marked, not the first alone. The list's own marker (G.node.hit) takes the old marks off.
+      const hitAll = (words, want) => {
+        G.node.hit(words, []);
+        const walk = doc.createTreeWalker(words, 4), nodes = [];
+        for (let node; (node = walk.nextNode());) if (!node.parentElement.closest('.lk-tag, .lk-tell, .lk-lacks, .lk-sits')) nodes.push(node);
+        for (const node of nodes) for (const [at, length] of S.marks(node.textContent, want).reverse()) {   // from the end, so the places before it stay true
+          const hit = node.splitText(at); hit.splitText(length);
+          const el = doc.createElement('mark'); el.className = 'lk-hit'; hit.replaceWith(el); el.appendChild(hit);
+        }
+      };
+      const mark = () => { const want = box.sentence ? box.want || [] : S.tokens(box.text); for (const words of rel.querySelectorAll('.lk-line > .lk-words')) hitAll(words, want); };
       rel.addEventListener('lk-drawn', mark);
       const again = () => list.again();
       box.take = tag => { box.picks = tag ? [{ kind: 'tag', tag }] : []; box.text = ''; field.value = ''; box.more.clear(); again(); field.focus(); };

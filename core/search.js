@@ -14,6 +14,8 @@
      within(nodes, time)        the nodes a time holds, time as core/sentence.js reads one ({ from, to, nearFrom, nearTo }, days as
                                 numbers): { rows: those dated inside it, near: those dated just outside it }, or null when it
                                 holds none of them
+     marks(text, words)         where the typed words stand in a stretch of a row's words, to be marked: [[at, length]] in order,
+                                each word once (where it first stands), none over another
      taken(nodes, text, said)   with a kind taken, what the words typed find among its nodes; said is how the words read
                                 (core/sentence.js read): { rows, near, time }. A time read holds the nodes inside it and near it
                                 (time: that time); a time that holds none of the nodes was no time, and the words are plain
@@ -93,7 +95,15 @@ function taken(nodes, text, said) {
   const time = said.picks.find(pick => pick.kind === 'when'), timed = time ? within(narrow(nodes, said.words.join(' ')), time) : null;
   return timed ? { ...timed, time } : { rows: narrow(nodes, text), near: [], time: null };
 }
-const api = { tokens, kinds, narrow, rank, choices, holds, kindsAmong, within, taken };
+function marks(text, words) {
+  const low = String(text == null ? '' : text).toLowerCase(), found = [];
+  for (const word of new Set(words)) { const at = word ? low.indexOf(word) : -1; if (at >= 0) found.push([at, word.length]); }
+  found.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+  const out = []; let end = 0;
+  for (const one of found) if (one[0] >= end) { out.push(one); end = one[0] + one[1]; }
+  return out;
+}
+const api = { tokens, kinds, narrow, rank, choices, holds, kindsAmong, within, taken, marks };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).search = api;
 })(typeof window !== 'undefined' ? window : globalThis);
