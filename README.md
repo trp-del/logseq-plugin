@@ -20,7 +20,7 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | Layer | Folder | What it gives |
 |---|---|---|
 | 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (a tag in Commissioner, a property's name in Fragment Mono, both carried in `fonts/`). |
-| 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. One table, its rows sorted by a press on a column's name (Ontology's properties). |
+| 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. One table, its rows sorted by a press on a column's name and held in groups that fold (Ontology's properties). |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. At the right end of a page's title, its tags and the tags above them; on a tag's page, its parent above the title. |
 | 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, on a page of its own and in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
@@ -582,6 +582,24 @@ walk the rows (Up from the first goes to the column names), Enter goes to the pr
 ticks go, and on a column's name Enter or Space sorts. A row's right-click menu has Open, Open in sidebar, Move values… and
 Delete…. In the sidebar the columns narrow, a long name cut with "…", and the table scrolls sideways inside its own box where
 there is no room for them.
+
+**Property groups**, as before the rebuild (0.5.17): named groups that put the table's rows in an order of your own. They
+are kept on this computer for each graph and never written to the graph, and no property changes by being put in one. Groups made in 0.5.17 are carried over once, for the graph they were made in, where none are kept for it yet. With no
+group made the table reads as above. **New group**, the line at the table's foot, makes one with the name typed (Enter; a
+name that is there already is that group, not a second one). Each group is a line across the table: Logseq's fold arrow, its
+name in the small bold, and after the name how many properties it holds (none said while it holds none); its properties stand
+one step in under it, sorted as the table is sorted, and a group may stand inside another, its arrow under that group's
+name. The properties in no group follow the groups, as they always stood. The arrow folds a group, as do Space and Cmd-Up
+and Cmd-Down on its line, and its properties roll up and out; a group stays folded on this computer. A press on a group's
+name, or Enter on its line, turns the name into a field: Enter writes it, Escape or a press elsewhere leaves it. A property
+or a group dragged onto a group's line, or onto a row in that group, goes into it; onto a row in no group, out of every
+group. The same with the keys and the menus: on a property's row Tab puts it into the group just above it and Shift-Tab
+takes it out a level, and its right-click menu has **Move to group…** (the groups, and "No group"); on a group's line Tab
+puts the group inside the one before it, Shift-Tab takes it out a level, and its right-click menu has **Rename**, **Move
+into…** (the groups, and "The top") and **Take the group away**, which Delete on its line does too: the group goes and what
+it held goes up a level. Each of these but folding has the faded Undo arrow, after the property's name or after the group's
+name and count, which puts back what was kept; it goes at the next change to the graph, as every arrow does. Finding a
+property leaves out the groups that hold none of what is found. History does not list the groups' changes.
 
 **Tick boxes and the row of actions.** Every tag and every property has a tick box before it, in one column at the area's left
 edge whatever its depth, faint until it is ticked or pointed at; Space ticks the row the keys are on, Escape lets every tick
