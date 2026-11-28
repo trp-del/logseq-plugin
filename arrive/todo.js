@@ -12,7 +12,6 @@ G.part({
        to what is typed. */
     base.style('todo', `
 .lk-todo { padding: 4px 4px 16px 10px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
-.lk-todo .lk-list-name { font-size: var(--lk-small); font-weight: 600; }
 .lk-todo .lk-list { margin-top: 14px; }
 .lk-todo > .lk-time { margin: 0 0 2px; }
 .lk-todo .lk-add { align-items: baseline; }
@@ -23,10 +22,7 @@ G.part({
 /* What is listed and how it is grouped: two quiet words at the end of the line on top, since they change every group. */
 .lk-todo-view { flex: none; margin-left: auto; }
 .lk-todo-view > div { display: flex; gap: 2px; }
-.lk-todo-view button { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-quiet); font: inherit; font-size: var(--lk-small); cursor: pointer; white-space: nowrap; }
-.lk-todo-view button:hover, .lk-todo-view button:focus-visible { background: var(--lk-wash); color: var(--lk-text); outline: none; }
-.lk-todo-view button.on { color: var(--lk-text); }
-.lk-todo-view button::after { content: ""; width: 4px; height: 4px; margin-top: -3px; border: solid currentColor; border-width: 0 1.1px 1.1px 0; transform: rotate(45deg); opacity: .8; }
+.lk-todo-view .lk-change.on { color: var(--lk-text); }   /* a choice other than the usual one is in the words' ink */
 .lk-todo .lk-add .lk-field { padding-left: 22px; background: linear-gradient(var(--lk-off), var(--lk-off)) no-repeat 3px 50% / 11px 1.2px, linear-gradient(var(--lk-off), var(--lk-off)) no-repeat 8px 50% / 1.2px 11px; }`);
     const PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'];
     const refused = what => error => G.write.refused(what, error, 'The task was not changed.');
@@ -37,7 +33,7 @@ G.part({
     const draw = holder => {
       const doc = holder.ownerDocument;
       holder.classList.add('lk-todo');
-      holder.innerHTML = '<div class="lk-time" hidden></div><div class="lk-todo-view"><div><button type="button" data-of="show"></button><button type="button" data-of="by"></button></div></div><div class="lk-rel"></div>';
+      holder.innerHTML = '<div class="lk-time" hidden></div><div class="lk-todo-view"><div><button type="button" class="lk-change" data-of="show"></button><button type="button" class="lk-change" data-of="by"></button></div></div><div class="lk-rel"></div>';
       const timeEl = holder.children[0], viewEl = holder.children[1];
       // A day said in the words ("by friday") becomes the task's Deadline and leaves the words; it is said at the line's right before Return.
       const offAdd = G.node.adder(holder, 'Add or find a todo', async words => {

@@ -30,7 +30,6 @@ const CSS = `
 .lk-sheet-line.lit { background: var(--lk-wash); }
 .lk-sheet-keys { margin-left: 10px; white-space: nowrap; }
 .lk-sheet-keys .lk-keycap + .lk-keycap { margin-left: 6px; }
-.lk-sheet mark.lk-hit { background: none; color: inherit; font-weight: 600; padding: 0; margin: 0; border-radius: 0; }
 .lk-sheet-none { margin: 0 0 20px; color: var(--lk-quiet); }
 .lk-sheet [hidden] { display: none !important; }
 @media (max-width: 1000px) { .lk-sheet { font-size: var(--lk-line-size); } .lk-sheet-body { columns: 2; } }
