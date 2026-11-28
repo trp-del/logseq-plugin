@@ -67,7 +67,10 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 - what a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads; the
   chosen kind is underlined across its word and count, and the span of the list's days ("Jul 8 to Aug 20") stands at the head's
   right end, as before the rebuild;
-- Logseq's own Linked references and two-way tabs are taken away where these lists stand.
+- Logseq's own Linked references and two-way tabs are taken away where these lists stand;
+- as a page opens in the main view, its own bullets wait, unseen, until the page's place and its Relations above them are in
+  (at most half a second), and then show where they stay, so nothing pushes them down (a journal day, whose lists stand at its
+  foot, does not wait).
 
 A row:
 

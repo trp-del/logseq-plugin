@@ -92,6 +92,22 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(400);
       return is([deep, one, await count('.lk-row[data-open]')], [2, 1, 0]);
     });
+    await step('a page\'s own bullets do not move once they are shown, as the page opens: its place and Relations above them are in first', async () => {   // F42 of the rundown, 28 November 2026
+      const tops = await page.evaluate(async u => {
+        const seen = []; let on = true;
+        const look = () => {
+          const wrap = [...document.querySelectorAll('#main-content-container .cp__page-inner-wrap')].find(w => w.querySelector(`.ls-page-title .ls-block[blockid="${u}"]`));
+          const first = wrap && [...wrap.querySelectorAll('.ls-page-blocks .ls-block')].find(b => !b.closest('.lk-open'));
+          if (first && first.getBoundingClientRect().height && getComputedStyle(first).visibility === 'visible') seen.push(Math.round(first.getBoundingClientRect().top));
+          if (on) requestAnimationFrame(look);
+        };
+        requestAnimationFrame(look);
+        window.logseq.api.push_state('page', { name: u });
+        await new Promise(r => setTimeout(r, 2500)); on = false;
+        return [...new Set(seen)];
+      }, CHEN);
+      return is(tops.length, 1);
+    });
     await goto(CHEN);
     await step('a page says its place: its tag and the tags above it', async () => is(await page.locator('.lk-place').innerText(), 'Doctor/Person/Entity'));
     await step('a line\'s link reads as the node\'s name', async () => is(await page.locator('.lk-row .lk-line a.lk-node').first().innerText(), 'Dr. Mei Chen'));

@@ -22,6 +22,8 @@
                               opened to be filled
      touch.pages()            Logseq's own pages on screen, each { el, uuid, feed }: the main page, a page in the sidebar,
                               a day in the journals feed (feed: true)
+     touch.hold(el, uuid, what) a page on the main view held still as it opens: its own bullets unseen until each piece above
+                              them (what) is in, at most half a second; gives back done(). touch.HELD the stylesheet for it
      touch.pageFoot(el, name) where, in one of those pages, something of the plugin's may stand under the page's bullets
      touch.pageHead(el, name) and where something may stand right under the page's title
      touch.editor             Logseq's own editor for a node, placed in an element of the plugin's:
@@ -134,7 +136,8 @@ function watch(fn, { at = '', words = false } = {}) {
   graphEar();
   if (at) sharp.set(fn, at); else passes.add(fn);
   if (words) worded.add(fn);
-  if (!observer) { observer = new (host().defaultView.MutationObserver)(heardPage); observer.observe(host().body, { childList: true, subtree: true, characterData: true }); observer.observe(host().documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-color'] }); }
+  if (!observer) { for (const page of pages()) shownAs.set(page.el, page.uuid);   // a page already on screen as the plugin starts is never held (hold)
+    observer = new (host().defaultView.MutationObserver)(heardPage); observer.observe(host().body, { childList: true, subtree: true, characterData: true }); observer.observe(host().documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'data-color'] }); }
   host().defaultView.requestAnimationFrame(() => { if (passes.has(fn) || sharp.has(fn)) fn(); });
   return () => { passes.delete(fn); sharp.delete(fn); worded.delete(fn); if (!passes.size && !sharp.size && observer) { observer.disconnect(); observer = null; } };
 }
@@ -291,6 +294,31 @@ function pageFoot(el, name) {
   if (!foot) { foot = host().createElement('div'); foot.className = name; const first = el.firstElementChild; if (first) first.after(foot); else el.appendChild(foot); }
   return foot;
 }
+
+/* A page held still as it opens (the owner, 28 November 2026: Relations stays above a page's own bullets, "A. Above the bullets,
+   as now"). What the plugin puts above the bullets on the main page (the page's place, its Relations) is read from the graph
+   after Logseq has drawn the page, and it would push the bullets down under the eyes. So the bullets stay unseen until each part
+   has said its piece is in, at most HOLD_MS, and then show where they stay. hold(el, uuid, what) -> done(): el is the page from
+   pages(), what names the piece being waited for; done() says it is in (more than once is the same). A page is held only once,
+   as it opens: a piece drawn again later on the same page, or on a page already shown as the plugin starts, holds nothing. A journal day (its Relations stand at its foot), the
+   journals feed, a page in the sidebar and a page opened in a list are never held. HELD is the stylesheet that hides them. */
+const HOLD_MS = 500, holding = new WeakMap(), shownAs = new WeakMap();
+function hold(el, uuid, what) {
+  const none = () => {};
+  if (!el?.isConnected || !el.closest('#main-content-container') || el.closest(FEED) || el.closest(OURS) || el.classList.contains('is-journals')) return none;
+  if (shownAs.get(el) === uuid) return none;
+  let one = holding.get(el);
+  if (one && one.uuid !== uuid) { free(el); one = null; }
+  if (!one) { one = { uuid, waiting: new Set(), timer: host().defaultView.setTimeout(() => free(el), HOLD_MS) }; holding.set(el, one); el.setAttribute('data-lk-hold', ''); }
+  one.waiting.add(what);
+  return () => { if (holding.get(el) !== one) return; one.waiting.delete(what); if (!one.waiting.size) free(el); };
+}
+function free(el) {
+  const one = holding.get(el);
+  if (!one) return;
+  host().defaultView.clearTimeout(one.timer); holding.delete(el); shownAs.set(el, one.uuid); el.removeAttribute('data-lk-hold');
+}
+const HELD = `${PAGE}[data-lk-hold] > .page-inner > * > .ls-page-blocks, ${PAGE}[data-lk-hold] > .page-inner > .ls-page-blocks { visibility: hidden !important; }`;
 
 // Under the title and the page's properties, above the page's own bullets: the last thing inside the title's block. null where
 // the page has no title of its own (a bullet shown as a page).
@@ -2365,5 +2393,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { openPage: mainPage, file, fileInto, kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, writingIn, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { openPage: mainPage, file, fileInto, kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, writingIn, edit, digs, once, seat, names, plugins, tableBar, pages, hold, HELD, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

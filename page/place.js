@@ -6,7 +6,7 @@ const G = window.PluginDoor;
 G.part({
   key: 'place', title: 'A page’s place', about: 'At the right end of a page’s title, and under the title in the sidebar: its tags, each with the tags it sits under.',
   start(base) {
-    base.style('place', G.touch.HIDES_TAGS + `
+    base.style('place', G.touch.HIDES_TAGS + G.touch.HELD + `
 /* One line that never wraps and gives way with an ellipsis, wherever it stands: at the title's end, under a title, in the sidebar. */
 .lk-place { font-family: var(--lk-tag-face); color: var(--lk-quiet); font-size: var(--lk-words-size); font-weight: 400; line-height: 24px; margin: 2px 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .lk-place:empty { display: none; }
@@ -77,7 +77,7 @@ G.part({
         if (line && line.dataset.uuid !== page.uuid) {
           line.dataset.uuid = page.uuid; line.hidden = true; heads.add(line);
           if (!line.lkWired) { line.lkWired = true; for (const type of ['mousedown', 'pointerdown']) line.addEventListener(type, event => event.stopPropagation()); line.addEventListener('click', event => { if (event.target.closest('button')) { event.stopPropagation(); putUnder(line); } }); }
-          parentOf(line, page.uuid);
+          parentOf(line, page.uuid).finally(G.touch.hold(page.el, page.uuid, 'parent'));   // the bullets wait for it as the page opens
         }
         const end = G.touch.titleEnd(page.el, 'lk-place'), head = end || G.touch.pageHead(page.el, 'lk-place');
         if (end) { end.classList.add('lk-place-end'); const under = G.touch.pageHead(page.el, 'lk-place'); if (under && under !== end) { heads.delete(under); under.remove(); } }
@@ -95,7 +95,7 @@ G.part({
             change({ x: event.clientX, y: event.clientY, from: path }, head.dataset.uuid, Number(path.dataset.tag)).catch(() => G.say('The tags could not be read', 'warning'));
           });
         }
-        draw(head, page.uuid);
+        draw(head, page.uuid).finally(G.touch.hold(page.el, page.uuid, 'place'));
       }
     };
     base.onStop(G.touch.watch(pass));

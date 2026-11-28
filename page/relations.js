@@ -14,7 +14,7 @@ const shut = { read() { try { return new Set(JSON.parse(G.host().defaultView.loc
 G.part({
   key: 'relations', title: 'Relations', about: 'Under a page: every node that points at it, one list for each property, and where it is mentioned. Any row opens in place.',
   start(base) {
-    base.style('hides', G.touch.HIDES + `
+    base.style('hides', G.touch.HIDES + G.touch.HELD + `
 /* Measured, one rule (the owner, 25 November 2026: "can you measure things to make sure they are aligned and proper spacing"):
    a mark stands in a box 16 wide that ends 4 before its words; from the middle of one line to the middle of the next it is 26
    inside a head, 32 from a head to what it heads, and 54 from one section to the next. */
@@ -67,6 +67,8 @@ G.part({
         else { const day = new Date(Math.floor(at.upTo / 10000), Math.floor(at.upTo / 100) % 100 - 1, at.upTo % 100 + Number(by)); field.value = `${at.words ? at.words + ' ' : ''}on ${G.time.words(G.days.number(day))}`; }
         lists.find(field.value); onDay(); field.focus();
       });
+      // On the main page the page's own bullets wait, unseen, until the lists are in (at most half a second), so they are not pushed down.
+      const shown = wrapOf(foot).parentElement === page.el ? () => {} : G.touch.hold(page.el, uuid, 'relations');
       const lists = G.node.related(foot, uuid);
       // The section folds as a list does: what is under the word rolls up and then it is shut; opened, it rolls out. A press
       // while it moves turns it round from where it stands.
@@ -84,7 +86,7 @@ G.part({
       };
       const onLine = event => { if (event.type === 'click' || event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fold(); } };
       // A journal day has its lists at the foot of the day, after its bullets; every other page under its title and properties.
-      const onDrawn = () => { if (lists.rows() >= 20 || field.value) find.hidden = false; if (lists.day() && !page.feed) { const at = G.touch.pageFoot(page.el, 'lk-relfoot'); if (wrapOf(foot).parentElement !== at) at.appendChild(wrapOf(foot)); } };
+      const onDrawn = () => { shown(); if (lists.rows() >= 20 || field.value) find.hidden = false; if (lists.day() && !page.feed) { const at = G.touch.pageFoot(page.el, 'lk-relfoot'); if (wrapOf(foot).parentElement !== at) at.appendChild(wrapOf(foot)); } };
       const onInput = () => { lists.find(field.value); onDay(); };
       const onKey = event => {
         if (event.key === 'Escape') { if (field.value) { event.preventDefault(); event.stopPropagation(); field.value = ''; lists.find(''); onDay(); } else field.blur(); return; }
@@ -96,7 +98,7 @@ G.part({
       line.addEventListener('click', onLine); line.addEventListener('keydown', onLine);
       foot.addEventListener('lk-drawn', onDrawn); field.addEventListener('input', onInput); field.addEventListener('keydown', onKey);
       return { head, side: page.side, show() { if (line.getAttribute('aria-expanded') === 'false') fold(); find.hidden = false; field.focus(); field.select(); },
-        off() { foot.removeEventListener('lk-drawn', onDrawn); lists.off(); } };
+        off() { shown(); foot.removeEventListener('lk-drawn', onDrawn); lists.off(); } };
     };
     // A right-click in the section is the section's own. The section stands inside Logseq's block for the page's title, so a
     // right-click the plugin let pass opened Logseq's menu for the page, with Delete page in it. What has a menu of the plugin's
