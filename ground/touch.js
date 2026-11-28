@@ -301,12 +301,15 @@ function pageFoot(el, name) {
    has said its piece is in, at most HOLD_MS, and then show where they stay. hold(el, uuid, what) -> done(): el is the page from
    pages(), what names the piece being waited for; done() says it is in (more than once is the same). A page is held only once,
    as it opens: a piece drawn again later on the same page, or on a page already shown as the plugin starts, holds nothing. A journal day (its Relations stand at its foot), the
-   journals feed, a page in the sidebar and a page opened in a list are never held. HELD is the stylesheet that hides them. */
+   journals feed, a page in the sidebar and a page opened in a list are never held, nor a page that holds the bullet being
+   written (Cmd-, out of a bullet while writing in it): hidden, the bullet would lose the keys. HELD is the stylesheet that
+   hides them. */
 const HOLD_MS = 500, holding = new WeakMap(), shownAs = new WeakMap();
 function hold(el, uuid, what) {
   const none = () => {};
   if (!el?.isConnected || !el.closest('#main-content-container') || el.closest(FEED) || el.closest(OURS) || el.classList.contains('is-journals')) return none;
   if (shownAs.get(el) === uuid) return none;
+  if (el.contains(writing())) { free(el); shownAs.set(el, uuid); return none; }   // shown as it is, the bullet keeping the keys
   let one = holding.get(el);
   if (one && one.uuid !== uuid) { free(el); one = null; }
   if (!one) { one = { uuid, waiting: new Set(), timer: host().defaultView.setTimeout(() => free(el), HOLD_MS) }; holding.set(el, one); el.setAttribute('data-lk-hold', ''); }
