@@ -13,7 +13,8 @@
    property (one question from the row of actions and from a row's menu), and offers no Undo where Undo would not bring all
    of it back. History lists what was changed here, newest first, kept on this computer for 30 days; its newest line carries
    the Undo arrow while that change is still the last change to the graph (the library's arrow, which goes at the next change
-   as every arrow does). No older line has an Undo: that would be a second set of writes of the plugin's own.
+   as every arrow does). No older line has an Undo: that would be a second set of writes of the plugin's own. A change taken
+   back whole with its arrow, wherever the arrow stands, loses its line: History says what was changed and still stands.
    Properties are the table they were before the rebuild (the owner, 26 November 2026, "I like before version"; node/table.js):
    Property, On tags (▾ puts it on a tag or takes it off), Holds (▾ changes the tags a node value must have), Filled ("2 of 6"),
    sorted by a press on a column's name, least filled first at the start. */
@@ -32,6 +33,14 @@ const history = {
   read(graph) { const now = Date.now(); return (this.all()[graph] || []).filter(one => now - one.when < DAYS30); },
   add(graph, said, when = Date.now()) {
     const all = this.all(); all[graph] = [{ when, said }, ...this.read(graph)].slice(0, 300);
+    G.touch.kept(HISTORY, {}).set(all);
+    for (const heard of listeners) heard();
+  },
+  // A change taken back: its line goes.
+  drop(graph, when) {
+    const all = this.all(), was = all[graph] || [];
+    all[graph] = was.filter(one => one.when !== when);
+    if (all[graph].length === was.length) return;
     G.touch.kept(HISTORY, {}).set(all);
     for (const heard of listeners) heard();
   },
@@ -129,9 +138,27 @@ G.part({
        the newest line and the arrow stands; a change heard later lets the line go (the arrow itself goes by the library's own
        hearing, and another part may since have set one for the same node). */
     const graph = () => G.read.graph().catch(() => '');
-    let standing = null;   // { uuid, when, set }: the line of History the arrow that stands belongs to
-    const did = async (said, uuid = '') => { const when = Date.now(); standing = uuid ? { uuid: String(uuid).toLowerCase(), when, set: when } : standing; history.add(await graph(), said, when); };
+    let standing = null;   // { uuid, when, set, graph }: the line of History the arrow that stands belongs to
+    const did = async (said, uuid = '') => {
+      const when = Date.now(), mine = uuid ? { uuid: String(uuid).toLowerCase(), when, set: when, graph: '' } : null;
+      if (mine) standing = mine;
+      const name = await graph();
+      if (mine) mine.graph = name;
+      history.add(name, said, when);
+    };
     base.onStop(G.touch.changed(() => { if (standing && Date.now() - standing.set > 2000) standing = null; }));
+    /* The arrow pressed, after the row, on History's line or at the bottom right: the change is taken back by the library's own
+       way back (G.undo.back, what the arrow itself calls), and where all of it went back its line goes from History. Only the
+       arrow of a change told here is heard; where the Undo stopped part of the way, the line stays. */
+    base.listen(G.host(), 'click', async event => {
+      const button = event.target.closest?.('.lk-undo'), mine = standing;
+      if (!button || !mine) return;
+      const at = button.closest('[data-uuid]')?.dataset.uuid;
+      if (at && at !== mine.uuid) return;   // another node's arrow
+      event.preventDefault(); event.stopPropagation();
+      standing = null;
+      if (await G.undo.back()) history.drop(mine.graph, mine.when);
+    }, true);
     G.tending = { did: said => did(said) };
     /* One drawing for both places. In the sidebar: one outline. On the page: every top tag an area of its own, side by side,
        so the lines between tags run in the gaps and over the band above the areas. A drawing that fails is said in the console
