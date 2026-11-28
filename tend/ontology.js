@@ -124,8 +124,6 @@ G.part({
 .lk-history-when { flex: none; min-width: 7.5em; color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-history .lk-tag { font-family: var(--lk-tag-face); }
 .lk-history .lk-prop { color: var(--lk-text); }
-.lk-history-line > .lk-line { display: block; padding: 0; border-radius: 0; line-height: inherit; }   /* the newest line's words, held as the Undo arrow needs them (node/undo.js stands only in a line): placed as every other line of History, none of a row's own room */
-.lk-history-line > .lk-line > .lk-words { cursor: auto; }
 /* The table of properties: across the page's whole width, its tick boxes on the same left edge as the tags' (node/table.js). */
 .lk-ontology[data-tab="props"] > .lk-rel { display: block; padding-left: 0; }
 .lk-ontology:not(.lk-map)[data-tab="props"] > .lk-rel { padding-right: 0; }
@@ -147,18 +145,10 @@ G.part({
       history.add(name, said, when);
     };
     base.onStop(G.touch.changed(() => { if (standing && Date.now() - standing.set > 2000) standing = null; }));
-    /* The arrow pressed, after the row, on History's line or at the bottom right: the change is taken back by the library's own
-       way back (G.undo.back, what the arrow itself calls), and where all of it went back its line goes from History. Only the
-       arrow of a change told here is heard; where the Undo stopped part of the way, the line stays. */
-    base.listen(G.host(), 'click', async event => {
-      const button = event.target.closest?.('.lk-undo'), mine = standing;
-      if (!button || !mine) return;
-      const at = button.closest('[data-uuid]')?.dataset.uuid;
-      if (at && at !== mine.uuid) return;   // another node's arrow
-      event.preventDefault(); event.stopPropagation();
-      standing = null;
-      if (await G.undo.back()) history.drop(mine.graph, mine.when);
-    }, true);
+    /* A change taken back whole with its arrow, wherever the arrow stood (the row, History's line, the bottom right), loses its
+       line in History: the library tells of the press once it has finished (G.undo.taken). Where the Undo stopped part of
+       the way, the line stays. */
+    base.onStop(G.undo.taken((uuid, whole) => { const mine = standing; if (!mine || mine.uuid !== uuid) return; standing = null; if (whole) history.drop(mine.graph, mine.when); }));
     G.tending = { did: said => did(said) };
     /* One drawing for both places. In the sidebar: one outline. On the page: every top tag an area of its own, side by side,
        so the lines between tags run in the gaps and over the band above the areas. A drawing that fails is said in the console
@@ -706,11 +696,9 @@ ${!refused && rows.length ? `<div class="lk-ask-rows">${rows.slice(0, 4).map(({ 
         if (holder.dataset.tab !== 'history') return;
         const lines = history.read(await graph()), today = G.days.number(new Date());
         const when = ms => { const at = new Date(ms), day = G.days.number(at); return `${day === today ? 'Today' : G.days.short(day, today)}, ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`; };
-        // The newest line, where it is the change the Undo arrow stands for: its words held as a line, so the library's arrow stands after them.
-        const at = lines.length && standing && standing.when === lines[0].when ? standing.uuid : '';
-        history_.innerHTML = lines.length ? lines.map((one, i) => `<div class="lk-history-line"${at && !i ? ` data-uuid="${G.esc(at)}"` : ''}><span class="lk-history-when">${G.esc(when(one.when))}</span>${at && !i ? `<span class="lk-line"><span class="lk-words">${saidHtml(one.said)}</span></span>` : `<span>${saidHtml(one.said)}</span>`}</div>`).join('') : '<div class="lk-none">Nothing has been changed yet.</div>';
-        const newest = at && history_.firstElementChild;
-        if (newest) G.undo.dress(newest);   // drawn only while that arrow stands
+        history_.innerHTML = lines.length ? lines.map(one => `<div class="lk-history-line"><span class="lk-history-when">${G.esc(when(one.when))}</span><span>${saidHtml(one.said)}</span></div>`).join('') : '<div class="lk-none">Nothing has been changed yet.</div>';
+        // The newest line, where it is the change the Undo arrow stands for: the library's arrow after its words, while it stands.
+        if (lines.length && standing && standing.when === lines[0].when) G.undo.beside(history_.firstElementChild.lastElementChild, standing.uuid);
       };
       listeners.add(past);
       tabs(); bar(); past();
