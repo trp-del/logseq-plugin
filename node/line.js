@@ -28,8 +28,16 @@ function statusHtml(node, statuses) {
   if (!s) return '';
   return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
+/* The tags a line says after its words: its tag, where the list's head does not say it for every row (tagShown), and every
+   other tag the node holds, which no head says: so a tag set on a row shows on the row. Task is not said again on a line that
+   has its status circle. A place that blanks a row's tag (Ontology's own rows) gets none. */
+function tagsHtml(node, tagShown) {
+  if (!node.tag) return '';
+  const rest = (node.tags || []).map(tag => tag.title).filter(title => title && title !== node.tag && !(title === 'Task' && node.status));
+  return [...(tagShown ? [node.tag] : []), ...rest].map(title => `\u2002<span class="lk-tag">${G.esc(title)}</span>`).join('');
+}
 function html(node, { names, statuses, tagShown, day }) {
-  return `<span class="lk-bul${node.holds ? ' lk-folded' : ''}" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? `\u2002<span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
+  return `<span class="lk-bul${node.holds ? ' lk-folded' : ''}" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagsHtml(node, tagShown)}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
 }
 
 const ended = status => /^(done|canceled|cancelled)$/.test(status.name);
@@ -43,22 +51,30 @@ function mark(row, status) {
 }
 function setStatus(row, status) {
   mark(row, status);
-  G.undo.after(row.dataset.uuid, G.write.setStatus(row.dataset.uuid, status.title)).catch(error => { G.say(`The status could not be set: ${error?.message || 'Logseq refused'}`, 'warning'); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); });
+  G.undo.after(row.dataset.uuid, G.write.setStatus(row.dataset.uuid, status.title)).catch(error => { G.write.refused('The status could not be set', error); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); });
 }
 async function pickStatus(at, row) {
   const statuses = await G.read.statuses(), now = Number(row.dataset.status) || 0;
   G.menu(at, statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now,
     take: () => setStatus(row, s) })));
 }
+/* "New tag: …" is two steps of Logseq's Undo, the tag made and the tag put on the node, and the arrow takes back both. Where
+   the second is refused the new tag stands alone: the arrow is set for that one step, and the refusal says so. */
+async function fresh(uuid, words) {
+  const made = await G.write.newTag(words);
+  try { await G.write.tag(uuid, made); }
+  catch (error) { G.undo.mark(uuid, 1); if (error && typeof error === 'object') error.left = `The tag “${words}” was made all the same; the Undo arrow takes it away.`; throw error; }
+  return 2;
+}
 // The person's tags as an outline, the node's own ticked: a press puts a tag on the node or takes it off.
 // typing: the list has a line to type in, and words no tag has make a new one, as Logseq's own list of tags does.
 async function pickTags(at, uuid, typing = false) {
-  const node = await G.read.node(uuid), failed = error => G.say(`The tag could not be changed: ${error?.message || 'Logseq refused'}`, 'warning');
+  const node = await G.read.node(uuid), failed = error => G.write.refused('The tag could not be changed', error);
   if (!node) return;
   const [tags, own] = await Promise.all([G.read.tags(), G.read.tagsOf(node.id)]), has = new Set(own);
   G.menu(at, [{ group: 'Tags' }, ...G.tags.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id),
     take: () => G.undo.after(uuid, has.has(tag.id) ? G.write.untag(uuid, tag.uuid) : G.write.tag(uuid, tag.uuid)).catch(failed) }))],
-  typing ? { find: 'Set Tags', make: words => ({ word: `New tag: ${words}`, take: () => G.undo.after(uuid, G.write.newTag(words).then(made => G.write.tag(uuid, made))).catch(failed) }) } : {});
+  typing ? { find: 'Set Tags', make: words => ({ word: `New tag: ${words}`, take: () => G.undo.after(uuid, fresh(uuid, words)).catch(failed) }) } : {});
 }
 // A property given to a node, as Logseq's own Add property gives one to a bullet: the properties its tags give and it has not
 // filled first, then every other; then the value, asked for by the property's kind.
@@ -66,7 +82,11 @@ async function addProperty(at, uuid, only = '') {
   const node = await G.read.node(uuid);
   if (!node) return;
   const [{ props, byTag }, own, held] = await Promise.all([G.read.schema(), G.read.tagsOf(node.id), G.read.held([node.id])]), has = held.get(node.id) || {};
-  const write = prop => G.pick.value(at, prop, set => set(uuid).catch(error => G.say(`The value could not be written: ${error?.message || 'Logseq refused'}`, 'warning')));
+  // The value written gets the Undo arrow after the line's words, as a status or a tag does. before: the steps a new option's page took.
+  const write = prop => G.pick.value(at, prop, (set, before = 0) => G.undo.after(uuid, set(uuid).then(made => made + before)).catch(error => {
+    if (before) G.undo.mark(uuid, before);
+    G.write.refused('The value could not be written', error, before ? 'The new page was made all the same; the Undo arrow takes it away.' : '');
+  })).catch(error => G.write.refused('The choices could not be read', error));
   if (only) { const prop = [...props.values()].find(one => one.title === only); if (prop) write(prop); return; }
   const given = [...new Set(own.flatMap(tag => byTag.get(tag) || []))].map(ident => props.get(ident)).filter(prop => prop && !has[prop.title]), first = new Set(given.map(prop => prop.ident));
   const rest = [...props.values()].filter(prop => !first.has(prop.ident)).sort((a, b) => a.title.localeCompare(b.title));
@@ -79,23 +99,27 @@ async function addLine(row) {
     if (!row.dataset.open) G.node.open(row);
     const page = row.querySelector(':scope > .lk-open > .lk-editor');
     if (page && made) G.touch.editor.whole(page, () => G.touch.edit(made));
-  } catch (error) { G.say(`The line could not be added: ${error?.message || 'Logseq refused'}`, 'warning'); }
+  } catch (error) { G.write.refused('The line could not be added', error); }
 }
 async function menu(at, row, more) {
   const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0, face = row.closest('.lk-list, .lk-table')?.dataset.face || '';
+  /* Whether the row is a tag or a property is asked of the node itself, so that Delete asks first in every place that shows one
+     (Search, a page's Relations), not only where the list says what its rows are. A bullet is neither: only a page is asked after. */
+  const asked = face || row.dataset.page === '1' ? await G.read.opened(uuid).catch(() => null) : null;
+  const kind = asked?.kind || (face === 'tag' ? 'tag' : face ? 'property' : '');
   G.menu(at, [
     { word: 'Open', take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', take: () => G.touch.open(uuid, true) },
-    ...(face ? [] : [{ gap: true }, { word: 'Tags…', take: () => pickTags(at, row.dataset.uuid) }]),   // not on a tag or a property itself
+    ...(kind ? [] : [{ gap: true }, { word: 'Tags…', take: () => pickTags(at, row.dataset.uuid) }]),   // not on a tag or a property itself
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => setStatus(row, s) }))] : []),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
-    { word: face ? 'Delete…' : 'Delete', goes: true, take: () => {
+    { word: kind ? 'Delete…' : 'Delete', goes: true, take: () => {
       // A tag and a property are pages. Logseq does not always tell of a page that went, so the list is asked to read again.
-      const del = async () => { await G.undo.after(uuid, G.write.remove(uuid, !!face || row.dataset.page === '1')); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); };
-      if (!face) return void del().catch(error => G.say(`It could not be deleted: ${error?.message || 'Logseq refused'}`, 'warning'));
+      const del = async () => { await G.undo.after(uuid, G.write.remove(uuid, !!kind || row.dataset.page === '1')); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); };
+      if (!kind) return void del().catch(error => G.write.refused('It could not be deleted', error));
       // A tag or a property reaches every node that holds it: the question first, in red.
-      const name = row.querySelector('.lk-words')?.textContent.trim() || 'this', held = Number(row.querySelector('.lk-num')?.textContent || row.dataset.held) || 0, kind = face === 'tag' ? 'tag' : 'property';
+      const name = asked?.title || row.querySelector('.lk-words')?.textContent.trim() || 'this', held = Number(row.querySelector('.lk-num')?.textContent || row.dataset.held) || 0;
       G.ask.gone(row, { words: `Delete the ${kind} “${name}”?`, note: held ? `${held} ${held === 1 ? 'node holds' : 'nodes hold'} it. It is taken off every one of them.` : 'It is taken off every node that holds it.', yes: `Delete the ${kind}`, take: del });
     } },
   ]);
@@ -122,7 +146,7 @@ function act(event, row, more) {
   }
   if (event.type === 'keydown' && line && target === line) {
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (event.shiftKey) G.touch.open(row.dataset.uuid, true); else G.node.toggle(row); return true; }
-    if (event.key === 'ArrowRight' && !row.dataset.open) { event.preventDefault(); G.node.open(row); return true; }   // Right opens in place, Left closes
+    if (event.key === 'ArrowRight' && !row.dataset.open) { event.preventDefault(); G.node.open(row, true); return true; }   // Right opens in place, Left closes (while the node is open the keys rest on it: node/node.js)
     if (event.key === 'ArrowLeft' && row.dataset.open) { event.preventDefault(); G.node.close(row, true); return true; }
   }
   return false;

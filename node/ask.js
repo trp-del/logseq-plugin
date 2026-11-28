@@ -20,7 +20,7 @@ function gone(row, { words, note = '', yes = 'Delete', take }) {
     event.preventDefault(); event.stopPropagation();
     if (does === 'no') return close();
     box.querySelectorAll('button').forEach(button => { button.disabled = true; });
-    try { await take(); } catch (error) { G.say(`It could not be done: ${error?.message || 'Logseq refused'}`, 'warning'); }
+    try { await take(); } catch (error) { G.write.refused('It could not be done', error); }
     close(false);
   });
   for (const type of ['keydown', 'contextmenu', 'mousedown']) box.addEventListener(type, event => {

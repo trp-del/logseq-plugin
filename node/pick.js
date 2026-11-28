@@ -2,54 +2,93 @@
    Pick nodes, in a list's View, draws a tick box before each of its nodes and one on the head for all of them; Space picks the
    node the keyboard is on. With nodes picked a bar stands at the top of their list: how many, a × that lets them go, Open in
    sidebar, Set tag, Set property, More (Select all, Clear a property, and for a property's list Take out this page and Change
-   this page; for mentions, Make it…) and Delete, which asks first. What was done is said on one line with an Undo that takes
-   every step of it back through Logseq's own Undo. Picking ends with Escape, the ×, or an action done.
+   this page; for mentions, Make it…) and Delete, which asks first. What was done is said on one line with an Undo, which is
+   the Undo arrow's own (node/undo.js): it takes back the steps that were made, and goes at the next change to the graph as
+   the arrow does. Picking ends with Escape, the ×, or an action done.
      G.pick.bar(state, box, made)     the bar of a list, kept true
      G.pick.act(state, event)         a press on a tick box or the bar; true when taken
-     G.pick.value(at, prop, take)     a value asked for, by the property's kind: take(write) is given a function that writes it on one node */
+     G.pick.value(at, prop, take)     a value asked for, by the property's kind: its set choices where it has them, a node, yes or
+                                      no, a day, a day and a time, a number, words. take(write, before) is given write(uuid),
+                                      which writes it on one node and answers the steps of Undo that took, and before: the steps
+                                      already made while asking (a new option's page) */
 (function () {
 const G = window.PluginDoor;
 const icon = (name, size = 14) => G.touch.icon(name, size);
-const refused = what => error => G.say(`${what}: ${error?.message || 'Logseq refused'}`, 'warning');
+const refused = what => error => G.write.refused(what, error);
 const nodes = n => `${n} ${n === 1 ? 'node' : 'nodes'}`;
-// Every write of one action, one node after another; then picking ends and one line says what was done.
-async function run(state, box, uuids, words, each) {
+const tagged = (list, id) => new Set(list.rows.filter(row => (row.tags || []).some(tag => tag.id === id)).map(row => row.uuid));   // the rows that hold a tag already
+/* Every write of one action, one node after another; then picking ends and one line says what was done. each(uuid, did) answers
+   the steps of Undo it made on that node, or calls did() after each step where a later one may be refused, so a node left
+   halfway is counted as far as it got. The way back is handed to the Undo arrow's own piece with exactly those steps. */
+async function run(state, box, uuids, words, each, before = 0) {
   const key = box.lkList.key, view = state.view;
-  let steps = 0, done = 0;
+  let steps = Number(before) || 0, done = 0;
+  const did = (n = 1) => { steps += n; };
   box.dataset.busy = '1';
-  try { for (const uuid of uuids) { steps += Number(await each(uuid)) || 0; done++; } }
+  try { for (const uuid of uuids) { const made = await each(uuid, did); if (typeof made === 'number') steps += made; done++; } }
   catch (error) { refused(`It stopped after ${nodes(done)}`)(error); }
   delete box.dataset.busy;
   view.picking.delete(key); view.picked.delete(key);
-  view.did = done ? { key, words: words(done), steps } : null;
+  const said = done || steps ? { key, words: words(done), way: null } : null;
+  if (said) said.way = G.undo.hold(steps, () => { if (view.did === said) { said.way = null; state.redraw(); } });   // the Undo goes when the arrow would
+  view.did = said;
   state.again();
 }
-// A node asked for, among the nodes a property takes: the ones under its tags (every tagged node where it names none), narrowed
-// by typing; a name no node has is offered as a new page, with the property's tag when it takes exactly one.
+/* A node asked for, among the nodes a property takes: the ones under its tags (every tagged node where it names none). The list
+   opens with the first of them by name; what is typed narrows it and looks through all the others too, so every node is found
+   by its name, however many there are. A name none of them has is offered as a new option: a page of that name, with the
+   property's tag when it takes exactly one. take(id, node, before): before, the steps of Undo making that page took. */
+const FIRST = 400;
 async function askNode(at, prop, take) {
-  const tags = await G.read.tags(), range = (prop.range || []).filter(id => tags.has(id));
+  const W = G.words, tags = await G.read.tags(), range = (prop.range || []).filter(id => tags.has(id));
   const under = range.length ? [...new Set(range.flatMap(id => [...G.tags.under(id, tags)]))] : [...tags.keys()];
-  const found = (await G.read.tagged(under)).sort((a, b) => String(a.words).localeCompare(String(b.words))).slice(0, 400);
-  const names = await G.read.names(found.flatMap(node => G.words.named(G.words.firstLine(node.words).line)));
-  G.menu(at, found.map(node => ({ word: G.words.plain(G.words.firstLine(node.words).line, names), value: node.tag, take: () => take(node.id, node) })), { find: `A node for ${prop.title}`,
-    make: words => ({ word: `New option: ${words}`, take: async () => { try { const uuid = await G.write.newPage(words, range.length === 1 ? tags.get(range[0]).uuid : ''); const made = await G.read.node(uuid); if (made) take(made.id, made); } catch (error) { refused('The page could not be made')(error); } } }) });
+  const found = await G.read.tagged(under), names = await G.read.names(found.flatMap(node => W.named(W.firstLine(node.words).line)));
+  const all = found.map(node => { const word = W.plain(W.firstLine(node.words).line, names); return { node, word, low: `${word} ${node.tag || ''}`.toLowerCase() }; }).sort((a, b) => a.word.localeCompare(b.word));
+  const line = one => ({ word: one.word, value: one.node.tag, take: () => take(one.node.id, one.node, 0) }), rest = all.slice(FIRST);
+  const has = words => { const low = words.trim().toLowerCase(); return all.some(one => one.word.trim().toLowerCase() === low); };
+  G.menu(at, all.slice(0, FIRST).map(line), { find: `A node for ${prop.title}`,
+    ...(rest.length ? { searchName: '', search: async words => { const want = words.toLowerCase().split(/\s+/).filter(Boolean); return rest.filter(one => want.every(word => one.low.includes(word))).slice(0, 60).map(line); } } : {}),
+    make: words => has(words) ? null : ({ word: `New option: ${words}`, take: async () => {
+      const tag = range.length === 1 ? tags.get(range[0]).uuid : '';
+      try {
+        const there = await G.read.pageNamed(words), uuid = await G.write.newPage(words, tag), made = await G.read.node(uuid);   // a page of that name already there is taken, never made twice
+        if (made) take(made.id, { ...made, words }, (there && !there.gone ? 0 : 1) + (tag ? 1 : 0));
+      } catch (error) { refused('The page could not be made')(error); }
+    } }) });
 }
-// A value asked for, by the property's kind. take(write) is handed write(uuid): the value written on one node, answering how many
-// steps of Logseq's Undo it took.
-function value(at, prop, take) {
-  const type = prop.type || 'default';
-  if (type === 'node') return void askNode(at, prop, id => take(async uuid => { await G.write.setNode(uuid, prop.ident, id); return 1; }));
-  if (type === 'checkbox') return void G.menu(at, [true, false].map(yes => ({ word: yes ? 'Yes' : 'No', take: () => take(async uuid => { await G.write.setText(uuid, prop.ident, yes); return 1; }) })));
+/* A day and a time typed: a day as G.days.typed reads one, then a time with a colon or am/pm ("Oct 7 14:30", "2026-10-07 09:00",
+   "tomorrow 9am"). A day alone is that day's start, as Logseq's own date picker writes one. Answers the time in milliseconds; 0
+   for what cannot be read. */
+function dayTime(words) {
+  const text = String(words || '').trim(), m = text.match(/^(.*?)[\s,]+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i), timed = !!m && (m[3] != null || !!m[4]);
+  const day = G.days.typed(timed ? m[1] : text);
+  if (!day) return 0;
+  let hour = timed ? Number(m[2]) : 0; const minute = timed && m[3] ? Number(m[3]) : 0;
+  if (timed && m[4]) { if (hour < 1 || hour > 12) return 0; hour = hour % 12 + (/pm/i.test(m[4]) ? 12 : 0); }
+  if (hour > 23 || minute > 59) return 0;
+  const at = G.days.toDate(day); at.setHours(hour, minute, 0, 0);
+  return at.getTime();
+}
+// A value asked for, by the property's kind. take(write, before) is handed write(uuid): the value written on one node, answering
+// how many steps of Logseq's Undo it took.
+async function value(at, prop, take) {
+  const type = prop.type || 'default', one = write => take(async uuid => { await write(uuid); return 1; }, 0);
+  // A property with set choices offers its choices, as Logseq's own list does: a choice is written by its id.
+  const choices = type === 'checkbox' || type === 'node' ? [] : ((await G.read.choices()).get(prop.ident) || []);
+  if (choices.length) return void G.menu(at, choices.map(choice => ({ word: String(choice.text), take: () => one(uuid => G.write.setNode(uuid, prop.ident, choice.raw)) })), { find: `A choice for ${prop.title}` });
+  if (type === 'node') return void askNode(at, prop, (id, node, before = 0) => take(async uuid => { await G.write.setNode(uuid, prop.ident, id); return 1; }, before));
+  if (type === 'checkbox') return void G.menu(at, [true, false].map(yes => ({ word: yes ? 'Yes' : 'No', take: () => one(uuid => G.write.setText(uuid, prop.ident, yes)) })));
   if (type === 'date') {
-    const today = G.days.number(new Date()), next = new Date(); next.setDate(next.getDate() + 1);
-    const on = day => take(async uuid => { await G.write.setDay(uuid, prop.ident, day); return 1; });
-    return void G.menu(at, [{ word: 'Today', take: () => on(today) }, { word: 'Tomorrow', take: () => on(G.days.number(next)) }], { find: 'A day: Oct 7, 2026-10-07',
-      enter: words => { const day = G.view.dayIn(words, 99991231); if (day) on(day); else G.say(`“${words}” is not a day I can read. Try Oct 7 or 2026-10-07.`, 'warning'); } });
+    const today = G.days.number(new Date()), on = day => one(uuid => G.write.setDay(uuid, prop.ident, day));
+    return void G.menu(at, [{ word: 'Today', take: () => on(today) }, { word: 'Tomorrow', take: () => on(G.days.shift(today, 1)) }], { find: 'A day: Oct 7, 2026-10-07',
+      enter: words => { const day = G.days.typed(words); if (day) on(day); else G.say(`“${words}” is not a day I can read. Try Oct 7 or 2026-10-07.`, 'warning'); } });   // a year left out is this year's
   }
+  if (type === 'datetime') return void G.menu(at, [], { find: 'A day and a time: Oct 7 14:30',
+    enter: words => { const time = dayTime(words); if (time) one(uuid => G.write.setText(uuid, prop.ident, time)); else G.say(`“${words}” is not a day and a time I can read. Try Oct 7 14:30 or 2026-10-07 09:00.`, 'warning'); } });
   G.menu(at, [], { find: `${type === 'number' ? 'A number' : type === 'url' ? 'An address' : 'Words'} for ${prop.title}`, enter: words => {
     const written = type === 'number' ? Number(words) : words;
     if (type === 'number' && !Number.isFinite(written)) { G.say(`“${words}” is not a number.`, 'warning'); return; }
-    take(async uuid => { await G.write.setText(uuid, prop.ident, written); return 1; });
+    one(uuid => G.write.setText(uuid, prop.ident, written));
   } });
 }
 async function askProperty(at, title, take, only = null) {
@@ -62,24 +101,24 @@ async function askTag(at, title, take) {
   G.menu(at, [{ group: title }, ...G.tags.tree(tags).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', take: () => take(tag) }))], { find: 'A tag' });
 }
 // This page taken out of what a node holds under the list's property; with another node given, that one put in its place.
-async function swap(state, box, uuids, into) {
+// before: the steps of Undo already made while that node was asked for (a new option's page).
+async function swap(state, box, uuids, into, before = 0) {
   const list = box.lkList, here = await G.read.node(state.view.uuid), { props } = await G.read.schema(), prop = props.get(list.prop.ident);
   const holders = new Map((await G.read.holders(list.prop.ident)).map(one => [one.uuid, one]));
-  await run(state, box, uuids, n => into ? `${into.words || 'Another node'} put in place of this page on ${nodes(n)}` : `This page taken out of ${list.name} on ${nodes(n)}`, async uuid => {
+  await run(state, box, uuids, n => into ? `${into.words || 'Another node'} put in place of this page on ${nodes(n)}` : `This page taken out of ${list.name} on ${nodes(n)}`, uuid => {
     const kept = (holders.get(uuid)?.values || []).map(one => one.raw).filter(raw => raw !== here.id);
-    await G.write.setValues(uuid, list.prop.ident, into ? [...kept, into.id] : kept, { ref: true, many: !!prop?.many });
-    return kept.length || into ? 2 : 1;
-  });
+    return G.write.setValues(uuid, list.prop.ident, into ? [...kept, into.id] : kept, { ref: true, many: !!prop?.many });   // it answers the steps it made: 1, or 0 where nothing changed
+  }, before);
 }
 function more(state, box, at, uuids) {
   const list = box.lkList, view = state.view, key = list.key;
   const held = new Set(list.rows.filter(row => uuids.includes(row.uuid)).flatMap(row => Object.keys(row.held || {})));
   G.menu(at, [
     { word: 'Select all', icon: icon('list-check'), take: () => { view.picked.set(key, new Set([...box.querySelectorAll(':scope > .lk-rows > .lk-row:not(.lk-faint)')].map(row => row.dataset.uuid))); state.redraw(); } },
-    ...(held.size ? [{ word: 'Clear a property…', icon: icon('eraser'), take: () => askProperty(at, 'Clear a property', prop => run(state, box, uuids, n => `${prop.title} cleared on ${nodes(n)}`, async uuid => { await G.write.clear(uuid, prop.ident); return 1; }), held) }] : []),
+    ...(held.size ? [{ word: 'Clear a property…', icon: icon('eraser'), take: () => askProperty(at, 'Clear a property', prop => { const has = new Set(list.rows.filter(row => (row.held || {})[prop.title]).map(row => row.uuid)); return run(state, box, uuids, n => `${prop.title} cleared on ${nodes(n)}`, async uuid => { if (!has.has(uuid)) return 0; await G.write.clear(uuid, prop.ident); return 1; }); }, held) }] : []),
     ...(list.kind === 'property' ? [{ gap: true },
       { word: 'Take out this page', icon: icon('unlink'), take: () => swap(state, box, uuids, null).catch(refused('It could not be taken out')) },
-      { word: 'Change this page…', icon: icon('replace'), take: async () => { const { props } = await G.read.schema(); askNode(at, props.get(list.prop.ident) || list.prop, (id, node) => swap(state, box, uuids, { id, words: node.words }).catch(refused('It could not be changed'))); } }] : []),
+      { word: 'Change this page…', icon: icon('replace'), take: async () => { const { props } = await G.read.schema(); askNode(at, props.get(list.prop.ident) || list.prop, (id, node, before) => swap(state, box, uuids, { id, words: node.words }, before).catch(refused('It could not be changed'))); } }] : []),
     ...(list.kind === 'mentions' ? [{ gap: true }, { word: 'Make it…', icon: icon('wand'), take: () => makeIt(state, box, at, uuids).catch(refused('The choices could not be read')) }] : []),
   ]);
 }
@@ -91,7 +130,7 @@ async function makeIt(state, box, at, uuids) {
   for (const [tagId, idents] of byTag) { const tag = tags.get(tagId); if (tag) for (const ident of idents) { const prop = props.get(ident); if (prop && fits(prop)) choices.push({ tag, prop }); } }
   if (!choices.length) { G.say('No tag of yours has a property that takes this page.'); return; }
   G.menu(at, [{ group: 'Make it' }, ...choices.sort((a, b) => a.tag.title.localeCompare(b.tag.title)).map(({ tag, prop }) => ({ word: tag.title, face: 'tag', value: prop.title,
-    take: () => run(state, box, uuids, n => `${nodes(n)} made ${tag.title}, pointing here through ${prop.title}`, async uuid => { await G.write.tag(uuid, tag.uuid); await G.write.setNode(uuid, prop.ident, here.id); return 2; }) }))], { find: 'A tag' });
+    take: () => { const has = tagged(box.lkList, tag.id); return run(state, box, uuids, n => `${nodes(n)} made ${tag.title}, pointing here through ${prop.title}`, async (uuid, did) => { if (!has.has(uuid)) { await G.write.tag(uuid, tag.uuid); did(); } await G.write.setNode(uuid, prop.ident, here.id); did(); }); } }))], { find: 'A tag' });
 }
 // The bar of a list, and under it the line of what was last done there.
 function bar(state, box, made) {
@@ -105,7 +144,7 @@ function bar(state, box, made) {
   const html = n ? `<b class="lk-pick-n">${n}</b><button type="button" class="lk-btn lk-low lk-pick-x" data-do="clear" aria-label="Let them go" title="Let them go">${icon('x', 14)}</button>
 <button type="button" class="lk-btn lk-low lk-i-side" data-do="open">Open in sidebar</button><button type="button" class="lk-btn lk-low lk-i-tag" data-do="tag">Set tag</button><button type="button" class="lk-btn lk-low lk-i-list" data-do="prop">Set property</button><button type="button" class="lk-btn lk-low" data-do="more">More</button>
 <button type="button" class="lk-btn lk-low lk-pick-del lk-i-bin" data-do="delete">Delete</button>`
-    : `<span class="lk-did">${G.esc(did.words)}</span><button type="button" class="lk-btn lk-low lk-i-undo" data-do="undo">Undo</button><button type="button" class="lk-btn lk-low" data-do="done" aria-label="Done" title="Done">${icon('x', 14)}</button>`;
+    : `<span class="lk-did">${G.esc(did.words)}</span>${did.way ? '<button type="button" class="lk-btn lk-low lk-i-undo" data-do="undo">Undo</button>' : ''}<button type="button" class="lk-btn lk-low" data-do="done" aria-label="Done" title="Done">${icon('x', 14)}</button>`;
   if (el.lkHtml !== html) { el.innerHTML = html; el.lkHtml = html; }
   const all = head.querySelector('.lk-tick-all');
   if (all) { const shown = made.rows.length; all.checked = shown > 0 && n >= shown; all.indeterminate = n > 0 && n < shown; }
@@ -115,7 +154,7 @@ function askDelete(state, box, el, uuids) {
   const rows = box.lkList.rows.filter(row => uuids.includes(row.uuid)), pages = rows.filter(row => row.isPage).length, bullets = rows.length - pages;
   const what = [pages ? `${pages} ${pages === 1 ? 'page' : 'pages'} with all ${pages === 1 ? 'its' : 'their'} bullets` : '', bullets ? `${bullets} ${bullets === 1 ? 'bullet' : 'bullets'}` : ''].filter(Boolean).join(' and ');
   el.dataset.asking = '1'; el.lkHtml = '';
-  el.innerHTML = `<span class="lk-did"><b>Delete ${G.esc(what)}?</b> ${bullets ? 'A bullet is deleted for good.' : 'A page goes to Logseq’s Recycle.'}</span><button type="button" class="lk-del" data-do="delete-yes">Delete</button><button type="button" class="lk-btn" data-do="delete-no">Cancel</button>`;
+  el.innerHTML = `<span class="lk-did"><b>Delete ${G.esc(what)}?</b> ${bullets ? `Undo brings the ${bullets === 1 ? 'bullet' : 'bullets'} back.` : 'A page goes to Logseq’s Recycle.'}</span><button type="button" class="lk-del" data-do="delete-yes">Delete</button><button type="button" class="lk-btn" data-do="delete-no">Cancel</button>`;
   el.querySelector('[data-do="delete-no"]').focus();
 }
 function act(state, event) {
@@ -138,10 +177,10 @@ function act(state, event) {
   const what = press.dataset.do, uuids = [...picked()], el = press.closest('.lk-pickbar'), spot = press.getBoundingClientRect(), at = { x: spot.left, y: spot.bottom + 4, from: press };   // where the press was: the bar may be drawn again before a list opens
   if (what === 'clear') { view.picking.delete(key); view.picked.delete(key); state.redraw(); }
   else if (what === 'done') { view.did = null; state.redraw(); }
-  else if (what === 'undo') { const steps = view.did?.steps || 0; view.did = null; (async () => { for (let i = 0; i < steps; i++) { await G.write.undo(); await new Promise(done => setTimeout(done, 250)); } state.again(); })().catch(refused('It could not all be taken back')); }
+  else if (what === 'undo') { const way = view.did?.way; view.did = null; state.redraw(); if (way) G.undo.back(way).then(() => state.again()); }   // the Undo arrow's own way back
   else if (what === 'open') { for (const uuid of uuids) G.touch.open(uuid, true); view.picking.delete(key); view.picked.delete(key); state.redraw(); }
-  else if (what === 'tag') askTag(at, 'Set tag', tag => run(state, box, uuids, n => `${tag.title} put on ${nodes(n)}`, async uuid => { await G.write.tag(uuid, tag.uuid); return 1; })).catch(refused('The tags could not be read'));
-  else if (what === 'prop') askProperty(at, 'Set property', prop => value(at, prop, write => run(state, box, uuids, n => `${prop.title} set on ${nodes(n)}`, write))).catch(refused('The properties could not be read'));
+  else if (what === 'tag') askTag(at, 'Set tag', tag => { const has = tagged(box.lkList, tag.id); return run(state, box, uuids, n => `${tag.title} put on ${nodes(n)}`, async uuid => { if (has.has(uuid)) return 0; await G.write.tag(uuid, tag.uuid); return 1; }); }).catch(refused('The tags could not be read'));   // a node that holds the tag already is not written to, so no step is counted for it
+  else if (what === 'prop') askProperty(at, 'Set property', prop => value(at, prop, (write, before) => run(state, box, uuids, n => `${prop.title} set on ${nodes(n)}`, write, before)).catch(refused('The choices could not be read'))).catch(refused('The properties could not be read'));
   else if (what === 'more') more(state, box, at, uuids);
   else if (what === 'delete') askDelete(state, box, el, uuids);
   else if (what === 'delete-no') { delete el.dataset.asking; state.redraw(); box.querySelector('.lk-row > .lk-line')?.focus(); }

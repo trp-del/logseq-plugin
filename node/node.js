@@ -1,7 +1,8 @@
 /* NODE: a node opened in place, and the lists of what points at a node.
    An opened node is Logseq's own editor for it (its words, its bullets, its properties, its menus, its Undo) with the lists of
    what points at it underneath, each row a line that opens in turn. Nothing of the node is drawn by the plugin.
-     G.node.toggle(row), open(row), close(row)   a row of a list opened and closed in place
+     G.node.toggle(row), open(row, keys), close(row)   a row of a list opened and closed in place (keys: opened by a key or a
+                                                 press on its line, so the keys rest on the opened node and Left closes it)
      G.node.peek(holder, uuid, shut)             the opened node without its Relations, in a holder of the caller's (the corner's look)
      G.node.listing(el, read, opts)              lists of nodes drawn into el and kept true while the graph changes. read() answers
                                                  [{ key, kind, name, tag, rows, face }] (a list with no name has no head; face 'tag' or
@@ -11,8 +12,15 @@
                                                  list has a + that opens the line to type a new node in (node/add.js), key(row, event) -> true when the place takes a key
                                                  on a line, more(row) -> the place's own lines for a row's menu, ticks: { on(row), has(uuid), flip(uuid, row, ticked) } where a
                                                  place lets its rows be ticked: on(row) whether the row has a tick box, has(uuid)
-                                                 whether it is ticked, flip(...) told of a press on one. Gives back { off(), again() }
-     G.node.adder(holder, name, add, failed)     a line at the head of holder that adds (a task, a tag); gives back what removes it
+                                                 whether it is ticked, flip(...) told of a press on one; next(list) where a place
+                                                 gives a list only the first of its rows and says how many wait (list.waits): Show
+                                                 more counts them, and pressed with every given row shown it calls next, which
+                                                 brings more. Gives back { off(), again() }
+     G.node.follow(fn)                           fn runs a moment after the graph changed, as the lists read again: not while a
+                                                 bullet is being written in, but once, when that bullet is left; gives back what stops it
+     G.node.adder(holder, name, add, failed)     a line at the head of holder that adds (a task, a tag); gives back what removes it.
+                                                 add(words) answers the uuid of what it made, or { uuid, steps } with the steps of
+                                                 Undo it made: 0 where the thing was there already, and then no Undo arrow is set
      G.node.lists(el, uuid)                      the listing of what points at a node; gives back what takes it away
      G.node.once(base)                           keeps every opened node saying each property once (touch.once) */
 (function () {
@@ -160,13 +168,20 @@ function moved(root, change) {
   let frame = view.requestAnimationFrame(step); const cap = view.setTimeout(end, ms + 300);
   root.lkSettle = end;
 }
-function open(row) {
+/* keys: the row was opened by a key or a press on its own line. Its line goes out of sight once the node is shown, and the keys
+   would fall to the page; they are put on the opened node instead, so the key that closes it (Left, node handle below) still
+   reaches it. Once the person goes into the node the keys are Logseq's, and Escape is the way out. */
+const rest = holder => {   // the node can hold the keys only until they leave it: a press inside it then lands where it always did
+  holder.tabIndex = -1; holder.focus({ preventScroll: true });
+  holder.addEventListener('blur', () => holder.removeAttribute('tabindex'), { once: true });
+};
+function open(row, keys = false) {
   if (row.dataset.open || !G.touch.editor.can()) { if (!row.dataset.open) G.touch.open(row.dataset.uuid); return; }
-  const holder = row.ownerDocument.createElement('div'); holder.className = 'lk-open';
+  const doc = row.ownerDocument, holder = doc.createElement('div'); holder.className = 'lk-open';
   row.appendChild(holder); row.dataset.open = 'soon';
   mount(holder, row.dataset.uuid);
   // Logseq fills the node in over a few frames (a link's name, a property's value): it is shown once it has come to rest.
-  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') { const from = row.querySelector(':scope > .lk-line')?.offsetHeight || 28; row.dataset.open = '1'; roll(holder, from); } } });
+  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') { const line = row.querySelector(':scope > .lk-line'), from = line?.offsetHeight || 28, had = keys && (doc.activeElement === line || doc.activeElement === doc.body || !doc.activeElement); row.dataset.open = '1'; roll(holder, from); if (had) rest(holder); } } });
   shown.observe(holder, { attributes: true, attributeFilter: ['data-whole'] });
   holder.lkClose = () => close(row, true);
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
@@ -190,7 +205,7 @@ function close(row, focus = false) {
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Open');
   if (focus) row.querySelector(':scope > .lk-line')?.focus({ preventScroll: true });
 }
-const toggle = row => row.dataset.open ? close(row, true) : open(row);
+const toggle = row => row.dataset.open ? close(row, true) : open(row, true);
 /* One step back in a place: closes the opened node the person is in there (else the one opened last), a node dug into before
    the node it was dug from. Says whether one was closed. */
 function back(scope) {
@@ -220,8 +235,24 @@ function watchKeys(doc) {
 const mounted = new Map();   // el -> state
 const EVENTS = ['click', 'keydown', 'contextmenu', 'mousedown'];
 let offChanged = null, offDigs = null;
+/* The lists follow the graph: a moment after it changed they read it again. Not while a bullet is being written in: a hand
+   writing saves at every pause, and every list reading the graph at each of them is work for nothing the person sees. The change
+   is kept, and read once, when that bullet is left (another has the keys, or none). */
+function follow(fn) {
+  const view = G.host().defaultView;
+  let held = null, timer = 0;
+  const same = () => { const box = G.touch.writing(); return !!box && box === held.box && box.id === held.id; };
+  const look = () => { timer = 0; if (!held) return; if (same()) { timer = view.setTimeout(look, 400); return; } held = null; fn(); };
+  const off = G.touch.changed(() => {
+    const box = G.touch.writing();
+    if (!box) { held = null; view.clearTimeout(timer); timer = 0; fn(); return; }
+    held = { box, id: box.id };
+    if (!timer) timer = view.setTimeout(look, 400);
+  });
+  return () => { off(); view.clearTimeout(timer); timer = 0; held = null; };
+}
 function listing(el, read, opts = {}) {
-  const state = { el, read, all: new Set(), turn: 0, hits: 0, draft: null, ticks: opts.ticks || null, press: opts.press || null, leaves: opts.leaves || null, left: new Set(), rolls: false, dayStart: opts.dayStart || null, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
+  const state = { el, read, next: opts.next || null, all: new Set(), turn: 0, hits: 0, draft: null, ticks: opts.ticks || null, press: opts.press || null, leaves: opts.leaves || null, left: new Set(), rolls: false, dayStart: opts.dayStart || null, few: opts.few || 10, none: opts.none || '', add: !!opts.add, key: opts.key || null, more: opts.more || null, view: opts.view || null, last: null };
   state.redraw = () => { if (state.last && el.isConnected) draw(state, ...state.last); };
   state.again = () => load(state);
   mounted.set(el, state);
@@ -231,7 +262,7 @@ function listing(el, read, opts = {}) {
   el.addEventListener('lk-closed', onClosed);
   watchKeys(el.ownerDocument);
   offDigs ||= G.touch.digs((editor, uuid) => { const holder = editor.parentElement; if (!holder?.lkDig) return false; holder.lkDig(uuid); return true; });
-  offChanged ||= G.touch.changed(() => { for (const [one, s] of mounted) { if (!one.isConnected) mounted.delete(one); else load(s); } });
+  offChanged ||= follow(() => { for (const [one, s] of mounted) { if (!one.isConnected) mounted.delete(one); else load(s); } });
   load(state);
   return {
     again: () => load(state),
@@ -281,7 +312,8 @@ async function load(state) {
   const turn = ++state.turn;
   try {
     const [made, statuses] = await Promise.all([state.read(), G.read.statuses()]);
-    const names = await G.read.names(made.flatMap(list => list.rows.flatMap(row => W.named(W.firstLine(row.words).line))));
+    // The names linked in a row's own words, and in the words of what it sits under (the line that says where a row sits reads a linked name as its name).
+    const names = await G.read.names(made.flatMap(list => list.rows.flatMap(row => [...W.named(W.firstLine(row.words).line), ...(row.where || []).flatMap(step => W.named(String(step.words || '')))])));
     if (turn !== state.turn || !state.el.isConnected) return;
     const holds = await G.read.withLines(made.flatMap(list => list.rows.map(row => row.id)));
     if (turn !== state.turn || !state.el.isConnected) return;
@@ -321,21 +353,32 @@ async function finished(state, made, statuses, turn) {
   state.rolls = true;
   return true;
 }
-// Elements are kept by their key and only what changed is redrawn, so an opened row keeps its editor and the writing in it.
-function sync(parent, wanted, keyOf, make, update) {
+/* Elements are kept by their key and only what changed is redrawn, so an opened row keeps its editor and the writing in it.
+   A row the person has open stays until they close it, even when the node no longer points here (they may have just changed
+   that in it): it is not among the wanted any more, and it keeps its place, the others taking theirs around it. It is never
+   moved: moving it would take it from under the pointer and the keys out of the node being written in. */
+function sync(parent, wanted, keyOf, make, update, stays = child => !!child.dataset.open) {
   const have = new Map([...parent.children].map(child => [child.dataset.key, child]));
+  const keys = new Set(wanted.map(keyOf)), kept = new Set([...parent.children].filter(child => !keys.has(child.dataset.key) && stays(child)));
   let prev = null;
   for (const item of wanted) {
     const key = keyOf(item);
     let child = have.get(key);
     if (child) have.delete(key); else { child = make(item); child.dataset.key = key; }
     update(child, item);
-    const next = prev ? prev.nextElementSibling : parent.firstElementChild;
+    let next = prev ? prev.nextElementSibling : parent.firstElementChild;
+    while (next && next !== child && kept.has(next)) next = next.nextElementSibling;   // past what stays open in its place
     if (next !== child) parent.insertBefore(child, next);
     prev = child;
   }
-  // A row the person has open stays until they close it, even when the node no longer points here (they may have just changed that in it).
-  for (const child of have.values()) if (!child.dataset.open) child.remove();
+  for (const child of have.values()) if (!kept.has(child)) child.remove();
+}
+/* A list that is no longer wanted while one of its rows is open: the list stays with that row (and with it the node being
+   written in), and everything else of it goes. It is taken away when the row is closed, at the reading that follows. */
+function staysOpen(box) {
+  if (!box.querySelector(':scope > .lk-rows > .lk-row[data-open]')) return false;
+  for (const el of [...box.querySelectorAll(':scope > .lk-rows > *, :scope > .lk-more, :scope > .lk-pickbar, :scope > .lk-time')]) if (!el.dataset.open) el.remove();
+  return true;
 }
 function draw(state, made, names, statuses) {
   state.el.lkSettle?.();
@@ -369,7 +412,8 @@ function draw(state, made, names, statuses) {
     head.hidden = !list.name; box.dataset.kind = list.kind; box.dataset.face = list.face || '';
     rowsEl.hidden = isFolded;
     const items = made ? G.listview.items(state, list, made, state.few) : L.shown(list.rows, state.all.has(list.key), state.few).map(row => ({ type: 'row', key: row.uuid, row }));
-    const hidden = made ? (items.hidden || 0) : list.rows.length - items.length;
+    // The rows not shown: those the list was given and holds back, and those the place has not given yet (list.waits, where it has a next).
+    const kept = made ? (items.hidden || 0) : list.rows.length - items.length, waits = !made && state.next ? Math.max(0, Number(list.waits) || 0) : 0, hidden = kept + waits;
     const dated = items.filter(item => item.type === 'row' && item.row.dayShown), long = dated.some(item => Math.floor(item.row.dayShown / 10000) !== Math.floor(today / 10000));
     // Where a row's day stands, as the place's menu says: at the line's right end (as it comes), or before its words.
     const front = made ? G.listview.viewOf(list.key).at === 'start' : !!state.dayStart?.();
@@ -402,7 +446,8 @@ function draw(state, made, names, statuses) {
       el.classList.toggle('lk-picked', ticked);
       if (ticking) { if (!tick) { tick = doc.createElement('input'); tick.type = 'checkbox'; tick.className = 'lk-tick'; tick.setAttribute('aria-label', 'Pick this node'); el.insertBefore(tick, el.children[1]); } tick.checked = ticked; } else tick?.remove();
       const want = made?.finding ? G.search.tokens(state.view.find.words) : [];
-      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown, day: front && made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
+      // A list of one node has a head that names no kind (nothing to count), so its row says the tag itself.
+      const html = G.line.html(row, { names, statuses, tagShown: row.tagShown || (!!made && !list.count), day: front && made && dated.length ? day : undefined }) + (want.length ? `<!--${G.esc(want.join(' '))}-->` : ''), line = el.querySelector(':scope > .lk-line');
       if (made) line.draggable = true;   // onto another list's head: the node gets that list's property
       if (line.lkHtml !== html) { line.innerHTML = html; line.lkHtml = html; if (want.length) hit(line.querySelector('.lk-words'), want); }
       G.undo.dress(el);   // the node changed last keeps its arrow through a redraw
@@ -423,14 +468,14 @@ function draw(state, made, names, statuses) {
     let more = box.querySelector(':scope > .lk-more');
     if (hidden > 0 && !isFolded) {
       if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
-      more.textContent = `Show ${hidden} more`; more.dataset.fewer = '';   // how many wait, before the press (the owner, 25 November 2026)
+      more.textContent = `Show ${hidden} more`; more.dataset.fewer = ''; more.dataset.next = !kept && waits ? '1' : '';   // how many wait, before the press (the owner, 25 November 2026); with every given row shown, the press asks the place for more
     } else if (made && !isFolded && state.view.all.has(list.key) && !made.picking && !made.groups && made.rows.length > state.few + 2) {
       if (!more) { more = doc.createElement('button'); more.type = 'button'; more.className = 'lk-more'; box.appendChild(more); }
-      more.textContent = 'Show fewer'; more.dataset.fewer = '1';
+      more.textContent = 'Show fewer'; more.dataset.fewer = '1'; more.dataset.next = '';
     } else more?.remove();
     more?.classList.toggle('lk-more-link', !!made);
     if (state.add) G.adding.keep(state, box, list);   // the line begun from the list's + stands at its end
-  });
+  }, staysOpen);
 }
 // The words being found, marked where they stand in a line's words.
 function hit(words, want) {
@@ -453,6 +498,8 @@ function handle(state, event) {
   // Only what belongs to this node's lists: a nested node's lists handle their own.
   if (target.closest('.lk-rel') !== state.el) return;
   const found = target.closest('.lk-row'), row = found && state.el.contains(found) ? found : null;   // a list inside an opened node: the row that node is open under is not this list's
+  // The keys rest on the opened node itself (not in it): Left closes it, as Right opened it, and its line has the keys again.
+  if (row && event.type === 'keydown' && event.key === 'ArrowLeft' && target === row.querySelector(':scope > .lk-open') && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey) { event.preventDefault(); event.stopPropagation(); close(row, true); return; }
   if (row && target.closest('.lk-open')?.closest('.lk-row') === row) return;   // inside the opened node everything is Logseq's
   if (target.closest('.lk-draft')) return;   // the line a new node is typed in has its own ears
   if (row && target.closest('.lk-found')) { if (event.type === 'click' && target.closest('.lk-found-rest')) { event.preventDefault(); event.stopPropagation(); open(row); } return; }
@@ -474,6 +521,7 @@ function handle(state, event) {
     if (target.closest('.lk-tick, button')) return;
     event.preventDefault(); event.stopPropagation(); foldList(state, head.parentElement); return;
   }
+  if (event.type === 'click' && target.closest('.lk-more')?.dataset.next && state.next) { state.rolls = true; state.next(target.closest('.lk-list').lkList); return; }   // the rows that wait are brought by the place, and roll out as it draws them
   if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-more').dataset.gkey || target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } moved(state.el, state.redraw); return; }
   if (event.type === 'keydown' && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && target.matches('.lk-line, .lk-list-head')) {
     const stops = [...state.el.querySelectorAll('.lk-line, .lk-list-head')].filter(el => el.closest('.lk-rel') === state.el && el.offsetParent);
@@ -491,8 +539,9 @@ function foldList(state, box) {
   rollUp(rows).then(() => { box.lkShutting = false; flip(); for (const name of ['height', 'overflow', 'transition']) rows.style.removeProperty(name); });
 }
 /* A line that adds: one field at the head of a place's list. Enter hands its words to add(words), which answers the uuid of what
-   it made (or of what was there already); the list then moves to that row and lights it for a moment, while the field stays in
-   view. Escape empties the field and lets go. Gives back what takes the line's ears away. */
+   it made, or { uuid, steps }: the steps of Logseq's Undo it made, 0 where the thing was there already. The list then moves to
+   that row while the field stays in view, and the Undo arrow is set only where something was made: an arrow for nothing would
+   take back the person's last change. Escape empties the field and lets go. Gives back what takes the line's ears away. */
 function adder(holder, name, add, failed) {
   const doc = holder.ownerDocument, view = doc.defaultView, line = doc.createElement('div'); line.className = 'lk-add';
   line.innerHTML = `<input class="lk-field" type="text" placeholder="${G.esc(name)}" aria-label="${G.esc(name)}" spellcheck="true" autocomplete="off">`;
@@ -502,15 +551,19 @@ function adder(holder, name, add, failed) {
     const row = uuid && holder.querySelector(`.lk-row[data-uuid="${uuid}"]`);
     if (!row) { if (tries < 20 && holder.isConnected) view.setTimeout(() => show(uuid, tries + 1), 150); return; }
     row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    G.undo.mark(uuid);   // what was added lights, with the way back at its end
   };
   const onKey = async event => {
     if (event.key === 'Escape') { field.value = ''; field.blur(); return; }
     if (event.key !== 'Enter' || !field.value.trim() || field.disabled) return;
     event.preventDefault(); event.stopPropagation();
     field.disabled = true;
-    try { const uuid = await add(field.value.trim()); field.value = ''; show(String(uuid || '').toLowerCase()); }
-    catch (error) { G.say(`${failed}: ${error?.message || 'Logseq refused'}`, 'warning'); }
+    try {
+      const got = await add(field.value.trim()), told = !!got && typeof got === 'object', uuid = String((told ? got.uuid : got) || '').toLowerCase();
+      field.value = '';
+      G.undo.mark(uuid, told ? got.steps : 1);   // the way back, at once and only for what was made; the arrow is drawn when the row is
+      show(uuid);
+    }
+    catch (error) { G.write.refused(failed, error); }
     field.disabled = false; field.focus();
   };
   field.addEventListener('keydown', onKey);
@@ -523,8 +576,9 @@ function once(base) {
   load().catch(() => {});   // before the graph is up there is none; the next change brings them
   base.onStop(G.touch.changed(() => load().catch(() => {})));
   base.onStop(G.touch.watch(() => G.touch.once(placed)));
+  base.onStop(() => G.undo.clear());   // the Undo arrow goes with the plugin: this is the node's one piece main.js starts with a base
 }
-G.node = { peek, toggle, open, close, roll, rollUp, moved, back, listing, lists, related, adder, folded, hit, once, ARROW, CHEV };
+G.node = { peek, toggle, open, close, roll, rollUp, moved, back, listing, lists, related, adder, follow, folded, hit, once, ARROW, CHEV };
 G.node.CSS = `
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }
@@ -632,6 +686,7 @@ G.node.CSS = `
 .lk-add .lk-field::placeholder { color: var(--lk-off); }
 .lk-add ~ .lk-rel .lk-row { scroll-margin: 44px 0 8px; }
 .lk-open { --lk-open-shift: -2px; margin-left: var(--lk-open-shift); position: relative; }
+.lk-open:focus { outline: none; }   /* it holds the keys after it was opened by one; nothing is drawn round it */
 /* The levels show: one soft band for the node opened from a row; a node dug into stands under the value it was reached
    through, its rows starting where the value's words start, with a guide line down from the value's arrow. It takes its room
    in one move, once Logseq has drawn it. */
