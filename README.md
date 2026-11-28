@@ -43,7 +43,11 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 
 - one list for each of your properties that points at the page, named by the property; on a journal day, Logseq's Scheduled
   and Deadline; then **Mentioned in**, where a node that names the page inside the words of one of its values stands too;
-- a tag every row of a list shares is said once, beside the list's name;
+- a tag every row of a list shares is said once, beside the list's name; any other tag a node holds is said after that
+  row's words, and a list of one node, whose head names no kind, says its node's tag on the row;
+- while a bullet is being written in, the lists do not read the graph at each pause: they read once, when the bullet is left;
+- a row you have open stays open, where it is, until you close it, also when its node no longer belongs to the list (you
+  changed in it the very value that pointed here): it leaves when it is closed;
 - the lists stand under the quiet word **Relations** and a hairline, each list's name on that word's edge; its fold arrow, as
   a bullet's, shows under the pointer; the find line under it says **Search**;
 - a second hairline closes the section under its last row, running on under the word. A press on the word rolls the lists up
@@ -89,13 +93,13 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole; a group shows twelve nodes, then **Show more**), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none; and **Date position**, the beginning or the end of the line), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
 | | Reads back as… | How the property reads on the pages it points to. By grammar unless you type a name: "Prescribed by" reads "Prescribed", "Symptom of" reads "Symptoms", "Provider" reads "Provider of", a plain noun keeps its name |
 | | Hide where it points | The list is no longer shown on the pages the property points to |
-| | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first. One line then says what was done, with an Undo |
+| | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first. One line then says what was done, with an Undo: the Undo arrow's own, for the steps that were made, and gone at the next change to the graph as the arrow is. Set property asks for the value by the property's kind: its set choices where it has them, a node (found by typing its name, however many there are), yes or no, a day ("Oct 7" is this year's), a day and a time ("Oct 7 14:30"), a number, words |
 | | Move up, Move down | The list's place among the page's lists, kept for the page. A list's name can also be dragged above or below another |
 | The timeline | Click a dot, or drag across | A dot for each dated node from the first node's month to today. A dot narrows the list to its week; Left and Right walk the dots, Enter opens the node; a drag narrows to any span. By a property: a lane for each of its three most held values and one for the others; a lane's name narrows to it. Taller piles a week's dots. Escape lets go of the lane, then of the span |
 | A node's line | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, what the place itself offers, Delete. Words alone, Delete in red (the owner chose the short menu, 25 November 2026) |
-| | Right, Left | Opens the node in place, closes it |
-| | Drag onto another list's head | The node gets that list's property, pointing here |
-| "no Topic?" after a node | Click | A property four in five of the list hold and this node lacks: asks its value there |
+| | Right, Left | Right opens the node in place and the keys rest on it; Left closes it. Once you go into the node the keys are Logseq's, and Escape closes it |
+| | Drag onto another list's head | The node gets that list's property, pointing here, with the Undo arrow after its words |
+| "no Topic?" after a node | Click | A property four in five of the list hold and this node lacks: asks its value there; the value written gets the Undo arrow |
 | A mention | Click a step of where it sits | Under a mention stands the page it is on, and the bullet it is under: each opens |
 
 A day in the journals feed has its lists at the foot of the day. **Relations: the Recycle list** opens Logseq's Recycle as a
@@ -122,10 +126,13 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 - Colour is kept for a change: green for what comes, red struck through for what goes; Delete in a menu is red.
 - After the plugin changes a node shown as a line (a status, a tag, a new task, a tag moved in Ontology), a small faint arrow
   stands right after the line's words: a press takes the change back with Logseq's own Undo, in as many steps as the change
-  took. Nothing lights. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow goes at
-  the next change to the graph. Move values keeps its own way back.
-- Delete on a tag or a property, and Delete in the Recycle list, ask first, in a box under the line: what goes, what that
-  takes with it, a red yes and Cancel. The keys wait on Cancel; only a press on the red yes deletes.
+  took. Nothing lights. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow
+  stands only for a change that was made: a press that changed nothing (a tag put where it already is) leaves none. It goes at
+  the next change to the graph, when another graph is opened and when the plugin stops. A change of several steps goes back
+  one step after another; if you begin to write in a bullet meanwhile, the steps stop there and a notice says so, so that your
+  new words are never what is taken back. Move values keeps its own way back.
+- Delete on a tag or a property, in whichever list shows one (Ontology, Search, a page's Relations), and Delete in the
+  Recycle list, ask first, in a box under the line: what goes, what that takes with it, a red yes and Cancel. The keys wait on Cancel; only a press on the red yes deletes.
 - The presses are drawn as before the rebuild: the yes that decides filled in the ink, a plain press a quiet capsule, a
   third-level press with no ground, Delete in red on no ground with its bin; a small picture before a press's word where its job has one (Open in sidebar, Set tag, Set property,
   Undo, Restore, Move values).
@@ -174,7 +181,8 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
   it starts on one edge, about as far from the sidebar's left edge as the right ends are from its right, and the marks (a fold arrow, a list's mark, the + of Add property, a
   value's bullet) stand in the gutter before that edge.
 - Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
-  it does in a word beside its icon; a tag's own table leaves out its Tags column.
+  it does in a word beside its icon, and where the views and the tools do not fit on one line the tools go under the views;
+  a tag's own table leaves out its Tags column.
 - A notice, Logseq's own or the plugin's, is a small capsule of words at the bottom centre of the window, where Logseq draws
   a large card under the toolbar at the top right; more than one peek above it. Every notice goes after four seconds, a
   failure too, and stays while the pointer or the keys are on it; its × closes it at once.
@@ -233,7 +241,9 @@ again: a sidebar the key had opened is shut, and the keys go back to the bullet 
 - Plain words: Logseq's own search answers: what holds the words first, then what holds them in a value (said after the words),
   then the rest Logseq found; grouped by kind, the kinds among them offered above. The typed letters are marked a step heavier.
 - A kind taken: its nodes (and those of the kinds under it), newest first, and above them what they hold to narrow by, each
-  value with how many hold it, then the months. A value or month pressed becomes a piece; words narrow further.
+  value with how many hold it, then the months. A value or month pressed becomes a piece; words narrow further. Of many
+  nodes the list is given the first 120: **Show 180 more** counts all that wait, and each press past the given ones brings
+  120 more.
 - One line does it all; there are no ways of searching to switch between. "Consultation with Mei Chen around Aug 2026" typed
   there is read as a kind, a value and a time, each said under the line with what it was read as; the time is a strip of months,
   and the nodes just outside it follow under **Near**. Words that name no time, and no kind with something else, are plain
@@ -604,7 +614,8 @@ Relations the day stands after the bullet, before the words.
 In the right sidebar a list gives its words the whole width: a line's day stays at the end (or the beginning) of its line, an outline steps in less, and
 a node opened in place takes the width of the list. A list of Relations does the same wherever it is narrower than 300: a
 row's arrow stands in the gutter, its bullet on the edge its head's words start on, its day under its words; a property of a
-node opened there, and of a page in a narrow sidebar, has its name on one line and its values under it. Where a list is
+node opened there, of a page in a narrow sidebar, and of the main page where it is narrower than 300 (both sidebars open in
+a small window), has its name on one line and its values under it. Where a list is
 narrower than 420 the days of its head have a line of their own under the head's words.
 
 One rule for the gaps, measured: a mark stands in a box 16 wide that ends 4 before its words; from the middle of one line to
@@ -649,7 +660,8 @@ bullets picked, "this page" means the bullets picked.
 the button that does the export (**Save PDF…**, or **Copy Markdown** beside **Save as file…**), then ×. Under it is the
 preview: for PDF the sheets as they will print, with the margins, footer and page numbers chosen, broken where the print
 breaks (a bullet with more under it than a sheet holds, or a paragraph longer than a sheet, goes on over the next sheets, the
-items under it one by one, its words line by line); for Markdown the text. Over the preview, at the right, how large it is drawn. **Press into the words of the preview
+items under it one by one, its words line by line; so does a table's row, cell by cell, and a picture higher than a sheet,
+cut straight through as the print cuts it; what begins a sheet stands at its top edge); for Markdown the text. Over the preview, at the right, how large it is drawn. **Press into the words of the preview
 to change them for this export**; your notes do not change. The changed words stay through a change of paper, margins, text
 size or footer, and while you look at the other tab; when something changes what is written (a property, the tags, a title
 line, the links) the preview is drawn again from the page and a notice says the changed words went. Cmd-Enter presses the
@@ -694,7 +706,10 @@ Logseq's Undo it took. `note` writes a note from outside at the end of today's j
 by its name (made if there is none), with the tag picked and the person's own words under it; `show` sends Logseq to a node, a
 page or a bullet. `undo` (and Todo's `todoUndo`) takes back only what Alfred changed last on the node it names, in as many
 steps as that change took, and refuses, taking nothing back, once anything else has changed in the graph: Logseq's Undo would
-then take back that later change. `setValue` asked to clear empties a property of any kind. For files the plugin answers
+then take back that later change. `setValue` asked to clear empties a property of any kind; a change the ground refuses
+because a value has bullets written under it is answered in the plugin's words, with what to do. `setWords` takes a bullet's
+words as they were read and changed, and every link and tag the bullet already held stays the link it is. A bullet is
+answered with every tag it has. For files the plugin answers
 `check` (each file's name, and the node it already is in the graph), `add` (to today, the open page or a page by its name, a
 file already in the graph linked instead where asked), `progress` and `unadd`; they stand on three pieces of the ground
 (`touch.file`, `read.fileTwin`, `write.addFile`), and while the ground does not give them, `add` and `check` answer in plain

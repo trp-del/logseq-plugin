@@ -282,6 +282,14 @@ test('Update plugins says which plugin now runs another version, which are up to
   assert.equal(update.said([was[0]], [was[0]], market), 'Plugins updated: Calendar 1.0.0 to 1.2.0. Up to date: Logseq Plugin 0.9.0, Tabs 2.0.0. Could not be updated: Heatmap (GitHub did not answer)');
   assert.equal(update.said([], [], { same: [{ title: 'Tabs', version: '2.0.0' }] }), 'Plugins up to date: Tabs 2.0.0');
 });
+test('a plugin that could not be updated is said in plain words, never in Logseq\'s own error words', () => {   // the owner, 24 November 2026, of Logseq's own words in a notice: "what is this"
+  const failed = why => update.said([], [], { failed: [{ title: 'Tabs', why }] });
+  assert.equal(failed('release-asset-not-found {"url":"https://api.github.com/repos/someone/tabs/releases/latest","assets":[]}'), 'Could not be updated: Tabs (its newest release holds no file to install)');
+  assert.equal(failed('getaddrinfo ENOTFOUND api.github.com'), 'Could not be updated: Tabs (GitHub did not answer)');
+  assert.equal(failed('Cannot read properties of undefined (reading \'tag_name\')'), 'Could not be updated: Tabs (Logseq could not update it)');
+  for (const plain of ['no answer from Logseq', 'it names no GitHub repository to update from', 'this Logseq lends plugins no updater', 'GitHub did not answer']) assert.equal(failed(plain), `Could not be updated: Tabs (${plain})`);
+  assert.equal(failed(''), 'Could not be updated: Tabs');
+});
 test('a release is newer only when its version is higher', () => {
   assert.equal(update.newer('v1.2.0', '1.1.9'), true);
   assert.equal(update.newer('1.2.0', '1.2.0'), false);
@@ -715,4 +723,29 @@ test('the question before a delete counts what truly goes, and never calls a tag
   assert.deepEqual([prop.words, prop.whole, prop.yes], ['Delete the property “Provider”? This cannot be undone.', false, 'Delete the property']);
   assert.match(prop.note, /3 nodes hold a value under it\. Those values are deleted with it, for good/);
   assert.equal(tagTree.going([{ kind: 'tag', title: 'A', nodes: 1, kids: 0, bullets: 0 }, { kind: 'tag', title: 'B', nodes: 0, kids: 0, bullets: 0 }]).words, 'Delete 2 tags? This cannot be undone.');
+});
+// F74 of the round rundown-070 (27 November 2026): "chen" typed in Todo's line took "Call [[Dr. Mei Chen]] back" out of the
+// list, and grouped by parent its heading read the linked node's id in place of its name.
+test('Todo finds a task by a linked name, and a heading says a name, never an id', () => {
+  const CHEN = '6502f1c3-0b1c-4e7e-9a55-3b1f1d0c9a11', names = new Map([[CHEN, 'Dr. Mei Chen']]);
+  const call = { uuid: 'a', words: `Call [[${CHEN}]] back`, day: 0, at: [{ uuid: 'j', words: 'Nov 27th, 2026', day: 20261127 }, { uuid: 'v', words: `Visit with [[${CHEN}]] about the scan` }] };
+  const mail = { uuid: 'b', words: 'Sort the **mail**', day: 0, at: [{ uuid: 'p', words: 'Clinic', day: 0 }] };
+  const found = typed => todo.holding([call, mail], typed, names).map(task => task.uuid);
+  assert.deepEqual(found('chen'), ['a']);
+  assert.deepEqual(found('MEI back'), ['a'], 'every word typed, in any case and any order');
+  assert.deepEqual(found('mail'), ['b']);
+  assert.deepEqual(found('chen mail'), []);
+  assert.deepEqual(found('6502f1c3'), [], 'an id is no word of the task');
+  assert.deepEqual(found('  '), ['a', 'b'], 'nothing typed narrows nothing');
+  assert.equal(todo.under('parent', call, names), 'Visit with Dr. Mei Chen about the scan');
+  assert.equal(todo.under('parent', mail, names), 'Clinic');
+  assert.equal(todo.under('page', call, names, 20261127), 'Nov 27');
+  assert.equal(todo.under('page', mail, names), 'Clinic');
+  assert.equal(todo.under('parent', { uuid: 'c', words: 'x', at: [{ uuid: 'p', words: `About [[${CHEN.replace('65', '66')}]]`, day: 0 }] }, names), 'About …', 'a node no name is known for reads as …');
+  assert.equal(todo.under('page', { uuid: 'd', words: 'x' }, names), '');
+});
+// F95 of the round rundown-070: Todo's menu worked out next week's Monday by itself, beside the reader of "next week".
+test('next week is its Monday, one answer for the words typed and for the menu', () => {
+  assert.deepEqual([20261125, 20261129, 20261130, 20261231].map(day => todo.nextWeek(day)), [20261130, 20261130, 20261207, 20270104]);   // a Wednesday, a Sunday, a Monday, the year's last Thursday
+  assert.equal(todo.dayIn('Book the dentist next week', 20261231).day, todo.nextWeek(20261231));
 });

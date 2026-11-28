@@ -47,7 +47,10 @@ function keep(state, box, made, today) {
 function wire(state, box, el) {
   const doc = el.ownerDocument, key = box.lkList.key, view = state.view;
   let drag = null;
-  el.addEventListener('mousedown', event => { const track = event.button === 0 && event.target.closest('.lk-time-track'); if (track && !event.target.closest('.lk-time-dot')) drag = { track, x: event.clientX, moved: false, band: null }; });
+  // The page is listened to only while a drag is on: from the press down on the line to the press let go. Nothing of a timeline
+  // stays on Logseq's page once it has gone.
+  const letGo = () => { doc.removeEventListener('mousemove', move); doc.removeEventListener('mouseup', up); };
+  el.addEventListener('mousedown', event => { const track = event.button === 0 && event.target.closest('.lk-time-track'); if (track && !event.target.closest('.lk-time-dot')) { drag = { track, x: event.clientX, moved: false, band: null }; doc.addEventListener('mousemove', move); doc.addEventListener('mouseup', up); } });
   const move = event => {
     if (!drag) return;
     if (!drag.moved && Math.abs(event.clientX - drag.x) < 5) return;
@@ -56,6 +59,7 @@ function wire(state, box, el) {
     drag.band.style.left = `${a}px`; drag.band.style.width = `${Math.max(4, b - a)}px`;
   };
   const up = event => {
+    letGo();
     if (!drag) return;
     const { track, x, moved } = drag; drag = null;
     if (!moved) return;
@@ -63,8 +67,6 @@ function wire(state, box, el) {
     const from = T.dayAt(start, end, (Math.min(x, event.clientX) - r.left) / r.width), to = T.dayAt(start, end, (Math.max(x, event.clientX) - r.left) / r.width);
     view.spans.set(key, [from, to]); view.lit.delete(key); el.lkHtml = ''; state.redraw();
   };
-  doc.addEventListener('mousemove', move); doc.addEventListener('mouseup', up);
-  el.lkOff = () => { doc.removeEventListener('mousemove', move); doc.removeEventListener('mouseup', up); };
 }
 function act(state, event) {
   const target = event.target, el = target.closest?.('.lk-time'), box = el?.closest('.lk-list'), view = state.view;

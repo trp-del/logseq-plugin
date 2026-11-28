@@ -17,6 +17,7 @@
 (function () {
 const G = window.PluginDoor;
 const kindsOf = rows => { const n = new Map(); for (const row of rows) if (row.tag) n.set(row.tag, (n.get(row.tag) || 0) + 1); return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([tag]) => tag); };
+const no = words => Object.assign(new Error(words), { plain: true });   // a refusal of the plugin's own, said as it is (G.write.refused)
 const item = (state, list, group) => !!state.draft && state.draft.key === list.key && state.draft.group === (group ? group.key : null);
 const field = d => d.el?.querySelector('.lk-draft-field');
 const focus = d => { const at = field(d); if (at) { at.focus({ preventScroll: true }); at.setSelectionRange(at.value.length, at.value.length); } };
@@ -78,16 +79,20 @@ async function make(state, d, place, beside) {
   let made = null;
   try {
     const [all, here, schema] = await Promise.all([G.read.tags(), G.read.node(state.view.uuid), d.set ? G.read.schema() : null]);
-    if (!here) throw new Error('this page could not be read');
+    if (!here) throw no('this page could not be read');
     const those = d.kind ? [...all.values()].filter(tag => tag.title === d.kind) : [];
-    if (d.kind && those.length !== 1) throw new Error(`no one tag is called ${d.kind}`);
+    if (d.kind && those.length !== 1) throw no(`no one tag is called ${d.kind}`);
     const tag = those[0]?.uuid || '';
     if (place.act === 'page') {
       // A page in the Recycle still answers to its name: it is brought back instead of made twice.
       const named = await G.read.pageNamed(name);
       if (named && !named.gone) { G.say(`A page named “${name}” already exists, so nothing was added.`, 'warning'); d.making = false; focus(d); return; }
       let steps = 1, uuid;
-      if (named) { await G.write.restore(named.uuid); uuid = named.uuid; } else uuid = await G.write.newPage(name);
+      if (named) {
+        // Logseq answers whether it brought the page back: where it did not, nothing is tagged or pointed here under that name.
+        if (!(await G.write.restore(named.uuid))) throw no(`the page “${name}” lies in Logseq’s Recycle and could not be brought back`);
+        uuid = named.uuid;
+      } else uuid = await G.write.newPage(name);
       if (tag) { await G.write.tag(uuid, tag); steps++; }
       await G.write.setNode(uuid, list.prop.ident, here.id); steps++;
       made = { uuid, steps };
@@ -102,7 +107,7 @@ async function make(state, d, place, beside) {
         made.steps++;
       }
     }
-  } catch (error) { G.say(`It could not be added: ${error?.message || 'Logseq refused'}`, 'warning'); d.making = false; focus(d); return; }
+  } catch (error) { G.write.refused('It could not be added', error); d.making = false; focus(d); return; }
   G.undo.mark(made.uuid, made.steps);
   if (beside) { G.touch.open(made.uuid, true); drop(state); return; }
   // The line stays open for the next one: empty, with the same tag, the place chosen last lit when it asks where.

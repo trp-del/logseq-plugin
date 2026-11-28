@@ -83,7 +83,7 @@ G.table = (el, opts) => {
   box.addEventListener('click', onClick); box.addEventListener('keydown', onKey); box.addEventListener('contextmenu', onMenu);
   const onClosed = () => { G.read.forget(); load(); };   // a row deleted from its menu
   box.addEventListener('lk-closed', onClosed);
-  const offChanged = G.touch.changed(load);
+  const offChanged = G.node.follow(load);   // as the lists: read again after a change, but not at every pause of a bullet being written
   load();
   return {
     again: load,

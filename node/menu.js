@@ -18,6 +18,8 @@
    the list closes. While words are typed a last line, kept in view, says it and its key, and does it when taken.
    opts.rank: with opts.find, the lines closest to the words typed come first (a list of commands).
    opts.search(words) -> items: with opts.find, what the words find elsewhere, listed under the lines under "In your notes".
+   opts.searchName '': what is found is more of the same list (a list too long to hold whole): its lines come under the
+   others as lines like them, word and value, under no name.
    A line found may carry item.under { tag, page }, each { name, to }: its tag at the right end of its words, as tags are
    drawn, and under them the page it is on. A click on either goes there (Shift: in the sidebar), not to the line.
    opts.peek(holder, item, shut) -> what takes it away, or null for a line with nothing to look at: a tap on Shift, alone, shows
@@ -225,7 +227,7 @@ function make(at, items, opts, parent) {
     // What the words find elsewhere comes under the lines, a moment later; an answer overtaken by a later letter is dropped.
     let asked = 0, wait = 0;
     const find = words => {
-      for (const el of menu.querySelectorAll('.lk-found-line')) el.remove();
+      for (const el of menu.querySelectorAll('.lk-found-line, .lk-item-found')) el.remove();
       win.clearTimeout(wait); const mine = ++asked;
       looking = !!words;
       if (!words) return;
@@ -235,10 +237,12 @@ function make(at, items, opts, parent) {
         if (mine !== asked || !menu.isConnected) return;
         looking = false;
         if (!found.length) { if (entered) press(); return; }
-        for (const el of menu.querySelectorAll('.lk-found-line')) el.remove();
-        const head = doc.createElement('div'); head.className = 'lk-group lk-found-line'; head.textContent = 'In your notes'; menu.insertBefore(head, extra);
+        for (const el of menu.querySelectorAll('.lk-found-line, .lk-item-found')) el.remove();
+        const same = opts.searchName === '';   // more of the same list: lines like the others, under no name
+        if (!same) { const head = doc.createElement('div'); head.className = 'lk-group lk-found-line'; head.textContent = 'In your notes'; menu.insertBefore(head, extra); }
         for (const item of found) {
-          const row = doc.createElement('button'); row.type = 'button'; row.className = 'lk-item lk-found-line'; row.setAttribute('role', 'menuitem'); row.dataset.i = items.length; items.push(item);
+          const row = doc.createElement('button'); row.type = 'button'; row.className = same ? 'lk-item lk-item-found' : 'lk-item lk-found-line'; row.setAttribute('role', 'menuitem'); row.dataset.i = items.length; items.push(item);
+          if (same) { row.innerHTML = `<span class="lk-item-icon">${item.icon || ''}</span><span class="lk-item-word">${G.esc(item.word)}</span>${item.value ? `<span class="lk-item-value">${G.esc(item.value)}</span>` : ''}`; menu.insertBefore(row, extra); continue; }
           const { tag, page } = item.under || {};
           row.innerHTML = `<span class="lk-item-icon">${item.icon || ''}</span><span class="lk-found-text"><span class="lk-found-first"><span class="lk-found-words">${G.esc(item.word)}</span>${tag ? `<a class="lk-tag" data-to="${G.esc(tag.to)}">${G.esc(tag.name)}</a>` : ''}</span>${page ? `<span class="lk-sits"><a class="lk-step" data-to="${G.esc(page.to)}">${G.esc(page.name)}</a></span>` : ''}</span>`;
           menu.insertBefore(row, extra);

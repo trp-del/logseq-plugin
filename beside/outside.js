@@ -16,7 +16,8 @@
                                               Answered { ok, uuid, page, tag, said }: said names what could not be done after the
                                               bullet was written
      show({ uuid })                           Logseq goes to that node, as a press on its name does there
-     setWords({ node, uuid, words })          a bullet's words
+     setWords({ node, uuid, words })          a bullet's words, as read in the node's lines and changed: a link or a tag the
+                                              bullet already held stays the link it is; what is typed anew is written as typed
      newBullet({ node, after, words })        a new bullet after the bullet `after`, or last in the node when there is none
      move({ node, uuid, way })                way 'in' or 'out', as Tab and Shift-Tab in Logseq
      remove({ node, uuid })                   a bullet deleted, with the bullets under it
@@ -40,7 +41,8 @@
      unadd({ made })                          the bullets an add made ("uuid,uuid"), taken away again
    A node whole: { uuid, title, isPage, day, task, tags: [{ uuid, title }],
      props: [{ ident, name, kind, many, values: [{ raw, text, uuid }], choices: [{ raw, text }] }],   kind: node, date, choice, number, checkbox, text
-     lines: [{ uuid, depth, words, task, tag, under }],   its bullets; words as written, a link as [[its name]]; under: how many bullets stand under it
+     lines: [{ uuid, depth, words, task, tag, tags: [{ uuid, title }], under }],   its bullets; words as a person reads them, a link as [[its name]];
+                                                          tag: its first tag by name, tags: every tag it has; under: how many bullets stand under it
      lists: [{ name, said, rows: [{ uuid, title, kind, day, isPage }], more }] }   what points at it, as Relations lists it */
 (function () {
 const G = window.PluginDoor, R = G.read, Wr = G.write, W = G.words, D = G.days, T = G.tags, S = G.search;
@@ -80,7 +82,8 @@ async function whole(uuid) {
   const lines = bullets.map((line, i) => {
     let under = 0;
     for (let j = i + 1; j < bullets.length && bullets[j].depth > line.depth; j++) under++;
-    return { uuid: line.uuid, depth: line.depth, words: line.words, task: task(about.get(line.id)?.status), tag: about.get(line.id)?.tag || '', under };
+    const tags = (about.get(line.id)?.tags || []).map(tag => tagIndex.get(tag.id)).filter(Boolean).map(tag => ({ uuid: tag.uuid, title: tag.title }));   // every tag of the person's it has
+    return { uuid: line.uuid, depth: line.depth, words: line.words, task: task(about.get(line.id)?.status), tag: about.get(line.id)?.tag || '', tags, under };
   });
   // The properties its tags give it (those of the tags above them too), then any other it holds; by name, so they never jump.
   // One set to "Hide by default" is left out, as Logseq's own page leaves it out.
@@ -174,7 +177,7 @@ const answers = {
   async setWords(request) {
     const node = await shown(request), line = lineOf(node, request.uuid), words = String(request.words ?? '');
     if (words === line.words) return { ok: true, steps: 0, said: '', lit: line.uuid, node };
-    await Wr.setWords(line.uuid, words);
+    await Wr.setWords(line.uuid, words, { asRead: true });   // the field held the words as read: each link and tag the bullet had goes back by its id
     return changed(node.uuid, 1, '', line.uuid);
   },
   async newBullet(request) {
@@ -198,21 +201,23 @@ const answers = {
   async setValue(request) {
     const node = await shown(request), prop = node.props.find(one => one.ident === request.ident) || fail('That property is no longer on this node.');
     const lit = 'p:' + prop.ident, has = prop.values.map(value => value.raw), text = String(request.text ?? '').trim();
+    /* The ground refuses a change that would take away a value with bullets written under it, before anything is written.
+       Its refusal carries the plugin's own words (why, and what to do): they are said as they are, after what was not done. */
+    const written = async write => { try { return await write(); } catch (error) { if (error?.plain) fail([`${prop.name} was not changed: ${error.message}.`, error.then].filter(Boolean).join(' ')); throw error; } };
     const put = async (raw, ref, reads) => {
-      if (!prop.many) { await Wr.setValue(node.uuid, prop.ident, raw, { ref }); return changed(node.uuid, 1, `${prop.name} is now ${reads}`, lit); }
-      // Counted as Ontology counts it: a property that held nothing is written in one step (nothing is taken off first); one
-      // that held something is taken off and written again, two steps, or only taken off when its last value goes.
-      const on = has.includes(raw), next = on ? has.filter(one => one !== raw) : [...has, raw], fresh = !has.length;
-      await Wr.setValues(node.uuid, prop.ident, next, { ref, many: true, fresh });
-      return changed(node.uuid, fresh || !next.length ? 1 : 2, on ? `${reads} taken off ${prop.name}` : `${reads} added to ${prop.name}`, lit);
+      if (!prop.many) { await written(() => (ref ? Wr.setNode(node.uuid, prop.ident, raw) : Wr.setText(node.uuid, prop.ident, raw))); return changed(node.uuid, 1, `${prop.name} is now ${reads}`, lit); }
+      // One of several: the ground writes the whole set in one step and answers the steps it made (none where nothing changed).
+      const on = has.includes(raw), next = on ? has.filter(one => one !== raw) : [...has, raw];
+      const steps = await written(() => Wr.setValues(node.uuid, prop.ident, next, { ref, many: true }));
+      return steps ? changed(node.uuid, steps, on ? `${reads} taken off ${prop.name}` : `${reads} added to ${prop.name}`, lit) : { ok: true, steps: 0, said: '', lit, node };
     };
     const clear = async () => {
       if (!has.length) return { ok: true, steps: 0, said: '', lit, node };
-      await Wr.clearValue(node.uuid, prop.ident);
+      await written(() => Wr.clear(node.uuid, prop.ident));
       return changed(node.uuid, 1, `${prop.name} is empty`, lit);
     };
     if (request.clear) return clear();   // before the kinds: a tick box is never turned over by it, a set choice needs no pick
-    if (prop.kind === 'checkbox') { const to = !(has[0] === true); await Wr.setValue(node.uuid, prop.ident, to); return changed(node.uuid, 1, `${prop.name} is now ${to ? 'Yes' : 'No'}`, lit); }
+    if (prop.kind === 'checkbox') { const to = !(has[0] === true); await written(() => Wr.setText(node.uuid, prop.ident, to)); return changed(node.uuid, 1, `${prop.name} is now ${to ? 'Yes' : 'No'}`, lit); }
     if (prop.kind === 'choice') { const choice = prop.choices.find(one => String(one.raw) === String(request.pick)) || fail('That choice is no longer there.'); return put(choice.raw, true, choice.text); }
     if (prop.kind === 'node' && request.pick) {
       const [to] = await R.byUuids([request.pick]);

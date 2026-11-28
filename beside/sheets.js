@@ -2,7 +2,8 @@
    margins, each with its footer and page number, as the print will break them: a paragraph, a list item, a picture or a
    table row stays whole, and a heading never ends a sheet unless what follows it needs a sheet of its own. A piece higher
    than a sheet (a bullet with a hundred bullets under it, a paragraph of a hundred lines) begins where it stands and goes
-   on over the next sheets, as it prints: the items under it one by one, its words line by line. Measured in the
+   on over the next sheets, as it prints: the items under it one by one, its words line by line, a table's row cell by
+   cell, a picture in slices. What begins a sheet stands at its top edge, the gap above it dropped, as in print. Measured in the
    preview's own frame. The sheets can be written in: the pieces are moved onto them, not copied.
      sheets.paginate(doc, look)     deals the page (its .x-doc) onto sheets; look as core/paper.js takes it, with sizes
      sheets.gather(doc)             the page back in one piece, what went on over several sheets joined (a copy, for the export)
@@ -13,13 +14,16 @@ const G = window.PluginDoor;
 const PAPER = { white: '#fff', shadow: '0 1px 2px rgba(0,0,0,.12), 0 10px 36px rgba(0,0,0,.22)' };
 /* A piece that goes on over the next sheet: what stays of it (data-cut) ends flush with the sheet's foot, a justified line at
    the foot stays justified, and what goes on (data-goes-on) begins flush with the next sheet's top, an item without a second
-   bullet. A table that goes on at the page's top level keeps the gap it had above it before this was written. */
+   bullet. A picture higher than a sheet is shown again on the next one, moved up by what the sheets before showed of it
+   (data-again: a copy for the eye, never part of the page). Print drops the gap above whatever begins a page after the
+   first, so the sheets do (data-top: what stands first on a later sheet, and what stands first in that). */
 const CSS = `:root { color-scheme: light; }
 html, body { margin: 0; background: transparent; } body { padding: 0 20px 24px !important; } body:focus { outline: none; }
 .sheet { position: relative; box-sizing: border-box; margin: 0 auto 24px; background: ${PAPER.white}; box-shadow: ${PAPER.shadow}; overflow: hidden; }
 .sheet-body { height: 100%; overflow: hidden; display: flow-root; }
 [data-cut] { margin-bottom: 0 !important; } [data-cut="open"], [data-cut="words"] { padding-bottom: 0 !important; } [data-cut="words"] { text-align-last: justify; }
-[data-goes-on]:not(table), [data-goes-on] table[data-goes-on] { margin-top: 0 !important; padding-top: 0 !important; } li[data-goes-on] { list-style: none; }
+[data-goes-on] { margin-top: 0 !important; padding-top: 0 !important; } li[data-goes-on] { list-style: none; }
+[data-top] { margin-top: 0 !important; }
 .sheet-foot { position: absolute; display: flex; justify-content: space-between; gap: 16px; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 8pt; color: #999; user-select: none; }`;
 const HEADS = 'h1, h2, h3, h4, .x-head, .x-query';
 const isHead = el => el.matches(HEADS) || (el.matches('li') && !!el.querySelector(':scope > strong:first-child'));
@@ -27,6 +31,14 @@ const el = (doc, tag, name) => { const made = doc.createElement(tag); if (name) 
 // The last element of one, whatever blank text stands after it.
 const lastOf = el => { let node = el.lastChild; while (node && node.nodeType === 3 && !node.data.trim()) node = node.previousSibling; return node?.nodeType === 1 ? node : null; };
 
+// What begins a sheet, and what begins that, down to the first words: marked, so the gap above each is dropped.
+function atTop(el) {
+  for (let node = el.firstChild; node;) {
+    if (node.nodeType === 3 && !node.data.trim()) { node = node.nextSibling; continue; }
+    if (node.nodeType !== 1) return;
+    node.dataset.top = '1'; node = node.firstChild;
+  }
+}
 // The pieces that can move between sheets: a list's items and a table's rows on their own, with what they belong to.
 function pieces(page) {
   const out = [];
@@ -41,10 +53,11 @@ function pieces(page) {
    on: the same element again, marked data-goes-on, holding what did not fit. As Chromium prints it (tried on 27 November
    2026): words go line by line; a part the paper keeps whole (an item, a paragraph: break-inside avoid) goes over whole
    when something stands before it, however high it is, and is broken on the next sheet; with nothing before it, or only
-   headings, and higher than a sheet (full), it is broken where it stands; a list or a table is broken at any item. Null where
-   nothing of the piece would stay on this sheet, or it cannot be broken (a picture, a table's row). cuts keeps where words
-   were cut. */
-const WHOLE = 'tr, thead, img, figure, svg, br, hr', NEAR = .05;   // what is never broken; how far under the foot still counts as on the sheet
+   headings, and higher than a sheet (full), it is broken where it stands; a list or a table is broken at any item; a
+   table's row is broken in each of its cells; a picture higher than a sheet is cut straight through, the next slice on
+   the next sheet. Null where nothing of the piece would stay on this sheet, or it cannot be broken. cuts keeps where
+   words were cut. */
+const WHOLE = 'thead, br, hr', PICTURE = 'img, svg', NEAR = .05;   // what is never broken; what is cut straight through; how far under the foot still counts as on the sheet
 const cuts = new Map();   // a text cut in two at the last dealing: its first part -> its second
 function lineAt(range, text, limit, lead) {
   const foot = i => { range.setStart(text, 0); range.setEnd(text, i + 1); return range.getBoundingClientRect().bottom + lead; };
@@ -55,8 +68,30 @@ function lineAt(range, text, limit, lead) {
   const said = text.data, word = /\S/.test(said[lo]) && lo > 0 && /[^\s\-–—/]/.test(said[lo - 1]) ? said.slice(0, lo).search(/\s\S*$/) + 1 : 0;
   return word > 0 ? word : lo;
 }
+// A row higher than a sheet: each cell is broken by itself, and a cell that fits goes on empty.
+function cutRow(row, limit, full) {
+  const rest = row.cloneNode(false), range = row.ownerDocument.createRange(); let any = false;
+  for (const cell of [...row.children]) {
+    const more = cut(cell, limit, full);
+    if (more) { rest.appendChild(more); any = true; continue; }
+    const part = cell.cloneNode(false); part.dataset.goesOn = '1'; rest.appendChild(part);
+    range.selectNodeContents(cell);   // a cell whose words begin under the foot: all of them go over
+    const box = range.getBoundingClientRect();
+    if (box.height && box.top >= limit - NEAR) { while (cell.firstChild) part.appendChild(cell.firstChild); any = true; }
+  }
+  if (!any) return null;
+  rest.removeAttribute('data-cut'); rest.dataset.goesOn = '1'; row.dataset.cut = 'open';
+  return rest;
+}
+// The picture again, for the next sheet, moved up by all that stands above this sheet's foot.
+function slice(picture, limit) {
+  const again = picture.cloneNode(true); again.dataset.again = '1';
+  again.style.setProperty('margin-top', `${-(limit - picture.getBoundingClientRect().top)}px`, 'important');
+  return again;
+}
 function cut(el, limit, full) {
-  if (el.matches(WHOLE)) return null;
+  if (el.matches(WHOLE) || el.matches(PICTURE)) return null;
+  if (el.tagName === 'TR') return cutRow(el, limit, full);
   const doc = el.ownerDocument, view = doc.defaultView, range = doc.createRange(), kids = [...el.childNodes];
   const box = node => { if (node.nodeType === 1) return node.getBoundingClientRect(); if (node.nodeType !== 3) return null; range.selectNodeContents(node); return range.getBoundingClientRect(); };
   const takes = node => !(node.nodeType === 1 && node.tagName === 'THEAD') && (box(node)?.height || 0) > 0;
@@ -70,7 +105,8 @@ function cut(el, limit, full) {
     const line = range.getClientRects()[0]?.height || 0, lead = Math.max(0, ((parseFloat(view.getComputedStyle(el).lineHeight) || line) - line) / 2);
     const at = lineAt(range, over, limit + NEAR, lead);
     if (at > 0) { more = over.splitText(at); cuts.set(over, more); }
-  } else if (!over.matches(WHOLE) && (inline(over) || !whole(over) || (!clean && over.getBoundingClientRect().height > full))) { more = cut(over, limit, full); words = !!more && inline(over); }
+  } else if (over.matches(PICTURE)) { if (!stays && over.getBoundingClientRect().height > full) more = slice(over, limit); }
+  else if (!over.matches(WHOLE) && (inline(over) || !whole(over) || (!clean && over.getBoundingClientRect().height > full))) { more = cut(over, limit, full); words = !!more && inline(over); }
   let from = k + 1;   // the first of the nodes that go over whole
   if (!more) {
     if (!stays) return null;
@@ -120,6 +156,7 @@ function paginate(doc, look) {
   next();
   for (let i = 0; i < all.length;) {
     place(all[i]); on += 1;
+    if (on === 1 && sheets.length > 1) atTop(page);
     if (body.scrollHeight > body.clientHeight + 1) {
       let back = 1;   // this piece goes to the next sheet, with any heading that would be left at the foot of this one
       while (on - back > 0 && isHead(all[i - back].el)) back += 1;
@@ -150,7 +187,8 @@ const plain = node => { if (node.nodeType === 1) node.removeAttribute('data-goes
 // A piece that goes on from the sheet before, put back into the one it continues: a list's items, a table's rows, a paragraph's words.
 function join(to, part, take) {
   if (part.tagName === 'TABLE') { const rows = part.querySelector(':scope > tbody'), into = to.querySelector(':scope > tbody'); if (rows && into) { join(into, rows, take); return; } }
-  const [first, ...others] = [...part.childNodes];
+  if (part.tagName === 'TR') { [...part.children].forEach((cell, i) => { if (to.children[i]) join(to.children[i], cell, take); else to.appendChild(plain(take(cell))); }); return; }
+  const [first, ...others] = [...part.childNodes].filter(node => !(node.nodeType === 1 && node.dataset.again));
   if (goesOn(first, lastOf(to))) join(lastOf(to), first, take); else if (first) to.appendChild(plain(take(first)));
   for (const node of others) to.appendChild(take(node));
 }
@@ -161,7 +199,8 @@ function gather(doc, move = false) {
   for (const page of pages) for (const child of [...page.childNodes]) {
     if (goesOn(child, lastOf(out))) join(lastOf(out), child, take); else out.appendChild(plain(take(child)));
   }
-  for (const el of out.querySelectorAll('[data-cut], [data-goes-on]')) { el.removeAttribute('data-cut'); el.removeAttribute('data-goes-on'); }   // nothing of the sheets is left in the page
+  for (const el of out.querySelectorAll('[data-again]')) el.remove();
+  for (const el of out.querySelectorAll('[data-cut], [data-goes-on], [data-top]')) for (const mark of ['data-cut', 'data-goes-on', 'data-top']) el.removeAttribute(mark);   // nothing of the sheets is left in the page
   return out;
 }
 function repaginate(doc, look) {

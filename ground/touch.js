@@ -7,6 +7,10 @@
      touch.changed(fn, atOnce) fn runs a moment after the graph changed (atOnce: at every change, so it must be light); gives
                               back what stops it
      touch.writing()          the text box of the bullet being written in, or null
+     touch.writingIn()        the id of the bullet being written in, wherever it is shown (the main view, the sidebar, a node
+                              opened in place), or null: read from the box on screen, and where no box has the keys asked of
+                              Logseq itself. Asked right before a bullet's words are written: Logseq puts words written to
+                              the bullet being written in into its open box, over what was typed since
      touch.edit(uuid)         the caret put into a node's words
      touch.digs(fn)           fn(editor, uuid) -> true takes a plain press on the arrow before a value that is a node
      touch.goes()             under a bullet too, a press on a node's name in a property goes to that node (Shift: in the
@@ -27,8 +31,10 @@
      touch.addresses(base)    a web address held as plain text in a property's row said short, opened by Cmd-click
      touch.floating(el)       whether an element lies in one of Logseq's own menus, lists or windows
      touch.busy()             whether one of Logseq's own menus, lists or windows is open
-     touch.left(fn)           fn(uuid) runs a moment after a bullet whose words changed stops being written in; gives back what
-                              stops it. Only looks on: nothing of Logseq's editor is touched while it is written in
+     touch.left(fn)           fn(uuid, words) runs a moment after a bullet whose words changed stops being written in; words
+                              are what its box held when it was left, as a person reads them (a link by its name, where
+                              the graph keeps its id). Gives back what stops it. Only looks on: nothing of Logseq's editor is
+                              touched while it is written in
      touch.tagList(say)       words after each tag's name in Logseq's own list of tags (the one on "#"): say(name) -> words
      touch.key(combo, fn)     a key taken before Logseq sees it ('mod+k', 'mod+.'), matched by its place on the keyboard; gives
                               back what lets it go. fn answers false to leave the press to Logseq after all
@@ -63,6 +69,8 @@
                               sidebar's list and what changes it; mark(id, head) draws the node as the right half, unmark()
                               takes that off; shown(id) whether it is really on screen; body(id) what it holds; takeOut(id),
                               reorder(ids); openProps(); until(fn, ms), mainLeft(), mainSized(fn), headIcons(), mainPage()
+     touch.openPage()         the uuid of the page (or bullet) open in Logseq's main view; '' where it shows none (the
+                              journals, a page of the plugin's own). The same read as touch.beside.mainPage()
      touch.SPLIT              the stylesheet for the sidebar as the right half
      touch.menuItem(label, run)       an item in a bullet's right-click menu and in a page's: run({ uuid }) or run({ page })
      touch.menuLines(base, isHidden, offer)   Logseq's menus' lines, hidden ones left out; a right-click on one is offered
@@ -90,6 +98,15 @@
                               (read.recentKinds); the sheet (CALM.left) then stands them in groups. Gives back what stops it
      touch.graphs             Logseq's graphs: list() their addresses, current() the open one's, open(url) opens one by
                               pressing its line in Logseq's own list of graphs; answers whether the line was there
+     touch.file(path)         a file of this Mac read whole: { path, name, title, type, size, bytes, sum } (title and type as
+                              Logseq names a file's node: the name without its ending, the ending in small letters; sum: the
+                              checksum Logseq keeps of a file). Refuses with "<name> could not be read"
+     touch.fileInto(uuid, file, { show, taken, patience })   a file handed to an empty bullet as a paste, which is how Logseq
+                              itself takes a file (its plugin API has no call that makes a file's node). The bullet is opened in
+                              Logseq's own box first; where it is not on screen, the page show is, for that moment, and the
+                              screen put back after. Answers what taken() answers once Logseq has made the node, or null when
+                              it has not within patience; refuses, with nothing pasted, where the bullet could not be opened.
+                              ground/write.js addFile is what a part calls
      touch.HIDES              the stylesheet that takes away Logseq's own lists where the plugin's stand */
 (function () {
 const G = window.PluginDoor;
@@ -227,6 +244,14 @@ function once(placed) {
 const edit = uuid => logseq.Editor.editBlock(String(uuid));
 // The text box of the bullet being written in, or null.
 const writing = () => { const el = host().activeElement; return el?.tagName === 'TEXTAREA' && el.closest('.ls-block[blockid]') ? el : null; };
+/* The id of the bullet being written in, wherever Logseq shows it, or null. The box that has the keys says first: Logseq names
+   it after its bullet ("edit-block-" and the id), and it lies in that bullet. With no such box the answer is Logseq's own
+   (checkEditing), which is the very test its updateBlock makes before it puts the words it was given into the open box. */
+async function writingIn() {
+  const el = writing(), named = /^edit-block-(.+)$/.exec(el?.id || '')?.[1] || el?.closest('.ls-block[blockid]')?.getAttribute('blockid');
+  if (named) return named.toLowerCase();
+  try { const held = await logseq.Editor.checkEditing(); return typeof held === 'string' && held ? held.toLowerCase() : null; } catch (error) { return null; }
+}
 
 /* A page in Logseq's right sidebar. Logseq draws it with no title of its own (its name stands in the section's head), so which
    page a section shows is read from Logseq's own list of what the sidebar holds, in the sections' order. Answers the page's
@@ -401,6 +426,62 @@ async function setDown() {
   await logseq.Editor.exitEditingMode(false);
   await new Promise(done => host().defaultView.setTimeout(done, 200));
   return uuid ? async () => { try { await logseq.Editor.editBlock(uuid, { pos: at }); } catch (error) { console.warn('Logseq Plugin: the bullet could not be opened again', error); } } : () => {};
+}
+/* A file of this Mac, read whole. Logseq serves any whole path on its assets:// address (its own code, electron/core.cljs,
+   2.0.2; what stands after a ? or a # is cut off there, so each piece of the path is written safe). The name, title and type
+   are the ones Logseq gives the file's node, and sum is the checksum it keeps of it (SHA-256, as its own asset.cljs makes it),
+   taken with the window's own crypto, the one Logseq uses. */
+async function file(path) {
+  const at = String(path ?? ''), name = at.split('/').filter(Boolean).pop() || '';
+  const cannot = () => Object.assign(new Error(`${name || 'The file'} could not be read`), { plain: true });
+  if (!at.startsWith('/') || !name) throw cannot();
+  let bytes = null;
+  try { const got = await fetch('assets://' + at.split('/').map(encodeURIComponent).join('/')); if (got.ok) bytes = await got.arrayBuffer(); } catch (error) { bytes = null; }
+  if (!bytes) throw cannot();
+  const dot = name.lastIndexOf('.'), ending = dot > 0 ? name.slice(dot + 1) : '';
+  const digest = await host().defaultView.crypto.subtle.digest('SHA-256', bytes).catch(() => null);
+  if (!digest) throw cannot();
+  const sum = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+  return { path: at, name, title: ending ? name.slice(0, dot) : name, type: ending.toLowerCase(), size: bytes.byteLength, bytes, sum };
+}
+/* A file handed to an empty bullet, as Logseq itself takes a file. Its plugin API has no call that makes a file's node; its own
+   editor does, on a paste (frontend/handler/paste.cljs and editor/assets.cljs, 2.0.2): the file is copied into the graph's
+   assets folder and the empty bullet being written becomes the file's node, in one write. So the bullet is opened in Logseq's
+   own box and handed the file as a paste. Two things of Logseq's are named: the box, by the name Logseq gives it after its
+   bullet, and the bullet's element, to know it is drawn.
+   The file goes only into that bullet: nothing is pasted unless the box is the bullet's own and Logseq says that very bullet is
+   the one being written. A bullet that is not drawn cannot be opened, so the page show (a uuid) is shown for the moment and
+   the screen put back after. taken() is asked until it answers (Logseq has made the node) or patience (ms) runs out: answers
+   what it answered, or null. A refusal comes before the paste, so nothing of the file is in the graph then. */
+async function fileInto(uuid, given, { show = '', taken, patience = 30000 } = {}) {
+  const doc = host(), view = doc.defaultView, id = String(uuid).toLowerCase(), was = view.location.hash, scroller = doc.getElementById('main-content-container'), top = scroller?.scrollTop;
+  const rest = ms => new Promise(done => view.setTimeout(done, ms));
+  const wait = async (ask, ms, every = 60) => { for (const end = Date.now() + ms; ;) { const got = await ask(); if (got || Date.now() > end) return got || null; await rest(every); } };
+  const drawn = () => doc.querySelector(`.ls-block[blockid="${id}"]`), box = () => doc.getElementById('edit-block-' + id);
+  const cannot = words => Object.assign(new Error(words), { plain: true });
+  let moved = false;
+  try {
+    if (!(await wait(drawn, 400)) && show) { moved = true; await logseq.App.pushState('page', { name: String(show) }); await wait(drawn, 4000); }
+    if (!drawn()) throw cannot('its page did not come on screen');
+    // Opened for writing; asked again where a page still settling took the first ask.
+    for (let tries = 0; !box() && tries < 3; tries++) { await logseq.Editor.editBlock(id); await wait(box, 1500); }
+    const mine = box();
+    if (!mine) throw cannot('its bullet could not be opened');
+    if (doc.activeElement !== mine) mine.focus();
+    const held = await logseq.Editor.checkEditing().catch(() => false);
+    if (mine.value.trim()) throw cannot('words were typed into the bullet made for it, and they stay there');   // the person typed on: their letters are kept, the file is not mixed into them
+    if (doc.activeElement !== mine || String(held || '').toLowerCase() !== id) throw cannot('its bullet could not be opened');
+    const transfer = new view.DataTransfer();
+    transfer.items.add(new view.File([given.bytes], given.name, {}));
+    mine.dispatchEvent(new view.ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
+    const got = await wait(taken, patience, 200);
+    if (got) await rest(250);   // Logseq puts the caret into the file's node once it has made it: left after that
+    return got;
+  } finally {
+    try { await logseq.Editor.exitEditingMode(false); } catch (error) { /* it had closed itself */ }
+    if (moved) { if (view.location.hash !== was) view.location.hash = was; await rest(300); }
+    else if (scroller && Number.isFinite(top)) scroller.scrollTop = top;
+  }
 }
 /* FOCUSING INTO A BULLET AND OUT, where it meets Logseq's screen (beside/glide.js decides which bullet moves, and when). Only
    the main view. Logseq swaps the whole view in one frame, and every way in and out goes through the app's history, so the view
@@ -679,14 +760,15 @@ ${STEPS} > a.lk-out:focus-visible { background: var(--lk-wash); }`,
 // Whether one of Logseq's own floats is open (a menu, a list to pick from, a window): a key pressed then is Logseq's.
 const busy = () => !!host().querySelector('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac');
 const floating = el => !!el?.closest?.('.ui__popover-content, .ui__dropdown-menu-content, .ui__context-menu-content, .ui__dialog-content, .ui__modal, #ui__ac, [data-radix-popper-content-wrapper]');
-// The bullet being written in is the one whose text box has the keys. It is "left" when another one has them, or none.
+// The bullet being written in is the one whose text box has the keys. It is "left" when another one has them, or none. What
+// its box held last is handed on with its id, so a write that follows can see that the graph still holds those very words.
 function left(fn) {
   const doc = host();
   let at = null, timer = 0;   // at: { uuid, was, now }
   const boxNow = () => { const el = doc.activeElement; const block = el?.tagName === 'TEXTAREA' ? el.closest('.ls-block[blockid]') : null; return block ? { el, uuid: block.getAttribute('blockid').toLowerCase() } : null; };
   const look = () => {
     const box = boxNow();
-    if (at && (!box || box.uuid !== at.uuid)) { const gone = at; at = null; if (gone.now !== gone.was) setTimeout(() => { try { fn(gone.uuid); } catch (error) { console.error('Logseq Plugin: a bullet just left could not be read', error); } }, 250); }
+    if (at && (!box || box.uuid !== at.uuid)) { const gone = at; at = null; if (gone.now !== gone.was) setTimeout(() => { try { fn(gone.uuid, gone.now); } catch (error) { console.error('Logseq Plugin: a bullet just left could not be read', error); } }, 250); }
     if (box && !at) at = { uuid: box.uuid, was: box.el.value, now: box.el.value };
     else if (box && at) at.now = box.el.value;
   };
@@ -1651,6 +1733,15 @@ a.external-link:not(:has(img))::after { content: "\\2197"; display: inline-block
 ${OWN} .ls-page-properties:not(.lk-editor *) { margin-left: 10px; }   /* a page's property names and Add property on the edge its title and its bullets stand on */
 ${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
 ${OWN} .property-pair .property-block-container:not(.lk-editor *) { margin-left: 0 !important; }   /* and none of the 20 Logseq pulls a value in words back by, to make room for that bullet */
+/* In a narrow main page (both sidebars open in a small window) a page's own property has its name on one line and its value
+   under it, as in a narrow sidebar and in a node opened in a narrow place: Logseq keeps a name 150 wide, which left a value
+   no room at all, and it was not on screen. Narrow is told by the page title's own bullet, which Logseq already measures
+   (its container "ls-block"); 300 is where an opened node's rows turn too, so the page at its usual widths reads as before. */
+@container ls-block (max-width: 300px) {
+  #main-content-container .ls-page-title .ls-page-properties:not(.lk-editor *) .property-pair.property-panel-row { display: block !important; padding-right: 0 !important; }
+  #main-content-container .ls-page-title .ls-page-properties:not(.lk-editor *) .property-key-panel { width: auto !important; min-width: 0 !important; }
+  #main-content-container .ls-page-title .ls-page-properties:not(.lk-editor *) .property-value-container { margin-left: 0; }
+}
 .ls-string[data-lk-short] { font-size: 0 !important; min-width: 0; }
 .ls-string[data-lk-short]::before { content: attr(data-lk-short); font-size: var(--lk-line-size); color: var(--lk-text); text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .ls-string[data-lk-short]:hover::before { text-decoration-color: currentColor; }
@@ -1906,7 +1997,7 @@ ${valueMark(`${PILLS}${OUT} .bottom-property-pill`, DAY, 'calendar', 'last')}`,
 #right-sidebar .sidebar-item-list > .sidebar-item ~ .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }
 #right-sidebar .sidebar-item-list { padding-top: 8px !important; padding-bottom: 56px !important; }
 #right-sidebar .resizer { left: -3px !important; width: 7px !important; background: none !important; }
-#right-sidebar .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--lk-hair); transition: background-color .12s ease; }
+#right-sidebar .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--lk-hair); transition: background-color var(--lk-fade); }
 #right-sidebar .resizer:is(:hover, :active, :focus)::after { background: var(--lk-line); }
 /* A page in it: its name reads as the link it is; "Open properties" is pressed for the person and left out; no room is held
    under its bullets (Logseq keeps 60px for them even when there is one). */
@@ -1971,7 +2062,14 @@ ${AREA} .ls-view-head .views button[title="Add new view"]::after { content: "+ N
 ${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item) { width: auto !important; height: 24px !important; padding: 0 6px !important; gap: 4px; border-radius: var(--lk-corner-round) !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-text) !important; opacity: 1 !important; }
 ${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item):hover { background: var(--lk-wash) !important; }
 ${AREA} .ls-view-head .view-actions :is(.ui__icon, svg) { width: 15px; height: 15px; }
-${AREA} .ls-view-head .view-actions { gap: 2px !important; flex-wrap: nowrap; }
+/* With a word on each, the buttons' line is longer than Logseq's row of icons, and Logseq lays a page out as a grid that grows
+   with the longest line in it: a tag's page at 700 with the left sidebar open stood 50 past its place, its table and its
+   buttons cut at the window's edge. So the line gives way inside the page: where the views and the buttons do not both fit,
+   the buttons go under the views, at the right end as before; where the buttons alone do not fit, they go on to a line more,
+   and so do the views' names. */
+${AREA} .ls-view-head { flex-wrap: wrap !important; row-gap: 2px; }
+${AREA} .ls-view-head .views { flex-wrap: wrap; row-gap: 2px; }
+${AREA} .ls-view-head .view-actions { gap: 2px !important; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 ${AREA} .ls-view-head .view-action-type, ${AREA} .ls-view-head .view-action-type :is(.property-value-inner, .jtrigger) { width: auto !important; flex: none !important; }
 ${AREA} .ls-view-head .view-action-type .select-item { display: inline-flex; align-items: center; white-space: nowrap; }
 ${AREA} .ls-view-head .view-actions > button:has(.ls-icon-arrows-up-down)::after { content: "Sort"; }
@@ -2277,5 +2375,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { openPage: mainPage, file, fileInto, kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, writingIn, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();
