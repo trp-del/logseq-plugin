@@ -516,8 +516,9 @@ tag's bullet down along the tags under it, as Logseq's own outline has. Each tag
 many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
 puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline (on the page, where every
 top tag heads an area of its own, a top tag goes under the top tag before it, as in the sidebar); its right-click menu has
-Move values…, Move under… (the same list as the row of actions) and Move to the top. A move is written at once and is two steps of
-Logseq's Undo. The selected tag shows its lines to the tags it is joined with (and those of the tags under it): a tag is
+Move values…, Move under… (the same list as the row of actions) and Move to the top. A move is written at once, and only what changes
+is written: one step of Logseq's Undo to or from the top, two from under one tag to under another, none (and no Undo arrow)
+where the tag already stands there; the arrow takes back as many as were made. The selected tag shows its lines to the tags it is joined with (and those of the tags under it): a tag is
 joined to another when its nodes hold, under one of your properties, nodes of the other. The lines are drawn as the released
 Ontology drew them: one hairline a pair, in the quiet grey, from the edge of an area at one row to the edge at the other,
 turning on a corner of 6; a bracket just outside the area inside one area, one soft curve across the gap between neighbours,
@@ -531,7 +532,8 @@ tags under it as an outline, as many areas side by side as fit. The lines of the
 areas, in the gaps and over the band above the areas, never over a name. Properties shows your properties as the table they
 were before the rebuild (below). History lists what was changed from Ontology (a move, a merge, a rename, a deletion, a move of values),
 newest first, each with its day and time, kept on this computer for 30 days; "Nothing has been changed yet." when there is
-nothing. Under the tabs stand one line to type in (**New tag** on Tags; on Properties the same line reads **Find a property**
+nothing. The newest line carries the Undo arrow after its words while that change is still the last change to the graph; the
+arrow goes at the next change, as every arrow does, and no older line has an Undo. Under the tabs stand one line to type in (**New tag** on Tags; on Properties the same line reads **Find a property**
 and narrows the table to the properties whose name holds what is typed, Escape emptying it), **Move values…** (the box, with
 the property still to choose; there, and in the right-click menus, only while the part Move values is switched on) and
 **In the sidebar**, which opens the same outline as a section of the right sidebar, for use beside a page you are reading.

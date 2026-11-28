@@ -11,7 +11,9 @@
    back (the faded arrow), counted in the steps the writes answer; where Logseq refuses one write of several, what was written
    before it keeps its arrow and its line in History. A delete asks first, in red, counting what goes with the tag or the
    property (one question from the row of actions and from a row's menu), and offers no Undo where Undo would not bring all
-   of it back. History lists what was changed here, newest first, kept on this computer for 30 days.
+   of it back. History lists what was changed here, newest first, kept on this computer for 30 days; its newest line carries
+   the Undo arrow while that change is still the last change to the graph (the library's arrow, which goes at the next change
+   as every arrow does). No older line has an Undo: that would be a second set of writes of the plugin's own.
    Properties are the table they were before the rebuild (the owner, 26 November 2026, "I like before version"; node/table.js):
    Property, On tags (▾ puts it on a tag or takes it off), Holds (▾ changes the tags a node value must have), Filled ("2 of 6"),
    sorted by a press on a column's name, least filled first at the start. */
@@ -28,8 +30,8 @@ const KIND = { date: 'a date', datetime: 'a date', number: 'a number', checkbox:
 const history = {
   all() { const all = G.touch.kept(HISTORY, {}).get(); return all && typeof all === 'object' ? all : {}; },
   read(graph) { const now = Date.now(); return (this.all()[graph] || []).filter(one => now - one.when < DAYS30); },
-  add(graph, said) {
-    const all = this.all(); all[graph] = [{ when: Date.now(), said }, ...this.read(graph)].slice(0, 300);
+  add(graph, said, when = Date.now()) {
+    const all = this.all(); all[graph] = [{ when, said }, ...this.read(graph)].slice(0, 300);
     G.touch.kept(HISTORY, {}).set(all);
     for (const heard of listeners) heard();
   },
@@ -113,6 +115,8 @@ G.part({
 .lk-history-when { flex: none; min-width: 7.5em; color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-history .lk-tag { font-family: var(--lk-tag-face); }
 .lk-history .lk-prop { color: var(--lk-text); }
+.lk-history-line > .lk-line { display: block; padding: 0; border-radius: 0; line-height: inherit; }   /* the newest line's words, held as the Undo arrow needs them (node/undo.js stands only in a line): placed as every other line of History, none of a row's own room */
+.lk-history-line > .lk-line > .lk-words { cursor: auto; }
 /* The table of properties: across the page's whole width, its tick boxes on the same left edge as the tags' (node/table.js). */
 .lk-ontology[data-tab="props"] > .lk-rel { display: block; padding-left: 0; }
 .lk-ontology:not(.lk-map)[data-tab="props"] > .lk-rel { padding-right: 0; }
@@ -121,9 +125,14 @@ G.part({
 .lk-trow.lk-renaming > .lk-td:first-of-type > .lk-words { display: none; }
 .lk-trow .lk-td > .lk-rename { flex: 1 1 auto; box-sizing: border-box; width: auto; min-width: 0; height: 22px; margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--lk-text); border-radius: 0; background: none; box-shadow: none; outline: 0; color: var(--lk-text); font-family: var(--lk-prop-face); font-size: var(--lk-line-size); }`);
     // What was changed is told to History once, whichever place it was changed in; Move values tells its moves here too.
+    /* uuid: the node the Undo arrow was just set after for this change. Its line of History carries the arrow too, while it is
+       the newest line and the arrow stands; a change heard later lets the line go (the arrow itself goes by the library's own
+       hearing, and another part may since have set one for the same node). */
     const graph = () => G.read.graph().catch(() => '');
-    const did = async said => history.add(await graph(), said);
-    G.tending = { did };
+    let standing = null;   // { uuid, when, set }: the line of History the arrow that stands belongs to
+    const did = async (said, uuid = '') => { const when = Date.now(); standing = uuid ? { uuid: String(uuid).toLowerCase(), when, set: when } : standing; history.add(await graph(), said, when); };
+    base.onStop(G.touch.changed(() => { if (standing && Date.now() - standing.set > 2000) standing = null; }));
+    G.tending = { did: said => did(said) };
     /* One drawing for both places. In the sidebar: one outline. On the page: every top tag an area of its own, side by side,
        so the lines between tags run in the gaps and over the band above the areas. A drawing that fails is said in the console
        and left empty: the ground would otherwise try it again at every change of the page. */
@@ -139,13 +148,13 @@ G.part({
       holder.innerHTML = `<div class="lk-onto-tabs" role="tablist"></div><div class="lk-onto-acts"></div><div class="lk-rel"></div><div class="lk-history"></div>`;
       const tabsEl = holder.firstElementChild, acts = tabsEl.nextElementSibling, history_ = holder.lastElementChild;
       /* A new tag is made at the top. A name that exists is shown instead of made twice: nothing was written, so the line that
-         adds is answered no node and sets no Undo arrow (an arrow there would take back the last change made anywhere). */
+         adds is answered no steps and sets no Undo arrow (an arrow there would take back the last change made anywhere). */
       const offAdd = G.node.adder(holder, 'New tag', async name => {
         if (holder.dataset.tab !== 'tags') return '';
         const there = [...(await G.read.tags()).values()].find(tag => tag.title.trim().toLowerCase() === name.toLowerCase());
         if (!there) return G.write.newTag(name);
         showTag(there);
-        return '';
+        return { uuid: there.uuid, steps: 0 };
       }, 'The tag could not be made');
       /* On Properties the same line finds a property by its name: what is typed narrows the table, and Enter adds nothing. */
       const field = holder.querySelector(':scope > .lk-add .lk-field');
@@ -180,7 +189,7 @@ G.part({
           if (!steps) { done(); return; }   // it stood there already: nothing was written, so no arrow and no line in History
           G.undo.mark(uuid, steps);   // the faded arrow beside the tag takes the whole move back
           const under = [...tags.values()].find(one => one.uuid === to);
-          did(under ? [['', 'Moved '], ['tag', tag.title], ['', ' under '], ['tag', under.title]] : [['', 'Moved '], ['tag', tag.title], ['', ' to the top']]);
+          did(under ? [['', 'Moved '], ['tag', tag.title], ['', ' under '], ['tag', under.title]] : [['', 'Moved '], ['tag', tag.title], ['', ' to the top']], uuid);
           writing = false;
         } catch (error) { done(); if (error?.steps) G.undo.mark(uuid, error.steps); G.write.refused('The tag could not be moved', error); }
       };
@@ -257,13 +266,13 @@ G.part({
         const under = to ? tagIndex.get(to)?.uuid : '';
         if (under != null) move(uuid, under);
       };
-      // A tag that is there already, shown: the tags it sits under unfolded, its row brought into view and selected.
+      // A tag that is there already, shown: the tags it sits under unfolded and its row selected (the line that adds brings it into view).
       const showTag = tag => {
         const view = doc.defaultView;
         for (const one of G.tags.path(tag.id, tagIndex).slice(1)) if (G.folds.shut(one.title)) G.folds.set(one.title, false);
         const find = (tries = 0) => {
           const row = rel.querySelector(`.lk-list[data-face="tag"] > .lk-rows > .lk-row[data-uuid="${tag.uuid}"]`);
-          if (row) { row.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); select(row); }
+          if (row) select(row);
           else if (tries < 10 && holder.isConnected) view.setTimeout(() => find(tries + 1), 150);
         };
         list.again(); find();
@@ -353,13 +362,13 @@ G.part({
           if (!prop) return;
           const off = now.props.includes(prop.id);
           await G.undo.after(uuid, G.write.tagProperties(tag.uuid, off ? now.props.filter(id => id !== prop.id) : [...now.props, prop.id]));
-          did(off ? [['', 'Took '], ['prop', row.title], ['', ' off '], ['tag', tag.title]] : [['', 'Put '], ['prop', row.title], ['', ' on '], ['tag', tag.title]]);
+          did(off ? [['', 'Took '], ['prop', row.title], ['', ' off '], ['tag', tag.title]] : [['', 'Put '], ['prop', row.title], ['', ' on '], ['tag', tag.title]], uuid);
         }) }))], { find: 'A tag' });
       };
       const nodeTags = async (at, uuid) => {
         const row = info.get(uuid)?.row;
         if (!row || row.type !== 'node') return;
-        const has = new Set(row.range), set = (ids, said) => once_(`${row.title} could not be changed`, async () => { await G.undo.after(uuid, G.write.range(uuid, ids)); did(said); });
+        const has = new Set(row.range), set = (ids, said) => once_(`${row.title} could not be changed`, async () => { await G.undo.after(uuid, G.write.range(uuid, ids)); did(said, uuid); });
         G.menu(at, [{ group: `What ${row.title} holds` }, { word: 'Any node', on: !has.size, take: () => { if (has.size) set([], [['', 'Let '], ['prop', row.title], ['', ' hold any node']]); } }, { gap: true },
           ...G.tags.tree(tagIndex).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id), take: () => has.has(tag.id)
             ? set(row.range.filter(id => id !== tag.id), [['', 'Let '], ['prop', row.title], ['', ' hold nodes of '], ...(row.range.length > 1 ? names(row.range.filter(id => id !== tag.id).map(id => tagIndex.get(id)?.title || ''), 'tag') : [['', 'any tag']])])
@@ -440,9 +449,10 @@ G.part({
         let failed = null;
         try { await work(made); } catch (error) { failed = error; made.steps += Number(error?.steps) || 0; }
         if (made.steps > 0) {
-          if (made.undo && made.at) G.undo.mark(made.at, made.steps); else G.undo.clear();   // no arrow where it would not bring all of it back, nor an older one left standing
+          const arrow = made.undo && made.at;
+          if (arrow) G.undo.mark(made.at, made.steps); else G.undo.clear();   // no arrow where it would not bring all of it back, nor an older one left standing
           const said = made.said?.();
-          if (said) did(said);
+          if (said) did(said, arrow ? made.at : '');
         }
         if (failed) G.write.refused(what, failed, made.steps > 0 && made.undo && !failed.left ? 'What was written before that stays: the Undo arrow takes it back.' : '');
         busy = false; acts.removeAttribute('data-busy'); G.read.forget(); list.again();
@@ -669,7 +679,11 @@ ${!refused && rows.length ? `<div class="lk-ask-rows">${rows.slice(0, 4).map(({ 
         if (holder.dataset.tab !== 'history') return;
         const lines = history.read(await graph()), today = G.days.number(new Date());
         const when = ms => { const at = new Date(ms), day = G.days.number(at); return `${day === today ? 'Today' : G.days.short(day, today)}, ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`; };
-        history_.innerHTML = lines.length ? lines.map(one => `<div class="lk-history-line"><span class="lk-history-when">${G.esc(when(one.when))}</span><span>${saidHtml(one.said)}</span></div>`).join('') : '<div class="lk-none">Nothing has been changed yet.</div>';
+        // The newest line, where it is the change the Undo arrow stands for: its words held as a line, so the library's arrow stands after them.
+        const at = lines.length && standing && standing.when === lines[0].when ? standing.uuid : '';
+        history_.innerHTML = lines.length ? lines.map((one, i) => `<div class="lk-history-line"${at && !i ? ` data-uuid="${G.esc(at)}"` : ''}><span class="lk-history-when">${G.esc(when(one.when))}</span>${at && !i ? `<span class="lk-line"><span class="lk-words">${saidHtml(one.said)}</span></span>` : `<span>${saidHtml(one.said)}</span>`}</div>`).join('') : '<div class="lk-none">Nothing has been changed yet.</div>';
+        const newest = at && history_.firstElementChild;
+        if (newest) G.undo.dress(newest);   // drawn only while that arrow stands
       };
       listeners.add(past);
       tabs(); bar(); past();
