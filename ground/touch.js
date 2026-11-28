@@ -69,6 +69,8 @@
                               sidebar's list and what changes it; mark(id, head) draws the node as the right half, unmark()
                               takes that off; shown(id) whether it is really on screen; body(id) what it holds; takeOut(id),
                               reorder(ids); openProps(); until(fn, ms), mainLeft(), mainSized(fn), headIcons(), mainPage()
+     touch.openPage()         the uuid of the page (or bullet) open in Logseq's main view; '' where it shows none (the
+                              journals, a page of the plugin's own). The same read as touch.beside.mainPage()
      touch.SPLIT              the stylesheet for the sidebar as the right half
      touch.menuItem(label, run)       an item in a bullet's right-click menu and in a page's: run({ uuid }) or run({ page })
      touch.menuLines(base, isHidden, offer)   Logseq's menus' lines, hidden ones left out; a right-click on one is offered
@@ -1994,7 +1996,7 @@ ${valueMark(`${PILLS}${OUT} .bottom-property-pill`, DAY, 'calendar', 'last')}`,
 #right-sidebar .sidebar-item-list > .sidebar-item ~ .sidebar-item { border-top: 1px solid var(--lk-line) !important; margin-top: 10px; padding-top: 6px; }
 #right-sidebar .sidebar-item-list { padding-top: 8px !important; padding-bottom: 56px !important; }
 #right-sidebar .resizer { left: -3px !important; width: 7px !important; background: none !important; }
-#right-sidebar .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--lk-hair); transition: background-color .12s ease; }
+#right-sidebar .resizer::after { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: var(--lk-hair); transition: background-color var(--lk-fade); }
 #right-sidebar .resizer:is(:hover, :active, :focus)::after { background: var(--lk-line); }
 /* A page in it: its name reads as the link it is; "Open properties" is pressed for the person and left out; no room is held
    under its bullets (Logseq keeps 60px for them even when there is one). */
@@ -2372,5 +2374,5 @@ function slide(from, to, ms, ease) {
   return { done, drop() { for (const one of played) one.cancel(); } };
 }
 const beside = { slide, mainSized, openProps, presses, list: sideList, isOpen: sideOpen, setOpen, put, mark, unmark, shown, body, takeOut, reorder, until, mainLeft, headIcons, mainPage };
-G.touch = { file, fileInto, kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, writingIn, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
+G.touch = { openPage: mainPage, file, fileInto, kept, keptParts, search, makeProperty, makeTag, addresses, recentGroups, notices, goes, menuLines, topMenu, menuItem, keep, copy, save, print, settled, pictures, queryShown, dragBand, graphChanged, graphs, beside, SPLIT, glide, sidePages, here, MARKS, MENDS, FILL, emptiesAt, fillEmpty, busy, floating, CALM, titleEnd, lessColumn, tagCells, valued, valueTags, watch, changed, writing, writingIn, edit, digs, once, seat, names, plugins, tableBar, pages, pageFoot, pageUnder, pageHead, editor, open, openUrl, left, tagList, key, command, commands, logseqCommands, keysRead, keepPlace, setDown, section, page, toolbar, icon, statusIcon, HIDES, HIDES_TAGS, OPENED, PAGE, foldedSpots, FOLDED };
 })();

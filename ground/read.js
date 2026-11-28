@@ -67,6 +67,7 @@
                               read, embedded nodes and a query's rows in place; on a tag's page the nodes carrying the tag
                               too; null where there is no page. shown(uuid) answers a query's columns and row order on screen
      read.holds(id)           what one node holds under each of the person's properties: ident -> [{ raw, text, uuid }]
+                              (a date and time reads whole, "Nov 27, 09:00", as in read.holders)
      read.choices()           the set choices of the person's properties: ident -> [{ raw, text }], in Logseq's order
      read.reach(id)           what a tag or a property reaches, for a merge: { tagged: [uuid] the nodes holding it as a tag,
                               named: [{ uuid, words }] bullets whose words link it, words raw as Logseq keeps them,
@@ -548,7 +549,7 @@ async function holds(id) {
   for (const [attr, v] of rows) {
     const ident = bare(attr), type = known.props.get(ident)?.type || 'default', it = about.get(v);
     const value = type === 'checkbox' ? { raw: v === true, text: v === true ? 'Yes' : 'No' }
-      : type === 'datetime' && typeof v === 'number' ? { raw: v, text: D.short(dayOfTime(v)) }
+      : type === 'datetime' && typeof v === 'number' ? { raw: v, text: timeText(v) }
       : type === 'node' || type === 'date' || type === 'asset' ? { raw: v, text: (type === 'date' && it?.day ? D.short(it.day) : '') || it?.title || '', uuid: it?.uuid || '' }
       : number.has(v) ? { raw: number.get(v), text: String(number.get(v)) }
       : it ? { raw: choice.has(v) ? v : it.title, text: it.title } : { raw: v, text: String(v) };
