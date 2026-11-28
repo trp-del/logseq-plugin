@@ -32,7 +32,9 @@
      write.toPage(uuid, page)       a bullet, with what is under it, moved onto another page
      write.setText(uuid, ident, value), setDay(uuid, ident, day), clear(uuid, ident)
                                     words or a number, a day, nothing at all under a property. Words written over a value that
-                                    holds bullets change that value's own words, as writing in it does, and the bullets stay
+                                    holds bullets change that value's own words, as writing in it does, and the bullets stay.
+                                    setDay answers the steps of Undo it made: 1, or 2 where the day's journal page had to be
+                                    made first
      write.newPage(name, tag)       a page of the person's own by this name, made if there is none, with a tag when one is
                                     given; answers its uuid. Where the tag is refused the refusal says the page was made
      write.setWords(uuid, words, { asRead })  a bullet's words, written as typed: Logseq makes [[a name]] a link and #Name a
@@ -57,12 +59,18 @@
                                     words. quiet: the same words answered and no notice shown, for a place that shows them
                                     itself (a panel outside Logseq)
      write.day(day)                 a day's journal page, made if there is none; answers its uuid
+     write.dayPage(day)             the same, answered as { uuid, steps }: steps is 1 where the page had to be made (a step
+                                    of Logseq's Undo of its own), else 0
      write.undo()                   Logseq's Undo
    Logseq's calls as the running Logseq takes them (2.0.2, tried 27 November 2026), where its documentation says otherwise or
    nothing: deletePage and renamePage take a page's uuid (renamePage refuses a name: "Invalid page uuid"); several values go in
    one upsertBlockProperty with { reset: true }, which is one step of Undo and writes nothing when it refuses; without reset a
    list is added to what is there; a property that takes one value is given the value itself, never a list; Undo is the command
-   logseq.editor/undo, which the documentation's list of commands leaves out. */
+   logseq.editor/undo, which the documentation's list of commands leaves out.
+   Read in Logseq 2.0.2's own code and not yet tried in the running Logseq (27 November 2026): a page made through
+   createJournalPage or createPage is one write of the kind "create-page", which Logseq's Undo keeps as a step of its own
+   (frontend/worker/undo_redo.cljs, gen-undo-ops!; the one page left out is today's journal when Logseq itself makes it), and
+   Undo takes the page away again (logseq/outliner/op/construct.cljc and frontend/worker/sync/apply_txs.cljs). */
 (function () {
 const G = window.PluginDoor;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -286,14 +294,17 @@ G.write = {
   // Old names, kept until the places that call them are changed: one value is setNode (a node, a day, a set choice) or setText.
   setValue: (uuid, ident, raw, { ref = false } = {}) => ref ? G.write.setNode(uuid, ident, raw) : G.write.setText(uuid, ident, raw),
   clearValue: (uuid, ident) => G.write.clear(uuid, ident),
-  async day(day) {
+  /* A day's journal page, made when the graph has none. Making it is a write of its own, which Logseq's Undo keeps as a step:
+     steps says whether that step was made, so the change the page was made for is taken back whole. */
+  async dayPage(day) {
     if (!G.days.valid(day)) throw no('that is not a day');
     const found = await G.read.journal(day);
-    if (found) return found;
+    if (found) return { uuid: found, steps: 0 };
     const made = await logseq.Editor.createJournalPage(new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100));
     if (!UUID.test(String(made?.uuid || ''))) throw no('that day’s journal could not be made');
-    return String(made.uuid);
+    return { uuid: String(made.uuid), steps: 1 };
   },
+  day: async day => (await G.write.dayPage(day)).uuid,
   placeTag: (uuid, under) => logseq.Editor.addTagExtends(sure(uuid), sure(under)),
   // Logseq refuses a name another tag or property already has, and says so: the refusal is the answer.
   rename(uuid, name) { const title = String(name || '').trim(); if (!title) throw no('a name is needed'); return logseq.Editor.renamePage(sure(uuid), title); },
@@ -318,13 +329,21 @@ G.write = {
     if (typeof value === 'string') { const { words } = await G.read.under(at, ident); if (words.length === 1 && words[0].under) return logseq.Editor.updateBlock(words[0].uuid, value); }
     return logseq.Editor.upsertBlockProperty(at, ident, value);
   },
-  // A day written under a date property: the day's journal page, made when the graph has none yet.
+  /* A day written under a date property: the day's journal page, made when the graph has none yet. Answers the steps of Undo
+     it made, the page's among them, so one press of the Undo arrow takes the value and the page made for it. Where the value is
+     refused after the page was made, the refusal says that the page stays and carries its one step (as a change kept whole
+     does); the page is not taken back unasked. */
   async setDay(uuid, ident, day) {
-    if (!G.days.valid(day)) throw no('that is not a day');
-    const page = await G.read.journal(day) || String((await logseq.Editor.createJournalPage(new Date(Math.floor(day / 10000), Math.floor(day / 100) % 100 - 1, day % 100)))?.uuid || '');
-    const node = await G.read.node(page);
-    if (!node) throw no('the day’s journal could not be found');
-    return G.write.setNode(uuid, ident, node.id);
+    const at = sure(uuid), page = await G.write.dayPage(day);
+    try {
+      const node = await G.read.node(page.uuid);
+      if (!node) throw no('the day’s journal could not be found');
+      await G.write.setNode(at, ident, node.id);
+    } catch (error) {
+      if (page.steps && error && typeof error === 'object') { error.steps = page.steps; error.left = 'The journal page made for that day stays; Undo takes it back.'; }
+      throw error;
+    }
+    return page.steps + 1;
   },
   // Everything a node holds under a property taken off.
   clear(uuid, ident) {
