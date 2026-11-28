@@ -715,13 +715,14 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await view('Sort by', 'Day');
       return is([groups > 0, said, words.join('|') === [...words].sort((a, b) => a.localeCompare(b)).join('|'), kept, await page.evaluate(k => JSON.parse(localStorage.getItem('lk.views') || '{}')[k] ?? null, key)], [true, 'By month', true, { sort: 'name' }, null]);
     });
-    await step('Pick nodes draws tick boxes; a tag put on the picked nodes is said with an Undo that takes it back', async () => {
+    await step('Pick nodes draws tick boxes, a ticked one the page\'s ground with the tick in the text colour; a tag put on the picked nodes is said with an Undo that takes it back', async () => {   // the owner, 27 November 2026: "the check boxes are inverted"
       const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first();
       const tagsOf = () => list.locator(':scope > .lk-rows > .lk-row .lk-line').evaluateAll(els => els.slice(0, 2).map(el => el.querySelector('.lk-tag')?.innerText || ''));
       await list.locator('.lk-dots').click(); await wait(400); await page.locator('.lk-menu .lk-item', { hasText: 'Pick nodes' }).click(); await wait(500);
       const astray = await list.locator(':scope > .lk-rows > .lk-row').evaluateAll(rows => rows.filter(row => { const box = row.querySelector(':scope > .lk-tick').getBoundingClientRect(), line = row.querySelector(':scope > .lk-line').getBoundingClientRect(); return Math.abs((box.top + box.height / 2) - (line.top + 14)) > 4 || box.right > line.left + 4; }).length);
       if (astray) throw new Error(`${astray} tick boxes stand off their line's first line`);
       await list.locator('.lk-row > .lk-tick').nth(0).click(); await wait(200); await list.locator('.lk-row > .lk-tick').nth(1).click(); await wait(400);
+      const tickLook = await list.locator('.lk-row > .lk-tick').nth(0).evaluate(el => { const probe = (prop, v) => { const s = document.createElement('span'); s.style[prop] = v; document.body.appendChild(s); const got = getComputedStyle(s)[prop]; s.remove(); return got; }; const box = getComputedStyle(el).backgroundColor, mark = getComputedStyle(el, '::before').backgroundColor; return [box === 'rgba(0, 0, 0, 0)' || box === probe('backgroundColor', 'var(--lk-paper)'), mark === probe('color', 'var(--lk-text)')]; });
       const bar = await list.locator('.lk-pickbar').innerText();
       await list.locator('.lk-pickbar [data-do="tag"]').click(); await wait(600); await page.keyboard.type('Zzontag', { delay: 30 }); await wait(500);
       const offered = await page.locator('.lk-menu .lk-item:not([hidden])').count();
@@ -734,7 +735,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const did = await list.locator('.lk-pickbar .lk-did').innerText().catch(() => ''), held = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?t :block/title "Zzontag"] [?b :block/tags ?t]]')).length);
       await list.locator('.lk-pickbar [data-do="undo"]').click(); await wait(4000);
       const after = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?t :block/title "Zzontag"] [?b :block/tags ?t]]')).length);
-      return is([bar.startsWith('2'), did, held, after, await list.locator('.lk-row > .lk-tick').count()], [true, 'Zzontag put on 2 nodes', 2, 0, 0]);
+      return is([tickLook, bar.startsWith('2'), did, held, after, await list.locator('.lk-row > .lk-tick').count()], [[true, true], true, 'Zzontag put on 2 nodes', 2, 0, 0]);
     });
     await step('the find line narrows every list to typed words and turns the lists back to a day; Escape gives them back', async () => {
       const rows = () => page.locator(MAIN + ' > .lk-rows > .lk-row:not(.lk-faint)').count();
