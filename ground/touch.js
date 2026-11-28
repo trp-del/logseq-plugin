@@ -1730,6 +1730,15 @@ a.external-link:not(:has(img))::after { content: "\\2197"; display: inline-block
 ${OWN} .ls-page-properties:not(.lk-editor *) { margin-left: 10px; }   /* a page's property names and Add property on the edge its title and its bullets stand on */
 ${OWN} .property-pair .property-panel-bullet:not(.lk-editor *), ${OWN} .property-pair .property-block-container .block-control-wrap:not(.lk-editor *) { display: none !important; }   /* no bullet before a value: the row says it is one */
 ${OWN} .property-pair .property-block-container:not(.lk-editor *) { margin-left: 0 !important; }   /* and none of the 20 Logseq pulls a value in words back by, to make room for that bullet */
+/* In a narrow main page (both sidebars open in a small window) a page's own property has its name on one line and its value
+   under it, as in a narrow sidebar and in a node opened in a narrow place: Logseq keeps a name 150 wide, which left a value
+   no room at all, and it was not on screen. Narrow is told by the page title's own bullet, which Logseq already measures
+   (its container "ls-block"); 300 is where an opened node's rows turn too, so the page at its usual widths reads as before. */
+@container ls-block (max-width: 300px) {
+  #main-content-container .ls-page-title .ls-page-properties:not(.lk-editor *) .property-pair.property-panel-row { display: block !important; padding-right: 0 !important; }
+  #main-content-container .ls-page-title .ls-page-properties:not(.lk-editor *) .property-key-panel { width: auto !important; min-width: 0 !important; }
+  #main-content-container .ls-page-title .ls-page-properties:not(.lk-editor *) .property-value-container { margin-left: 0; }
+}
 .ls-string[data-lk-short] { font-size: 0 !important; min-width: 0; }
 .ls-string[data-lk-short]::before { content: attr(data-lk-short); font-size: var(--lk-line-size); color: var(--lk-text); text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .ls-string[data-lk-short]:hover::before { text-decoration-color: currentColor; }
@@ -2050,7 +2059,14 @@ ${AREA} .ls-view-head .views button[title="Add new view"]::after { content: "+ N
 ${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item) { width: auto !important; height: 24px !important; padding: 0 6px !important; gap: 4px; border-radius: var(--lk-corner-round) !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-text) !important; opacity: 1 !important; }
 ${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item):hover { background: var(--lk-wash) !important; }
 ${AREA} .ls-view-head .view-actions :is(.ui__icon, svg) { width: 15px; height: 15px; }
-${AREA} .ls-view-head .view-actions { gap: 2px !important; flex-wrap: nowrap; }
+/* With a word on each, the buttons' line is longer than Logseq's row of icons, and Logseq lays a page out as a grid that grows
+   with the longest line in it: a tag's page at 700 with the left sidebar open stood 50 past its place, its table and its
+   buttons cut at the window's edge. So the line gives way inside the page: where the views and the buttons do not both fit,
+   the buttons go under the views, at the right end as before; where the buttons alone do not fit, they go on to a line more,
+   and so do the views' names. */
+${AREA} .ls-view-head { flex-wrap: wrap !important; row-gap: 2px; }
+${AREA} .ls-view-head .views { flex-wrap: wrap; row-gap: 2px; }
+${AREA} .ls-view-head .view-actions { gap: 2px !important; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 ${AREA} .ls-view-head .view-action-type, ${AREA} .ls-view-head .view-action-type :is(.property-value-inner, .jtrigger) { width: auto !important; flex: none !important; }
 ${AREA} .ls-view-head .view-action-type .select-item { display: inline-flex; align-items: center; white-space: nowrap; }
 ${AREA} .ls-view-head .view-actions > button:has(.ls-icon-arrows-up-down)::after { content: "Sort"; }

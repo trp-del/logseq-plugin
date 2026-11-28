@@ -174,7 +174,8 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
   it starts on one edge, about as far from the sidebar's left edge as the right ends are from its right, and the marks (a fold arrow, a list's mark, the + of Add property, a
   value's bullet) stand in the gutter before that edge.
 - Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
-  it does in a word beside its icon; a tag's own table leaves out its Tags column.
+  it does in a word beside its icon, and where the views and the tools do not fit on one line the tools go under the views;
+  a tag's own table leaves out its Tags column.
 - A notice, Logseq's own or the plugin's, is a small capsule of words at the bottom centre of the window, where Logseq draws
   a large card under the toolbar at the top right; more than one peek above it. Every notice goes after four seconds, a
   failure too, and stays while the pointer or the keys are on it; its × closes it at once.
@@ -590,7 +591,8 @@ Relations the day stands after the bullet, before the words.
 In the right sidebar a list gives its words the whole width: a line's day stays at the end (or the beginning) of its line, an outline steps in less, and
 a node opened in place takes the width of the list. A list of Relations does the same wherever it is narrower than 300: a
 row's arrow stands in the gutter, its bullet on the edge its head's words start on, its day under its words; a property of a
-node opened there, and of a page in a narrow sidebar, has its name on one line and its values under it. Where a list is
+node opened there, of a page in a narrow sidebar, and of the main page where it is narrower than 300 (both sidebars open in
+a small window), has its name on one line and its values under it. Where a list is
 narrower than 420 the days of its head have a line of their own under the head's words.
 
 One rule for the gaps, measured: a mark stands in a box 16 wide that ends 4 before its words; from the middle of one line to
