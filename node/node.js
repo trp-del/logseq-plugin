@@ -94,8 +94,13 @@ function mount(holder, uuid, from = '', bare = false) {   // bare: without what 
     const dug = dugs.get(value); if (!dug || dug.lkClosing) return;
     const gone = () => { dugs.delete(value); sized?.unobserve(dug); dug.lkOff?.(); dug.remove(); place(); };
     if (!dug.dataset.whole || !holder.isConnected || still(dug)) return gone();
-    dug.lkClosing = true; place();
-    rollUp(dug).then(gone);
+    /* Closed while it still rolls out (Escape a moment after the press): it rolls up from the room it has come to, never first
+       opened to its full height (F131: the page pushed 969 px down in one frame, then rolled back up). */
+    const seat = G.touch.seat(page, value), row = seat && page.querySelector(seat.row);
+    const room = row ? parseFloat(view.getComputedStyle(row).marginBottom) || 0 : dug.offsetHeight;
+    dug.lkClosing = true;
+    const up = rollUp(dug, 0, Math.min(room, dug.offsetHeight));
+    place(); up.then(gone);
   };
   holder.lkDig = value => {
     if (dugs.has(value)) { undig(value); return; }
@@ -121,9 +126,9 @@ function roll(holder, from) {
   holder.addEventListener('transitionend', done);
 }
 // The same motion back up, before a thing is taken away: to nothing, or to a height (an opened node rolls up to its line's).
-// Answers once it is up (at once where less motion is asked for).
-function rollUp(holder, to = 0) {
-  const view = holder.ownerDocument.defaultView, full = holder.offsetHeight;
+// Answers once it is up (at once where less motion is asked for, or where nothing of it shows yet).
+function rollUp(holder, to = 0, from = holder.offsetHeight) {   // from: the height it stands at now, where that is less than its own
+  const view = holder.ownerDocument.defaultView, full = from;
   if (!full || view.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
   return new Promise(done => {
     const end = () => { holder.removeEventListener('transitionend', end); view.clearTimeout(cap); done(); };

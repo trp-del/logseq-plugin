@@ -610,6 +610,25 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(700);
       return is([dug[0] === uuid, dug[1], dug[2], dug[3], stayed, afterOne, await count(MAIN + ' .lk-row[data-open]')], [true, 0, true, true, true, [0, '1'], 0]);
     });
+    await step('a dig is one move: nothing above the value hops as it starts, and Escape while it still rolls out rolls it up from where it stood, never first pushing the page down to its full height', async () => {   // F131 of the rundown, 27 November 2026: 969 px down in one frame, then rolled back up
+      const row = page.locator(MAIN + ' > .lk-rows > .lk-row', { has: page.locator('.lk-line') }).nth(1);
+      await row.locator(':scope > .lk-line').click(); await wait(2500);
+      // Each frame, the opened node's height and whether the dug node is whole; Escape is given the moment it is (a key event in
+      // the page: a key sent from here lands a frame or more later, after the room may have finished rolling out).
+      await row.evaluate(el => {
+        const holder = el.querySelector(':scope > .lk-open'), seen = window.lkRoll = { at: [], esc: -1 };
+        const tick = () => { if (window.lkRoll !== seen) return; const dug = holder.querySelector(':scope > .lk-dugopen[data-whole]'); seen.at.push([holder.offsetHeight, !!dug]);
+          if (dug && seen.esc < 0 && seen.at.filter(one => one[1]).length === 2) { seen.esc = seen.at.length; document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); }
+          requestAnimationFrame(tick); };
+        requestAnimationFrame(tick);
+      });
+      await row.locator(':scope > .lk-open > .lk-editor .property-value-inner[data-type="node"] a.page-ref').first().click({ position: { x: 5, y: 10 } }); await wait(3000);
+      const { at, esc } = await page.evaluate(() => { const seen = window.lkRoll; window.lkRoll = null; return seen; });
+      const start = at[0][0], before = at.slice(0, at.findIndex(one => one[1])), stood = at[esc - 1]?.[0] ?? 0, after = at.slice(esc).map(one => one[0]);
+      const got = [esc > 0, Math.round(Math.min(...before.map(one => one[0])) - start), Math.round(Math.max(...after) - stood) <= 1, await row.locator('.lk-dugopen').count()];
+      await page.keyboard.press('Escape'); await wait(700);
+      return is(got, [true, 0, true, 0]);
+    });
     await step('in an opened node every property is one kind of row: names in one column, values in the next, no capsule', async () => {
       const row = page.locator(MAIN + ' > .lk-rows > .lk-row', { has: page.locator('.lk-line') }).nth(1);
       await row.locator(':scope > .lk-line').click(); await wait(2500);

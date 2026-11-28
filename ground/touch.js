@@ -394,11 +394,14 @@ const editor = (() => {
   function ensure() {
     if (off || !kit()) return;
     const { React, ReactDOM, Components } = kit();
+    /* Each node drawn once: a node added (a value dug into) does not draw again the nodes already open, which Logseq would
+       redraw from nothing for a few frames, a row gone and the page hopping (F131). */
+    const Spot = React.memo(({ uuid }) => React.createElement(Components.Editor, { page: uuid }));
     const Host = () => {
       const [, set] = React.useState(0);
       React.useEffect(() => { bump = () => set(n => n + 1); return () => { bump = null; }; }, []);
       for (const el of [...spots.keys()]) if (!el.isConnected) spots.delete(el);
-      return React.createElement(React.Fragment, null, ...[...spots].map(([el, spot]) => ReactDOM.createPortal(React.createElement(Components.Editor, { page: spot.uuid }), el, spot.key)));
+      return React.createElement(React.Fragment, null, ...[...spots].map(([el, spot]) => ReactDOM.createPortal(React.createElement(Spot, { uuid: spot.uuid }), el, spot.key)));
     };
     off = logseq.Experiments.registerDaemonRenderer('lk-node-editor', { render: () => React.createElement(Host) }) || (() => {});
   }
