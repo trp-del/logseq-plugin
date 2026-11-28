@@ -214,7 +214,11 @@ G.listview.CSS = `
 /* The kinds, the + and the ⋯ and the days are one run of words that wraps where it must: the + and the ⋯ follow the last kind
    on whichever line it stands, and the days close that line at its right end (the owner, 25 November 2026, of kinds wrapped one
    a line beside the + and the days: "I see a lot of problems with alignment of elements"). */
-.lk-list-head > .lk-list-name { flex-wrap: wrap; row-gap: 2px; }
+/* Two lines of a head stand two gaps apart, so the line under a chosen kind (one gap under its word) is nearer to its own
+   letters than to the line of the head, or the first row, under it (the owner, 27 November 2026, of that line read as a line
+   over the word below: "did you catch this underline issue?"). Measured on 0.5.17, where this head was chosen from: the line
+   6 px under the foot of its own letters. */
+.lk-list-head > .lk-list-name { flex-wrap: wrap; row-gap: calc(2 * var(--lk-mark-gap)); }
 .lk-tabs { display: contents; }
 .lk-list-name > .lk-tabs > * { margin-right: 24px; }
 .lk-list-name > .lk-tabs > :last-child { margin-right: 0; }
@@ -223,7 +227,7 @@ G.listview.CSS = `
 .lk-tab:hover, .lk-tab:focus-visible { color: var(--lk-text); outline: none; }
 .lk-tab:not([data-kind=""]):not(.lk-tabmore):not(.lk-newtab):not([data-kind="@none"]) { font-family: var(--lk-tag-face); }   /* a kind is a tag: in the tag's face */
 .lk-tab.on { color: var(--lk-text); }
-.lk-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -6px; height: 1px; background: currentColor; }   /* the chosen kind underlined across its word and count, a line under them, as before 0.9 (the owner's choice, 26 November 2026) */
+.lk-tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: calc(-1 * var(--lk-mark-gap)); height: 1px; background: currentColor; }   /* the chosen kind underlined across its word and count, a line under them, as before 0.9 (the owner's choice, 26 November 2026) */
 .lk-tab .lk-n { margin-left: .25em; color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-group-head .lk-n, .lk-since .lk-n { margin-left: .25em; font-size: var(--lk-small); font-weight: 400; color: var(--lk-off); font-variant-numeric: tabular-nums; }
 .lk-tabmore { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }

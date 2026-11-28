@@ -683,6 +683,26 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await list.locator('.lk-tab').first().click(); await wait(500);
       return is([tabs[0][0], all === tabs.slice(1).reduce((n, t) => n + t[1], 0) || all > kind[1], more ? narrowed <= kind[1] : narrowed === kind[1], await list.locator('.lk-tab.on').first().innerText().then(t => t.startsWith('All'))], ['', true, true, true]);
     });
+    /* The owner, 27 November 2026, with a picture: "did you catch this underline issue?" The line under a list's chosen kind hung
+       6 px under its word while two wrapped lines of kinds stood 2 px apart, so it read as a line over the word below. It is
+       measured: from the line to the foot of its own letters, and to the top of the nearest letters under it (the head's next
+       line, or the first row), with the kinds on one line and with the list made narrow so that they wrap. */
+    await step('the line under a list\'s chosen kind is nearer to its own letters than to the letters under it, with the kinds on one line and wrapped', async () => {
+      const list = page.locator(MAIN, { has: page.locator('.lk-tab.on') }).first();
+      if (!(await list.count())) return is('no list with a chosen kind on this page', 'one');
+      const near = () => list.evaluate(box => {
+        const cv = document.createElement('canvas').getContext('2d');
+        const ink = el => { const cs = getComputedStyle(el); cv.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`; const m = cv.measureText('Hg'), text = document.createTreeWalker(el, 4).nextNode(); if (!text) return null; const range = document.createRange(); range.selectNodeContents(text); const r = range.getClientRects()[0]; if (!r) return null; const base = r.top + (r.height - (m.fontBoundingBoxAscent + m.fontBoundingBoxDescent)) / 2 + m.fontBoundingBoxAscent; return { top: base - m.actualBoundingBoxAscent, foot: base + m.actualBoundingBoxDescent }; };
+        const on = box.querySelector('.lk-tab.on'), b = on.getBoundingClientRect(), after = getComputedStyle(on, '::after'), foot = b.bottom - parseFloat(after.bottom), top = foot - parseFloat(after.height);
+        const under = [...box.querySelectorAll('.lk-tab, .lk-head-end > *, .lk-rows > .lk-row .lk-words')].filter(el => el !== on && el.offsetParent).map(ink).filter(one => one && one.top >= top).map(one => one.top - foot);
+        return [Math.round((top - ink(on).foot) * 10) / 10, Math.round(Math.min(...under) * 10) / 10, new Set([...box.querySelectorAll('.lk-tab')].map(el => Math.round(el.getBoundingClientRect().top))).size];
+      });
+      const wide = await near();
+      await list.evaluate(box => { box.style.maxWidth = '200px'; }); await wait(300);
+      const narrow = await near();
+      await list.evaluate(box => { box.style.maxWidth = ''; }); await wait(300);
+      return is([wide[0] < wide[1], narrow[0] < narrow[1], narrow[2] > 1], [true, true, true]) === true || `got [to its own letters, to the letters under it, lines of kinds] ${JSON.stringify(wide)} on one line and ${JSON.stringify(narrow)} wrapped`;
+    });
     await step('View groups a list by month and sorts it by name; what is set is said on the head and kept', async () => {
       await goto(CHEN);
       const list = page.locator(MAIN, { has: page.locator('.lk-dots') }).first(), key = await list.getAttribute('data-key');
