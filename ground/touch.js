@@ -469,7 +469,8 @@ async function fileInto(uuid, given, { show = '', taken, patience = 30000 } = {}
     if (!mine) throw cannot('its bullet could not be opened');
     if (doc.activeElement !== mine) mine.focus();
     const held = await logseq.Editor.checkEditing().catch(() => false);
-    if (doc.activeElement !== mine || String(held || '').toLowerCase() !== id || mine.value.trim()) throw cannot('its bullet could not be opened');
+    if (mine.value.trim()) throw cannot('words were typed into the bullet made for it, and they stay there');   // the person typed on: their letters are kept, the file is not mixed into them
+    if (doc.activeElement !== mine || String(held || '').toLowerCase() !== id) throw cannot('its bullet could not be opened');
     const transfer = new view.DataTransfer();
     transfer.items.add(new view.File([given.bytes], given.name, {}));
     mine.dispatchEvent(new view.ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true }));
