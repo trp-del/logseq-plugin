@@ -10,7 +10,7 @@ G.part({
 /* One line that never wraps and gives way with an ellipsis, wherever it stands: at the title's end, under a title, in the sidebar. */
 .lk-place { font-family: var(--lk-tag-face); color: var(--lk-quiet); font-size: var(--lk-words-size); font-weight: 400; line-height: 24px; margin: 2px 0 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .lk-place:empty { display: none; }
-/* A tag's own page: above its title, the tag it stands under, pressed to put it under another (before 0.9). */
+/* A tag's own page: above its title, the tag it stands under, pressed to put it under another. */
 .lk-parent { display: flex; align-items: baseline; gap: 10px; margin: 0 0 2px; font-family: var(--ls-font-family, inherit); font-size: var(--lk-small); font-weight: 400; line-height: 20px; letter-spacing: normal; }
 .lk-parent > b { font-weight: 600; }
 .lk-parent > button { display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 0 4px; margin-left: -4px; border-radius: var(--lk-corner); color: var(--lk-text); font: inherit; font-family: var(--lk-tag-face); font-size: var(--lk-tag-size); cursor: pointer; }
