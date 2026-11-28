@@ -581,7 +581,9 @@ the notice says so:
 - Delete asks under the row first, with a red yes and Cancel, and counts what goes: the nodes that hold the tag itself (it is
   taken off them), its child tags (they stay, without it as their parent) and the bullets written on its page (deleted with
   it, for good). Logseq deletes a tag's page for good and its Undo does not bring those back, so the question then says "This
-  cannot be undone." and no Undo arrow is offered afterwards; only a tag that took nothing with it gets the arrow.
+  cannot be undone." and no Undo arrow is offered afterwards; only a tag that took nothing with it gets the arrow. The
+  right-click Delete… on a tag or a property asks the same question as the row of actions, in every place that shows one
+  (Ontology's rows, Search, a list of Relations), and a tag or a property deleted from any of them is said in History.
 - Merge… opens a box under the row of actions that says the change once: "Merge test into Hospital", the tags as tags, then up
   to four of the nodes as they will read, the tag that goes struck through in red and the kept one in green, then "1 node ·
   links to the tag follow". The tag with the most nodes is kept; "Keep the other name" (with more than two, "Keep another

@@ -10,8 +10,8 @@
    Delete, for properties Merge… and Rename. Each is written at once, through ground/write.js, and Logseq's own Undo takes it
    back (the faded arrow), counted in the steps the writes answer; where Logseq refuses one write of several, what was written
    before it keeps its arrow and its line in History. A delete asks first, in red, counting what goes with the tag or the
-   property (one question from the row of actions and from a row's menu), and offers no Undo where Undo would not bring all
-   of it back. History lists what was changed here, newest first, kept on this computer for 30 days; its newest line carries
+   property, and offers no Undo where Undo would not bring all of it back: the one shared delete (node/ask.js), the same
+   from the row of actions as from a row's menu in any place. History lists what was changed here, newest first, kept on this computer for 30 days; its newest line carries
    the Undo arrow while that change is still the last change to the graph (the library's arrow, which goes at the next change
    as every arrow does). No older line has an Undo: that would be a second set of writes of the plugin's own. A change taken
    back whole with its arrow, wherever the arrow stands, loses its line: History says what was changed and still stands.
@@ -150,6 +150,8 @@ G.part({
        the way, the line stays. */
     base.onStop(G.undo.taken((uuid, whole) => { const mine = standing; if (!mine || mine.uuid !== uuid) return; standing = null; if (whole) history.drop(mine.graph, mine.when); }));
     G.tending = { did: said => did(said) };
+    // A tag or a property deleted, from Ontology or from any other row that shows one: its line in History.
+    base.onStop(G.ask.removed(({ kind, gone, arrow }) => did([['', 'Deleted '], ...names(gone, kind === 'tag' ? 'tag' : 'prop')], arrow)));
     /* One drawing for both places. In the sidebar: one outline. On the page: every top tag an area of its own, side by side,
        so the lines between tags run in the gaps and over the band above the areas. A drawing that fails is said in the console
        and left empty: the ground would otherwise try it again at every change of the page. */
@@ -299,7 +301,7 @@ G.part({
       /* The tags folded are the ones folded in every list of tags (G.folds, by name): one memory. What Ontology kept for itself
          before (by a tag's id, under a name of its own) is handed to it once, when the tags are first read, and let go. */
       let folds = G.touch.kept('lk.ontology-folded', null);
-      let info = new Map();   // uuid -> { title, id, count, own, nodes, depth, parents, kids, kidIds } of each row drawn, as last read
+      let info = new Map();   // uuid -> { title, id, count, depth, parents, kids } of each row drawn, as last read
       const pickedNow = () => holder.dataset.tab === 'props' ? picked.props : picked.tags;
       const read = async () => {
         const tab = holder.dataset.tab;
@@ -309,22 +311,19 @@ G.part({
         const [tagNodes, pairs] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.tagPairs()]);
         const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.tags.counts(tags, pairs);
         joins = await G.read.relations();
-        const kidsOf = new Map(), own = new Map();   // a tag's child tags; the nodes that hold the tag itself
-        for (const one of tags.values()) for (const parent of one.parents) { if (!kidsOf.has(parent)) kidsOf.set(parent, []); kidsOf.get(parent).push(one.id); }
-        for (const [tag, node] of pairs) { if (!tags.has(tag)) continue; if (!own.has(tag)) own.set(tag, new Set()); own.get(tag).add(node); }
+        const kidsOf = new Set([...tags.values()].flatMap(one => one.parents));   // the tags that have tags under them, worked out once
         if (folds) { const was = folds.get(); if (Array.isArray(was)) for (const row of tree) if (was.includes(row.tag.uuid)) G.folds.set(row.tag.title, true); folds.drop(); folds = null; }
         let cut = Infinity;   // a folded tag hides the tags under it, as a folded bullet hides its children
         const tagRows = tagNodes.map(node => { const tag = tags.get(ids.get(node.uuid)); return { ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(tag?.id) || 0, shutHere: !!tag && kidsOf.has(tag.id) && G.folds.shut(tag.title) }; })
           .filter(row => { if (row.depth <= cut) cut = Infinity; if (row.depth > cut) return false; if (row.shutHere) cut = row.depth; return true; });
-        info = new Map(tree.map(({ tag, depth: d }) => [tag.uuid, { title: tag.title, id: tag.id, count: counts.get(tag.id) || 0, own: own.get(tag.id)?.size || 0, nodes: own.get(tag.id) || new Set(), depth: d, parents: tag.parents, kids: kidsOf.has(tag.id), kidIds: kidsOf.get(tag.id) || [] }]));
+        info = new Map(tree.map(({ tag, depth: d }) => [tag.uuid, { title: tag.title, id: tag.id, count: counts.get(tag.id) || 0, depth: d, parents: tag.parents, kids: kidsOf.has(tag.id) }]));
         for (const uuid of [...picked.tags]) if (!info.has(uuid)) picked.tags.delete(uuid);
         if (!wide) return tagRows.length ? [{ key: 'ontology:tags', kind: 'group', name: '', tag: '', face: 'tag', rows: tagRows }] : [];
         const areas = [];   // each top tag with the tags under it
         for (const row of tagRows) { if (!row.depth || !areas.length) areas.push([]); areas[areas.length - 1].push(row); }
         return areas.map(rows => ({ key: `ontology:area:${rows[0].uuid}`, kind: 'group', name: '', tag: '', face: 'tag', rows }));
       };
-      /* What Ontology adds to a row's right-click menu. Move values… only where that part runs. more.gone is the one delete of
-         this place, for the menu's own Delete… to call (node/line.js), so the menu and the row of actions ask the same question. */
+      // What Ontology adds to a row's right-click menu. Move values… only where that part runs. The menu's Delete… is the shared one.
       const more = (row, at) => {
         const uuid = row.dataset.uuid, values = take => G.moving ? [{ word: 'Move values…', take }] : [];
         if (!isTag(row)) { const lines = values(async () => { const prop = [...(await G.read.properties()).values()].find(one => one.uuid.toLowerCase() === uuid); if (prop) G.moving?.ask(holder, { from: prop.ident }); }); return lines.length ? [{ gap: true }, ...lines] : []; }
@@ -332,7 +331,6 @@ G.part({
           { word: 'Move under…', take: () => under(at, [uuid]) },   // the same word and the same list as the row of actions
           ...((info.get(uuid)?.depth || 0) > 0 ? [{ word: 'Move to the top', take: () => move(uuid, '') }] : [])];
       };
-      more.gone = row => removing([row.dataset.uuid]);
       const opts = { few: 2000,
         ticks: { on: () => holder.dataset.tab !== 'history', has: uuid => pickedNow().has(uuid), flip(uuid, row, on) { if (on) pickedNow().add(uuid); else pickedNow().delete(uuid); bar(); } },
         press(row, event) {
@@ -362,7 +360,7 @@ G.part({
         tagIndex = tags;
         const fill = G.tags.filled(tags, pairs, byTag, held);
         const rows = [...props.values()].map(prop => { const f = fill.get(prop.ident) || { on: [], filled: 0, of: 0 }; return { uuid: String(prop.uuid).toLowerCase(), ident: prop.ident, title: prop.title, type: prop.type, range: prop.range.filter(id => tags.has(id)), choice: (choices.get(prop.ident) || []).length > 0, on: f.on, filled: f.filled, of: f.of, held: new Set(held.get(prop.ident) || []).size }; });
-        info = new Map(rows.map(row => [row.uuid, { title: row.title, count: row.held, own: row.held, row }]));
+        info = new Map(rows.map(row => [row.uuid, { title: row.title, count: row.held, row }]));
         for (const uuid of [...picked.props]) if (!info.has(uuid)) picked.props.delete(uuid);
         const found = finding ? rows.filter(row => finding.split(/\s+/).every(word => row.title.toLowerCase().includes(word))) : rows;
         tableOpts.none = rows.length && !found.length ? `No property has “${finding}” in its name` : NONE.props;
@@ -534,36 +532,11 @@ G.part({
         for (const type of ['click', 'mousedown', 'contextmenu']) field.addEventListener(type, event => event.stopPropagation());
         field.addEventListener('blur', leave);
       };
-      /* The one way a tag or a property is deleted here, from the row of actions and from a row's menu: a red question under
-         the row that counts what truly goes (core/tags.js going): the nodes that hold a tag itself, its child tags, the bullets
-         written on its page; for a property the nodes that hold a value under it. Logseq deletes a tag's and a property's page
-         for good, with what is written on it, and its Undo brings back another item that nothing points at (found by hand, 26
-         November 2026): so the Undo arrow is offered only after tags that took nothing with them, and the question says
-         before the yes where there is no way back. */
-      const remove = async uuids => {
-        const rows = uuids.map(uuid => [uuid, info.get(uuid)]).filter(([, one]) => one), row = rows[0] && rel.querySelector(`:is(.lk-rows > .lk-row, .lk-trow)[data-uuid="${rows[0][0]}"]`);
-        if (!row) return;
-        const kind = isTag(row) ? 'tag' : 'property', going = new Set(rows.map(([, one]) => one.id));
-        // The bullets on its page, at any depth, empty ones left out; where the page's outline answers nothing, the bullets the graph says stand on it.
-        const written = async (uuid, one) => {
-          const lines = await G.read.outline(uuid, true);
-          if (lines.length) return lines.filter(line => line.words.trim()).length;
-          const id = one.id ?? (await G.read.node(uuid))?.id;
-          return id ? (await G.read.reach(id)).bullets.length : 0;
-        };
-        const bullets = await Promise.all(rows.map(([uuid, one]) => written(uuid, one)));
-        const things = rows.map(([, one], i) => ({ kind, title: one.title, nodes: one.own || 0, kids: kind === 'tag' ? one.kidIds.filter(id => !going.has(id)).length : 0, bullets: bullets[i] }));
-        const asks = G.tags.going(things, kind === 'tag' ? new Set(rows.flatMap(([, one]) => [...one.nodes])).size : undefined), face = kind === 'tag' ? 'tag' : 'prop';
-        G.ask.gone(row, { words: asks.words, note: asks.note, yes: asks.yes,
-          take: () => once_(rows.length === 1 ? 'It could not be deleted' : 'They could not all be deleted', async made => {
-            const gone = [];
-            made.at = rows[0][0]; made.undo = asks.whole;
-            made.said = () => gone.length ? [['', 'Deleted '], ...names(gone, face)] : null;
-            for (const [uuid, one] of rows) { await G.write.remove(uuid, true); made.steps++; gone.push(one.title); }
-            clear();
-          }) });
-      };
-      const removing = uuids => remove(uuids).catch(error => G.write.refused('What a delete would take with it could not be read', error, 'Nothing was deleted.'));
+      /* A tag or a property is deleted by the one shared way (node/ask.js remove), from the row of actions as from any row's
+         menu: the red question under the first ticked row that is drawn counts what truly goes. What follows a delete, however
+         it was started, is heard below (G.ask.removed): the ticks go and the list is read again. */
+      const remove = uuids => { const row = uuids.map(uuid => rel.querySelector(`:is(.lk-rows > .lk-row, .lk-trow)[data-uuid="${uuid}"]`)).find(Boolean); if (row) G.ask.remove(row, uuids); };
+      const offRemoved = G.ask.removed(() => { clear(); G.read.forget(); list.again(); });
       acts.addEventListener('click', event => {
         const at = event.target.closest('[data-act]');
         if (!at || at.disabled || busy) return;
@@ -572,7 +545,7 @@ G.part({
         else if (act === 'up') up(uuids);
         else if (act === 'under') under(at, uuids);
         else if (act === 'rename') rename(uuids[0]);
-        else if (act === 'delete') removing(uuids);
+        else if (act === 'delete') remove(uuids);
         else if (act === 'merge') (tab === 'props' ? mergeProps : mergeTags)(uuids).catch(error => G.write.refused('The merge could not be read', error, 'Nothing was changed.'));
       });
 
@@ -712,7 +685,7 @@ ${!refused && rows.length ? `<div class="lk-ask-rows">${rows.slice(0, 4).map(({ 
         side.addEventListener('click', open); values?.addEventListener('click', ask_); (holder.querySelector(':scope > .lk-add') || holder.firstElementChild).after(...(values ? [values, side] : [side]));
         offSide = () => { side.removeEventListener('click', open); values?.removeEventListener('click', ask_); side.remove(); values?.remove(); };
       }
-      return () => { sized?.disconnect(); offSide?.(); field?.removeEventListener('input', onFind); field?.parentElement.removeEventListener('keydown', onFindKey, true); offAdd(); list.off(); listeners.delete(past); };
+      return () => { sized?.disconnect(); offSide?.(); offRemoved(); field?.removeEventListener('input', onFind); field?.parentElement.removeEventListener('keydown', onFindKey, true); offAdd(); list.off(); listeners.delete(past); };
     };
     const section = G.touch.section('lk-ontology', 'Ontology', holder => draw(holder, false), TREE);
     const page = G.touch.page('lk-ontology', 'Ontology', holder => draw(holder, true));
