@@ -6,8 +6,10 @@
                                                    word; take(): the change, answering a promise. Gives back what closes it.
    What Logseq does with a deleted page (read in its own code, logseq.outliner.page/delete!, and its guide, 27 November 2026): a
    tag's and a property's page are deleted for good, with what is written on them; today's journal keeps its page and loses
-   every bullet on it, for good; every other page, another day's journal too, goes to Logseq's Recycle with its bullets and
-   can be restored from there; one of Logseq's own cannot be deleted. So every delete of a page asks first, and says which.
+   every bullet on it, which do not go to the Recycle; every other page, another day's journal too, goes to Logseq's Recycle
+   with its bullets and can be restored from there; one of Logseq's own cannot be deleted. So every delete of a page asks
+   first, and says which. Tried in Logseq 2.0.2, 27 November 2026: Undo right after brings a recycled page back, and the
+   bullets of today's journal with what was under them; after a deleted tag it brings back another item that no node holds.
      G.ask.pageKind(uuid)       'tag' | 'property' | 'today' | 'page' for a page, '' for a bullet
      G.ask.remove(row, uuids)   the one way a tag or a property is deleted, from every place (a row's Delete… in any list or
                                 table, Ontology's row of actions): the red question under row counts what truly goes (the
@@ -94,8 +96,8 @@ async function page(row, uuid) {
     const [asked, what] = await Promise.all([G.read.opened(uuid), pageKind(uuid)]);
     if (what === 'tag' || what === 'property') return remove(row, [uuid]);
     const title = asked?.title || row.querySelector('.lk-words')?.textContent.trim() || 'this page';
-    if (what === 'today') gone(row, { words: 'Delete everything written on today’s journal? This cannot be undone.', note: 'Logseq keeps today’s page itself and deletes every bullet on it, for good.', yes: 'Delete its bullets',
-      take: async () => { await G.write.remove(uuid, true); G.undo.clear(); closed(row); } });
+    if (what === 'today') gone(row, { words: 'Delete everything written on today’s journal?', note: 'Logseq keeps today’s page itself and deletes every bullet on it. They do not go to the Recycle: only Undo brings them back.', yes: 'Delete its bullets',
+      take: async () => { await G.undo.after(uuid, G.write.remove(uuid, true)); closed(row); } });
     else gone(row, { words: `Delete the page “${title}”?`, note: 'It goes to Logseq’s Recycle with its bullets, and can be restored from there.', yes: 'Delete the page',
       take: async () => { await G.undo.after(uuid, G.write.remove(uuid, true)); closed(row); } });
     return true;

@@ -496,7 +496,10 @@ function hit(words, want) {
 }
 function handle(state, event) {
   const target = event.target;
-  if (!(target instanceof target.ownerDocument.defaultView.Element)) return;
+  /* An element, asked by its kind and not by whose Element it is: a piece the plugin drew into Logseq's page can belong to the
+     plugin's own frame rather than to Logseq's window (seen in Logseq 2.0.2, 27 November 2026: the presses of the picked-nodes
+     bar), and a press on it was then dropped here without a word. */
+  if (target?.nodeType !== 1) return;
   // Only what belongs to this node's lists: a nested node's lists handle their own.
   if (target.closest('.lk-rel') !== state.el) return;
   const found = target.closest('.lk-row'), row = found && state.el.contains(found) ? found : null;   // a list inside an opened node: the row that node is open under is not this list's

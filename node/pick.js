@@ -152,8 +152,8 @@ function bar(state, box, made) {
   if (all) { const shown = made.rows.length; all.checked = shown > 0 && n >= shown; all.indeterminate = n > 0 && n < shown; }
 }
 /* Delete asks first, in the bar's own place, and says truly where each kind of thing picked goes (node/ask.js has what Logseq
-   does with a deleted page): a bullet comes back with Undo; a page goes to Logseq's Recycle; today's journal is emptied for
-   good and keeps its page. Tags and properties are deleted only through the one way they are deleted everywhere, with its
+   does with a deleted page): a bullet comes back with Undo; a page goes to Logseq's Recycle; today's journal keeps its page
+   and loses its bullets, which only Undo brings back. Tags and properties are deleted only through the one way they are deleted everywhere, with its
    counting question (G.ask.remove): picked alone they are handed to it; picked among other things they are left, and the
    question says so. The keyboard waits on Cancel. */
 async function askDelete(state, box, el, uuids) {
@@ -170,10 +170,9 @@ async function askDelete(state, box, el, uuids) {
   const left = schema.length ? `${of('tag').length ? plural(of('tag').length, 'tag') : ''}${of('tag').length && of('property').length ? ' and ' : ''}${of('property').length ? plural(of('property').length, 'property', 'properties') : ''}` : '';
   const stays = left ? `${schema.length === 1 ? `The ${left.slice(2)} is` : `The ${left} are`} left: delete ${schema.length === 1 ? 'it from its own row' : 'them from their own rows'}.` : '';
   if (!going.length) { G.say(stays); return; }
-  // With today's journal among them no Undo is offered afterwards (it would not bring all of it back), so none is promised for the bullets.
-  const said = [bullets && !today ? `Undo brings the ${bullets === 1 ? 'bullet' : 'bullets'} back.` : '', pages ? 'A page goes to Logseq’s Recycle.' : '',
-    today ? `Today’s journal keeps its page and loses every bullet on it, for good${bullets ? `, and no Undo is offered for the ${bullets === 1 ? 'bullet' : 'bullets'} either` : ''}.` : '', stays].filter(Boolean).join(' ');
-  el.dataset.asking = '1'; el.lkHtml = ''; el.lkDelete = { uuids: going, forGood: today > 0 };
+  const said = [bullets ? `Undo brings the ${bullets === 1 ? 'bullet' : 'bullets'} back.` : '', pages ? 'A page goes to Logseq’s Recycle.' : '',
+    today ? 'Today’s journal keeps its page and loses every bullet on it: only Undo brings them back.' : '', stays].filter(Boolean).join(' ');
+  el.dataset.asking = '1'; el.lkHtml = ''; el.lkDelete = { uuids: going, forGood: false };
   el.innerHTML = `<span class="lk-did"><b>Delete ${G.esc(what.join(' and '))}?</b> ${G.esc(said)}</span><button type="button" class="lk-del" data-do="delete-yes">Delete</button><button type="button" class="lk-btn" data-do="delete-no">Cancel</button>`;
   el.querySelector('[data-do="delete-no"]').focus();
 }
