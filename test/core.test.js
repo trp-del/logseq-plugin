@@ -790,3 +790,70 @@ test('a list answers the tags all its rows hold, beside the kinds its head count
   // Narrowing the list to a kind or to words does not change what all its rows hold.
   assert.deepEqual(view.shape({ rows: [row('a', 'Bill payment', ['Bill payment', 'Urgent']), row('b', 'Income', ['Income', 'Urgent'])] }, { kind: 'Income' }, { words: 'b' }, 20261127).shared, ['Urgent']);
 });
+
+// Ontology's property groups (core/groups.js): named groups for order only, kept on this computer, as 0.5.17 had them.
+const groups = require('../core/groups.js');
+test('a group is made, named, filled, folded and taken away; what it held goes up a level', () => {
+  let g = groups.clean(null);
+  assert.deepEqual(g, { list: [], of: {} });
+  g = groups.make(g, '  Dates ', 'g1');
+  assert.deepEqual(g.list, [{ id: 'g1', name: 'Dates', under: null, open: true }]);
+  assert.equal(groups.make(g, '', 'g2'), g);   // no name: nothing made
+  assert.equal(groups.named(g, 'dates').id, 'g1');   // a name that is there already is that group
+  g = groups.make(g, 'Money', 'g2');
+  g = groups.put(g, ['due', 'paid'], 'g1');
+  assert.deepEqual(g.of, { due: 'g1', paid: 'g1' });
+  g = groups.fold(g, 'g1', false);
+  assert.equal(g.list[0].open, false);
+  g = groups.put(g, ['due'], 'g1');
+  assert.equal(g.list[0].open, true);   // a property put into a folded group opens it, so it is seen going in
+  g = groups.put(g, ['paid'], null);
+  assert.deepEqual(g.of, { due: 'g1' });
+  g = groups.rename(g, 'g2', 'Amounts');
+  assert.equal(g.list[1].name, 'Amounts');
+  assert.equal(groups.rename(g, 'g2', '  '), g);
+  g = groups.inside(g, 'g2', 'g1');
+  assert.equal(g.list.find(one => one.id === 'g2').under, 'g1');
+  assert.equal(groups.inside(g, 'g1', 'g2'), g);   // never inside itself or a group within it
+  assert.equal(groups.inside(g, 'g1', 'g1'), g);
+  g = groups.put(g, ['sum'], 'g2');
+  g = groups.drop(g, 'g2');   // Amounts goes: sum goes up into Dates
+  assert.deepEqual([g.list.map(one => one.id), g.of], [['g1'], { due: 'g1', sum: 'g1' }]);
+  g = groups.drop(g, 'g1');
+  assert.deepEqual(g, { list: [], of: {} });
+});
+test('what is kept is read safely: a broken record, a group under one that is gone, a property in a group that is gone', () => {
+  assert.deepEqual(groups.clean({ list: 'x' }), { list: [], of: {} });
+  assert.deepEqual(groups.clean({ list: [{ id: 'a', name: 'A', under: 'zz' }, { name: 'no id' }], of: { p: 'a', q: 'gone' } }), { list: [{ id: 'a', name: 'A', under: null, open: true }], of: { p: 'a' } });
+});
+test('the table in groups: each group its name, how many it holds and its rows one step in; the rest under them as now', () => {
+  let g = groups.clean(null);
+  g = groups.make(g, 'Dates', 'd'); g = groups.make(g, 'Money', 'm'); g = groups.make(g, 'Paid', 'p'); g = groups.inside(g, 'p', 'm');
+  g = groups.put(g, ['due', 'start'], 'd'); g = groups.put(g, ['amount'], 'm'); g = groups.put(g, ['fee'], 'p');
+  const rows = ['start', 'notes', 'fee', 'due', 'amount'].map(ident => ({ ident }));   // already in the table's order
+  const said = items => items.map(one => one.kind === 'group' ? `${'  '.repeat(one.depth)}[${one.name} ${one.n}${one.open ? '' : ' folded'}]` : `${'  '.repeat(one.depth)}${one.row.ident}`);
+  assert.deepEqual(said(groups.layout(g, rows, row => row.ident)), ['[Dates 2]', '  start', '  due', '[Money 2]', '  [Paid 1]', '    fee', '  amount', 'notes']);
+  assert.deepEqual(said(groups.layout(groups.fold(g, 'm', false), rows, row => row.ident)), ['[Dates 2]', '  start', '  due', '[Money 2 folded]', 'notes']);
+  assert.deepEqual(said(groups.layout(groups.clean(null), rows, row => row.ident)), ['start', 'notes', 'fee', 'due', 'amount']);   // no group made: the table as before
+  assert.deepEqual(said(groups.layout(g, [{ ident: 'due' }], row => row.ident, true)), ['[Dates 1]', '  due']);   // finding: a group with nothing found is not shown
+  assert.deepEqual(said(groups.layout(groups.make(g, 'Empty', 'e'), [], row => row.ident)).slice(-1), ['[Empty 0]']);   // a group just made, empty, is shown
+  assert.deepEqual(groups.tree(g).map(one => [one.name, one.depth]), [['Dates', 0], ['Money', 0], ['Paid', 1]]);
+});
+test('Tab puts a property or a group into the group above it, Shift-Tab takes it out a level, as in any outline', () => {
+  let g = groups.clean(null);
+  g = groups.make(g, 'Dates', 'd'); g = groups.make(g, 'Money', 'm'); g = groups.put(g, ['due'], 'd');
+  // A property in no group stands under every group: Tab puts it into the last of them.
+  assert.equal(groups.step(g, { ident: 'notes' }, false).of.notes, 'm');
+  // In Dates, with no group inside Dates above it: nothing to go into.
+  assert.equal(groups.step(g, { ident: 'due' }, false), g);
+  assert.equal(groups.step(g, { ident: 'due' }, true).of.due, undefined);   // out of Dates: in no group
+  assert.equal(groups.step(g, { ident: 'notes' }, true), g);   // in no group already
+  // A group: into the group before it at its level; out, just after the group it stood in.
+  const nested = groups.step(g, { group: 'm' }, false);
+  assert.deepEqual(nested.list.map(one => [one.id, one.under]), [['d', null], ['m', 'd']]);
+  assert.equal(groups.step(nested, { ident: 'due' }, false).of.due, 'm');   // now Money stands inside Dates above due
+  assert.equal(groups.step(g, { group: 'd' }, false), g);   // the first group has none before it
+  const three = groups.make(nested, 'Who', 'w');
+  const out = groups.step(three, { group: 'm' }, true);
+  assert.deepEqual(out.list.map(one => [one.id, one.under]), [['d', null], ['m', null], ['w', null]]);
+});
