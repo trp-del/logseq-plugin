@@ -51,7 +51,8 @@ On every page Logseq shows (the main page, a page in the right sidebar):
   and Deadline; then **Mentioned in**, where a node that names the page inside the words of one of its values stands too;
 - a tag every row of a list shares is said once, on the list's head: its kind with the count, and any further tag they all
   hold after the kinds. A tag only some rows hold is said after those rows' words, and a list of one node, whose head names
-  no kind, says its node's tags on the row. A row that shows a status circle never also says Task;
+  no kind, says its node's tags on the row. A node's kind is the tag it was given first: a tag put on it later stands after
+  its kind, the further tags by name, the same order on every row. A row that shows a status circle never also says Task;
 - while a bullet is being written in, the lists do not read the graph at each pause: they read once, when the bullet is left;
 - a row you have open stays open, where it is, until you close it, also when its node no longer belongs to the list (you
   changed in it the very value that pointed here): it leaves when it is closed;

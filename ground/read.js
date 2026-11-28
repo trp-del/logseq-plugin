@@ -5,7 +5,8 @@
                               (kind: 'tag' or 'property' for the page of one, else ''), or null
      read.describe(ids)       id -> the node as a line shows it: { id, uuid, words, tag, tags, day, dayFrom, status, isPage, written, dates, made, changed }
                               written: the journal day it is written on; dates: { name: day } every day it holds; made, changed: times
-                              tag: its first tag of the person's own (or Task) by name; tags: every one of them, [{ id, title }],
+                              tag: its kind, the first tag of the person's own (or Task) it was given (by name among those given
+                              at once); tags: every one of them, [{ id, title }],
                               by name; day: its Date property (the one named
                               Date first, else the earliest), else the journal day it is written on; status: the id of its Status
      read.pointingAt(id)      { links: [{ prop, node }], mentions: [node] }   what holds this node as a value, what names it
@@ -222,7 +223,7 @@ async function describe(ids) {
   const these = among('?b', list);
   const [titled, tagged, dated, written, status, pages, tags, ...moments] = await Promise.all([
     q(`[:find ?b ?u ?t :where ${these} [?b :block/uuid ?u] [?b :block/title ?t] ${LIVE}]`),
-    q(`[:find ?b ?t :where ${these} [?b :block/tags ?t]]`),
+    q(`[:find ?b ?t ?tx :where ${these} [?b :block/tags ?t ?tx]]`),
     q(`[:find ?b ?attr ?day ?name :where ${these} [?prop :logseq.property/type :date] [?prop :db/ident ?attr] [?prop :block/title ?name] [?b ?attr ?d] [?d :block/journal-day ?day]]`),
     q(`[:find ?b ?day :where ${these} [?b :block/page ?p] [?p :block/journal-day ?day]]`),
     q(`[:find ?b ?s :where ${these} [?b :logseq.property/status ?s]]`),
@@ -233,7 +234,12 @@ async function describe(ids) {
   ]);
   const times = moments[0], dueRows = moments[1];
   const tagOf = new Map(), tagsOn = new Map();
-  for (const [b, t] of tagged) { const name = tags.get(t); if (!name) continue; if (!tagOf.has(b) || name < tagOf.get(b)) tagOf.set(b, name); if (!tagsOn.has(b)) tagsOn.set(b, []); tagsOn.get(b).push({ id: t, title: name }); }
+  /* Its kind is the tag it was given first (the change that wrote it, ?tx), by name among those given at once: a tag put on it
+     later stands after its kind and never takes the kind's place (F168: "Budget  Income" on one row, "Bill payment  Budget" on
+     the next, after Budget was put on both). */
+  const first = new Map();
+  for (const [b, t, tx] of tagged) { const name = tags.get(t); if (!name) continue; const had = first.get(b); if (!had || tx < had.tx || (tx === had.tx && name < had.name)) first.set(b, { tx, name }); if (!tagsOn.has(b)) tagsOn.set(b, []); tagsOn.get(b).push({ id: t, title: name }); }
+  for (const [b, one] of first) tagOf.set(b, one.name);
   for (const all of tagsOn.values()) all.sort((a, z) => (a.title < z.title ? -1 : a.title > z.title ? 1 : a.id - z.id));
   const dayOf = new Map();
   for (const [b, attr, day, name] of dated) {
