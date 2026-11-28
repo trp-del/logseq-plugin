@@ -1602,6 +1602,7 @@ const OPENED = `
 }
 /* A value that is words is a bullet of Logseq's: its words stand in the values' column, without the bullet. */
 .lk-editor .property-pair .property-block-container { margin: 2px 0 0 !important; font-size: var(--lk-line-size) !important; }
+.lk-editor .property-pair .property-block-container > .ls-block { padding-bottom: 0 !important; }   /* its words on the other values' baseline, and its row as high as theirs (28; 56 where the name stands over the value) */
 .lk-editor .property-pair .property-block-container .block-control-wrap { display: none !important; }
 .lk-editor .property-pair .property-block-container .block-main-container { gap: 0 !important; }
 .lk-editor .property-pair .property-block-container .ls-block-content-indent { display: none !important; }
