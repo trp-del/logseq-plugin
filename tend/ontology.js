@@ -17,11 +17,18 @@
    back whole with its arrow, wherever the arrow stands, loses its line: History says what was changed and still stands.
    Properties are the table they were before the rebuild (the owner, 26 November 2026, "I like before version"; node/table.js):
    Property, On tags (▾ puts it on a tag or takes it off), Holds (▾ changes the tags a node value must have), Filled ("2 of 6"),
-   sorted by a press on a column's name, least filled first at the start. */
+   sorted by a press on a column's name, least filled first at the start.
+   Property groups, as 0.5.17 had them (the owner, 28 November 2026: "B. Groups, as in 0.5.17"): named groups, for order only,
+   kept on this computer for each graph and never written to the graph (core/groups.js decides, the table draws them). New
+   group, the line at the table's foot, makes one; a press on a group's name or Enter on its line renames it; a property or a
+   group dragged onto a group's line (or onto a row in it) goes into it, onto a row in no group out of every group; a
+   property's right-click Move to group… and Tab and Shift-Tab do the same with the keys; the group's right-click Take the
+   group away (or Delete on its line) takes it away, what it held going up a level. Each of these has the Undo arrow, which
+   puts back what was kept; folding has none. */
 (function () {
 const G = window.PluginDoor;
 const TREE = 'M3 12h2c3 0 3 -6 6 -6h1M3 12h2c3 0 3 6 6 6h1M12 6c2 0 2 -3 4 -3h4M12 6c2 0 2 3 4 3h4M12 18c2 0 2 -3 4 -3h4M12 18c2 0 2 3 4 3h4';   // one into two into four, on its side
-const HISTORY = 'lk.ontology.history', DAYS30 = 30 * 864e5;
+const HISTORY = 'lk.ontology.history', DAYS30 = 30 * 864e5, GROUPS = 'lk.ontology.groups';
 const TABS = [['tags', 'Tags', 'tag'], ['props', 'Properties', 'list'], ['history', 'History', 'history']];
 const tabOf = { page: 'tags', side: 'tags' };   // the tab each place was left on, while Logseq runs
 const sortOf = { page: { key: 'filled', dir: 1 }, side: { key: 'filled', dir: 1 } };   // how each place's table of properties was last sorted
@@ -46,6 +53,11 @@ const history = {
   },
 };
 const listeners = new Set();
+// The property groups, by graph: what core/groups.js decides, kept on this computer (the window's local storage).
+const kept = {
+  read(graph) { const all = G.touch.kept(GROUPS, {}).get(); return G.groups.clean(all && typeof all === 'object' ? all[graph] : null); },
+  write(graph, g) { const was = G.touch.kept(GROUPS, {}).get(), all = was && typeof was === 'object' ? { ...was } : {}; if (g.list.length) all[graph] = g; else delete all[graph]; G.touch.kept(GROUPS, {}).set(all); },
+};
 const saidHtml = said => said.map(([kind, text]) => kind ? `<span class="lk-${kind}">${G.esc(text)}</span>` : G.esc(text)).join('');
 const names = (list, kind) => list.flatMap((one, i) => [...(i ? [['', i === list.length - 1 ? ' and ' : ', ']] : []), [kind, one]]);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -130,6 +142,13 @@ G.part({
 .lk-ontology .lk-table a.lk-prop { color: var(--lk-text); font-size: var(--lk-line-size); text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-ontology .lk-table a.lk-prop:hover { text-decoration-color: currentColor; }
 .lk-trow.lk-renaming > .lk-td:first-of-type > .lk-words { display: none; }
+.lk-tgroup.lk-renaming > .lk-tgroup-words { display: none; }
+.lk-tgroup > .lk-rename { box-sizing: border-box; width: auto; min-width: 0; height: 22px; margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--lk-text); border-radius: 0; background: none; box-shadow: none; outline: 0; color: var(--lk-text); font: inherit; font-weight: 500; }   /* the group's name where it stood, underlined while it is written, as a row's */
+/* New group: the library's line that adds, at the table's foot, its words on the edge of the properties' names. */
+.lk-groups-foot { padding: 12px 0 0 38px; }
+.lk-groups-foot > .lk-add { position: static; max-width: 362px; margin-bottom: 0; }
+.lk-map > .lk-groups-foot { order: 6; flex: 0 0 100%; }
+.lk-ontology:not([data-tab="props"]) > .lk-groups-foot { display: none; }
 .lk-trow .lk-td > .lk-rename { flex: 1 1 auto; box-sizing: border-box; width: auto; min-width: 0; height: 22px; margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--lk-text); border-radius: 0; background: none; box-shadow: none; outline: 0; color: var(--lk-text); font-family: var(--lk-prop-face); font-size: var(--lk-line-size); }`);
     // What was changed is told to History once, whichever place it was changed in; Move values tells its moves here too.
     /* uuid: the node the Undo arrow was just set after for this change. Its line of History carries the arrow too, while it is
@@ -356,8 +375,8 @@ G.part({
       const holds = row => row.type === 'node' ? (row.range.length ? tagList(row.range) : 'any node') : G.esc(row.choice ? 'a choice' : KIND[row.type] || 'words');
       const holdsWords = row => row.type === 'node' ? (row.range.length ? row.range.map(id => tagIndex.get(id)?.title || '').join(', ') : 'any node') : row.choice ? 'a choice' : KIND[row.type] || 'words';
       const readProps = async () => {
-        const [tags, pairs, { props, byTag }, held, choices] = await Promise.all([G.read.tags(), G.read.tagPairs(), G.read.schema(), G.read.holding(), G.read.choices().catch(() => new Map())]);
-        tagIndex = tags;
+        const [tags, pairs, { props, byTag }, held, choices, name] = await Promise.all([G.read.tags(), G.read.tagPairs(), G.read.schema(), G.read.holding(), G.read.choices().catch(() => new Map()), graph()]);
+        tagIndex = tags; graphName = name; groupsNow = kept.read(name);
         const fill = G.tags.filled(tags, pairs, byTag, held);
         const rows = [...props.values()].map(prop => { const f = fill.get(prop.ident) || { on: [], filled: 0, of: 0 }; return { uuid: String(prop.uuid).toLowerCase(), ident: prop.ident, title: prop.title, type: prop.type, range: prop.range.filter(id => tags.has(id)), choice: (choices.get(prop.ident) || []).length > 0, on: f.on, filled: f.filled, of: f.of, held: new Set(held.get(prop.ident) || []).size }; });
         info = new Map(rows.map(row => [row.uuid, { title: row.title, count: row.held, row }]));
@@ -397,8 +416,94 @@ G.part({
       ];
       const tableOpts = { columns: COLUMNS, read: readProps, face: 'prop', none: NONE.props, sort: sortOf[place], sorted: sort => { sortOf[place] = tableOpts.sort = sort; }, tie: row => row.title,   // none: what the table says with no rows, set at each reading
         ticks: { has: uuid => picked.props.has(uuid), flip(uuid, row, on) { if (on) picked.props.add(uuid); else picked.props.delete(uuid); bar(); } },
-        key: (row, event) => opts.key(row, event), more,
+        key: (row, event) => { if (event.key === 'Tab' && groupsNow.list.length && !event.metaKey && !event.ctrlKey && !event.altKey) { step_({ ident: identOf(row.dataset.uuid), uuid: row.dataset.uuid }, event.shiftKey); return true; } return opts.key(row, event); },
+        more: (row, at) => [...more(row, at), ...(groupsNow.list.length ? [{ gap: true }, { word: 'Move to group…', take: () => toGroup(at, row.dataset.uuid) }] : [])],
         press(row, event) { const cell = event.target.closest('.lk-change[data-cell]'); if (!cell) return false; (cell.dataset.cell === 'on' ? onTags : nodeTags)(cell, row.dataset.uuid); return true; } };
+      /* ---- the property groups (core/groups.js), kept on this computer for the graph that is open. Every change but a fold goes
+         through regroup: written, the table drawn again, and the Undo arrow set where the change shows (after the property's
+         name, or after the group's name and count), whose press puts back what was kept before, each group left folded or
+         open as it is by then. */
+      let graphName = '', groupsNow = G.groups.clean(null);
+      const regroup = (change, at) => {
+        const name = graphName, before = kept.read(name), next = change(before);
+        if (!next || next === before) return false;
+        kept.write(name, next); groupsNow = next; list.again();
+        standing = null;   // the arrow now stands for this change, not for History's newest line
+        G.undo.own(at, () => {
+          const now = kept.read(name), open = new Map(now.list.map(one => [one.id, one.open]));
+          const back = { ...before, list: before.list.map(one => open.has(one.id) ? { ...one, open: open.get(one.id) } : one) };
+          kept.write(name, back); if (graphName === name) groupsNow = back;
+          if (holder.isConnected) list.again();
+        });
+        return true;
+      };
+      const groupKey = id => `lk-group-${id}`;
+      const identOf = uuid => info.get(uuid)?.row?.ident;
+      const groupOf = ident => groupsNow.of[ident] ?? null;
+      const titleOf = id => groupsNow.list.find(one => one.id === id)?.name || '';
+      const putProp = (uuid, to) => { const ident = identOf(uuid); return !!ident && groupOf(ident) !== (to ?? null) && regroup(g => G.groups.put(g, [ident], to ?? null), uuid); };
+      const putGroup = (id, under) => regroup(g => G.groups.inside(g, id, under ?? null), groupKey(id));
+      const takeAway = id => { const was = groupsNow.list.find(one => one.id === id); if (was) regroup(g => G.groups.drop(g, id), was.under ? groupKey(was.under) : groupKey(id)); };
+      // A group's name in place: the line gives way to a field with the name in it; Enter writes it, Escape or a press elsewhere leaves it.
+      const renameGroup = id => {
+        const line = rel.querySelector(`.lk-tgroup[data-group="${id}"]`), was = titleOf(id);
+        if (!line || line.querySelector('.lk-rename')) return;
+        const field = doc.createElement('input'); field.type = 'text'; field.className = 'lk-field lk-rename'; field.value = was; field.spellcheck = false; field.setAttribute('aria-label', `New name for the group ${was}`);
+        line.classList.add('lk-renaming'); line.appendChild(field); field.focus(); field.select();
+        let left = false;
+        const leave = () => { if (left) return; left = true; field.remove(); line.classList.remove('lk-renaming'); };
+        field.addEventListener('keydown', event => {
+          event.stopPropagation();
+          if (event.key === 'Escape') { event.preventDefault(); leave(); line.focus({ preventScroll: true }); }
+          if (event.key !== 'Enter') return;
+          event.preventDefault();
+          const name = field.value.trim();
+          leave(); line.focus({ preventScroll: true });
+          if (name && name !== was) regroup(g => G.groups.rename(g, id, name), groupKey(id));
+        });
+        for (const type of ['click', 'mousedown', 'contextmenu', 'dragstart']) field.addEventListener(type, event => event.stopPropagation());
+        field.addEventListener('blur', leave);
+      };
+      // The groups as an outline in a menu: where a property or a group can go. Indented only where a group stands in another.
+      const groupLines = (on, take, leaveOut = null) => { const all = G.groups.tree(groupsNow).filter(one => !leaveOut || !G.groups.within(groupsNow, one.id, leaveOut)), deep = all.some(one => one.depth); return all.map(one => ({ word: one.name, ...(deep ? { depth: one.depth } : {}), on: on === one.id, take: () => take(one.id) })); };
+      const toGroup = (at, uuid) => {
+        const ident = identOf(uuid), row = info.get(uuid)?.row;
+        if (!ident || !groupsNow.list.length) return;
+        G.menu(at, [{ group: `Put ${row.title} in` }, ...groupLines(groupOf(ident), id => putProp(uuid, id)), { gap: true }, { word: 'No group', on: groupOf(ident) == null, take: () => putProp(uuid, null) }]);
+      };
+      const intoGroup = (at, id) => {
+        const was = groupsNow.list.find(one => one.id === id);
+        if (!was) return;
+        G.menu(at, [{ group: `Move ${was.name} into` }, ...groupLines(was.under, to => putGroup(id, to), id), { gap: true }, { word: 'The top', on: was.under == null, take: () => putGroup(id, null) }]);
+      };
+      const step_ = (what, out) => regroup(g => G.groups.step(g, what, out), what.group ? groupKey(what.group) : what.uuid);
+      const groupsOpts = {
+        layout: sorted => G.groups.layout(groupsNow, sorted, row => row.ident, !!finding),
+        fold(id, open) { const name = graphName, g = kept.read(name), next = G.groups.fold(g, id, open); if (next !== g) kept.write(name, next); groupsNow = next; },
+        press(id) { renameGroup(id); return true; },
+        key(id, event) {
+          if (event.key === 'Enter') { renameGroup(id); return true; }
+          if (event.key === 'Tab') { step_({ group: id }, event.shiftKey); return true; }
+          if (event.key === 'Delete' || event.key === 'Backspace') { takeAway(id); return true; }
+          return false;
+        },
+        more: (id, at) => [{ word: 'Rename', take: () => renameGroup(id) }, { word: 'Move into…', take: () => intoGroup(at, id) }, { gap: true }, { word: 'Take the group away', take: () => takeAway(id) }],
+        can(what, to) {
+          if (what.group) { const was = groupsNow.list.find(one => one.id === what.group); return !!was && (was.under ?? null) !== (to ?? null) && !(to && G.groups.within(groupsNow, to, what.group)); }
+          const ident = identOf(what.uuid); return !!ident && groupOf(ident) !== (to ?? null);
+        },
+        drop: (what, to) => what.group ? putGroup(what.group, to) : putProp(what.uuid, to),
+      };
+      tableOpts.groups = groupsOpts;
+      // New group, at the table's foot: the library's line that adds. A name that is there already is that group, made again never.
+      const foot = doc.createElement('div'); foot.className = 'lk-groups-foot'; rel.after(foot);
+      const offFoot = G.node.adder(foot, 'New group', async name => {
+        const there = G.groups.named(kept.read(graphName), name);
+        if (there) { rel.querySelector(`.lk-tgroup[data-group="${there.id}"]`)?.scrollIntoView({ block: 'nearest' }); return { uuid: '', steps: 0 }; }
+        const id = `g${Date.now().toString(36)}`;
+        regroup(g => G.groups.make(g, name, id), groupKey(id));
+        return { uuid: '', steps: 0 };   // nothing written to the graph: the arrow stands after the new group's name
+      }, 'The group could not be made');
       const table = () => G.table(rel, tableOpts);
       const mount = tab => tab === 'props' ? table() : G.node.listing(rel, read, { ...opts, none: NONE[tab] });
       lineFor(holder.dataset.tab);
@@ -685,7 +790,7 @@ ${!refused && rows.length ? `<div class="lk-ask-rows">${rows.slice(0, 4).map(({ 
         side.addEventListener('click', open); values?.addEventListener('click', ask_); (holder.querySelector(':scope > .lk-add') || holder.firstElementChild).after(...(values ? [values, side] : [side]));
         offSide = () => { side.removeEventListener('click', open); values?.removeEventListener('click', ask_); side.remove(); values?.remove(); };
       }
-      return () => { sized?.disconnect(); offSide?.(); offRemoved(); field?.removeEventListener('input', onFind); field?.parentElement.removeEventListener('keydown', onFindKey, true); offAdd(); list.off(); listeners.delete(past); };
+      return () => { offFoot(); foot.remove(); sized?.disconnect(); offSide?.(); offRemoved(); field?.removeEventListener('input', onFind); field?.parentElement.removeEventListener('keydown', onFindKey, true); offAdd(); list.off(); listeners.delete(past); };
     };
     const section = G.touch.section('lk-ontology', 'Ontology', holder => draw(holder, false), TREE);
     const page = G.touch.page('lk-ontology', 'Ontology', holder => draw(holder, true));

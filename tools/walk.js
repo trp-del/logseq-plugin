@@ -361,6 +361,27 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       return is([first, byName, back], [[['Property', 'On tags', 'Holds', 'Filled ↑'], [['Side Effects', 'Pharmacological Agent', 'Symptom', '2 of 6'], ['Notes', 'Person', 'words', '6 of 12']]],
         [['Property ↑', 'On tags', 'Holds', 'Filled'], [['Agent', 'Treatment', 'Pharmacological Agent', '3 of 3'], ['Confirmation Status', 'Cancer', 'a choice', '1 of 1']]], ['Property ↓', 'On tags', 'Holds', 'Filled']]);
     });
+    await step('Properties keeps groups as 0.5.17 did: New group makes one, a property is put in it from its menu, the group folds, Undo puts the property back, the group is taken away', async () => {   // the owner, 28 November 2026: "B. Groups, as in 0.5.17"
+      await page.locator('.lk-map .lk-onto-tabs [data-tab="props"]').click(); await wait(2000);
+      await page.locator('.lk-map .lk-groups-foot .lk-field').click(); await page.keyboard.type('Zzgroup', { delay: 20 }); await page.keyboard.press('Enter'); await wait(1200);
+      const head = () => page.evaluate(() => [...document.querySelectorAll('.lk-map .lk-tgroup')].map(h => [h.querySelector('.lk-group-name').innerText, h.querySelector('.lk-n')?.innerText || '', h.getAttribute('aria-expanded')]));
+      const made = await head();
+      const notes = () => page.locator('.lk-map .lk-trow', { has: page.locator('a.lk-prop', { hasText: /^Notes$/ }) }).first();
+      await notes().locator('.lk-td').nth(2).click({ button: 'right' }); await wait(600);
+      await page.locator('.lk-menu .lk-item', { hasText: /^Move to group…$/ }).click(); await wait(400);
+      await page.locator('.lk-menu .lk-item', { hasText: /^Zzgroup$/ }).click(); await wait(1500);
+      const filled = [await head(), await notes().evaluate(r => [r.dataset.in !== '', r.hasAttribute('data-depth'), !!r.querySelector('.lk-undo')])];
+      await page.locator('.lk-map .lk-tgroup .lk-fold').click(); await wait(700);
+      const folded = [await head(), await notes().count()];
+      await page.locator('.lk-map .lk-tgroup .lk-fold').click(); await wait(700);
+      await notes().locator('.lk-undo').click(); await wait(1200);
+      const back = [await head(), await notes().evaluate(r => r.dataset.in)];
+      await page.locator('.lk-map .lk-tgroup').click({ button: 'right' }); await wait(500);
+      await page.locator('.lk-menu .lk-item', { hasText: /^Take the group away$/ }).click(); await wait(1200);
+      const gone = await page.locator('.lk-map .lk-tgroup').count();
+      await page.locator('.lk-map .lk-onto-tabs [data-tab="tags"]').click(); await wait(1500);
+      return is([made, filled, folded, back, gone], [[['Zzgroup', '', 'true']], [[['Zzgroup', '1', 'true']], [true, true, true]], [[['Zzgroup', '1', 'false']], 0], [[['Zzgroup', '', 'true']], ''], 0]);
+    });
     await step('In the sidebar, on that page, opens the outline beside whatever you read: the tabs, then the tags in their own face', async () => {
       await page.locator('.lk-map > .lk-side').click(); await wait(2500); await goto(CHEN);   // the outline beside a page, the page of its own left behind
       
