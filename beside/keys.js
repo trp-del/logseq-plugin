@@ -15,7 +15,7 @@ const HOLD = 700;   // ms of Option alone before the sheet comes; typing é take
 const CSS = `
 .lk-sheet { position: fixed; left: 50%; top: 50%; z-index: 9999; pointer-events: none; box-sizing: border-box; width: 94vw; max-width: 1500px; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
   border-radius: var(--lk-corner-float); background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); box-shadow: var(--lk-float-shadow), 0 0 0 .5px var(--lk-line); color: var(--lk-text); font-size: var(--lk-words-size); line-height: 24px;
-  opacity: 0; transform: translate(-50%, -50%) scale(.985); transition: opacity .12s ease, transform .12s ease; }
+  opacity: 0; transform: translate(-50%, -50%) scale(.985); transition: opacity var(--lk-fade), transform var(--lk-fade); }
 .lk-sheet.on { opacity: 1; transform: translate(-50%, -50%); }
 .lk-sheet.stays { pointer-events: auto; }
 .lk-sheet .lk-field { flex: none; margin: 22px 36px 0; padding: 2px 0; border: 0; border-bottom: 1px solid var(--lk-line); border-radius: 0; outline: 0; box-shadow: none; background: none; color: inherit; font: inherit; }
