@@ -74,6 +74,8 @@
 (function () {
 const G = window.PluginDoor;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// The endings Logseq draws as a picture or a film, and writes the width and height of (addFile).
+const SIZED = new Set('bmp png gif webp avif svg jpeg jpg ico jxl cr2 webm mp4 flv mkv mov avi'.split(' ')), SIZE_WAIT = 4000;
 /* A write that adds a bullet. The bullet being written is left for the moment of it and opened again after: when a new bullet
    lands after or under the one being written, Logseq saves that one's box as it reads, and a #tag in it then makes a tag named
    by an id (tried in Logseq 2.0.2, 27 November 2026). */
@@ -254,7 +256,12 @@ G.write = {
      stays and the refusal says so: Logseq may only be slow, and a file landing a moment later then has its bullet (the
      plugin before the rebuild learned this on 10 November 2026: with the bullet removed the copied file was left with
      nothing pointing at it). The bullet the person is writing in is set down first and opened again after, as for every
-     write that adds a bullet, and the file is pasted only into the bullet made here (fileInto sees to that). */
+     write that adds a bullet, and the file is pasted only into the bullet made here (fileInto sees to that).
+     A picture or a film takes one step more. Logseq writes its width and height as a write of its own, once the file's node
+     is drawn and the file has loaded (Logseq 2.0.2's own code, the asset-container and asset-video of its blocks: the endings
+     of its image-formats and video-formats; a picture tried 27 November 2026 took three steps of Undo, a text file two). So
+     for such a file the node is waited on a moment longer while it stands on screen, and that step is counted only where its
+     width was seen: a count one too high would take back a change of the person's, one too low leaves an empty bullet. */
   async addFile(at, file, { under = false } = {}) {
     const to = sure(at), name = String(file?.name || 'The file');
     if (!file?.bytes || !file.sum) throw no(`${name} could not be read`);
@@ -266,13 +273,24 @@ G.write = {
       const made = String((under ? await logseq.Editor.insertBlock(to, '', { sibling: false }) : await logseq.Editor.appendBlockInPage(to, ''))?.uuid || '').toLowerCase();
       if (!UUID.test(made)) throw no(`a bullet for ${name} could not be added`);
       const empty = async () => { const words = await G.read.typed(made).catch(() => null); return words != null && !words.trim(); };
-      let node = null;
-      try { node = await G.touch.fileInto(made, file, { show: to, taken: () => G.read.fileTwin(file).then(found => (found && !found.gone ? found : null)), patience: 30000 + Math.round(file.size / 5000) }); }
+      // A picture's or a film's node is answered once its width is written, or when SIZE_WAIT has passed since it was made.
+      let node = null, since = 0;
+      const sized = SIZED.has(String(file.type || '').toLowerCase());
+      const taken = async () => {
+        const found = await G.read.fileTwin(file);
+        if (!found || found.gone) return null;
+        if (!sized) return found;
+        since = since || Date.now();
+        if ((await G.read.q(`[:find ?w :where [?b :block/uuid #uuid "${found.uuid}"] [?b :logseq.property.asset/width ?w]]`)).length) return { ...found, sized: true };
+        return Date.now() - since > SIZE_WAIT ? found : null;
+      };
+      try { node = await G.touch.fileInto(made, file, { show: to, taken, patience: 30000 + SIZE_WAIT + Math.round(file.size / 5000) }); }
       catch (error) { if (await empty()) await logseq.Editor.removeBlock(made).catch(() => {}); throw error; }
       if (!node) throw no(`Logseq has not taken ${name} yet`, 'Its empty bullet stays on the page for when it does; delete the bullet if the file does not come.');
+      const steps = 2 + (node.sized ? 1 : 0);
       // Logseq makes the empty bullet itself the file's node. Had words reached the bullet meanwhile, the node stands after it.
-      if (node.uuid !== made && await empty()) { await logseq.Editor.removeBlock(made); return { uuid: node.uuid, steps: 3 }; }
-      return { uuid: node.uuid, steps: 2 };
+      if (node.uuid !== made && await empty()) { await logseq.Editor.removeBlock(made); return { uuid: node.uuid, steps: steps + 1 }; }
+      return { uuid: node.uuid, steps };
     });
   },
   // Set in as Logseq's Tab does: the last bullet under the one before it.
