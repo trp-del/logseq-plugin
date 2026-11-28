@@ -428,7 +428,8 @@ page untagged. Linking a node that exists stays Logseq's own list on `[[`, which
 ### A new tag from Ontology, and tags from a line's menu
 
 Ontology has a line at its top, "New tag": Enter makes a tag of your own at the top of the outline and the list moves to it; a
-name that exists is shown instead of made twice. A closed line's right-click menu has "Tags…": your tags as an outline, the
+name that exists is shown instead of made twice (its row is brought into view and selected; nothing is written, so no Undo
+arrow stands). A closed line's right-click menu has "Tags…": your tags as an outline, the
 node's own ticked; a press puts a tag on the node or takes it off.
 
 A press on a node's cell under **Tags** in one of Logseq's tables (or Enter on the cell) opens the same outline in place of
@@ -437,7 +438,7 @@ Logseq's flat list, with a line to type in; words no tag has make a new tag. A p
 Every list of tags as an outline folds, as Logseq's outline does: an arrow before a tag with tags under it (under the pointer,
 and always once folded, its bullet ringed), Right and Left on its line, Cmd-Up and Cmd-Down. What you fold stays folded in
 these lists and in Search's list of all kinds, on this Mac. Typing looks through folded tags too. While a bullet is being
-written (the question for a new tag or page) only the arrow folds: the keys stay the bullet's. Ontology keeps its own folds. The same line that adds a task in Todo adds the tag here.
+written (the question for a new tag or page) only the arrow folds: the keys stay the bullet's. Ontology's outline folds with them: a tag folded there is folded in these lists, and the other way round. The same line that adds a task in Todo adds the tag here.
 
 ### An empty property (`node/empty.js`)
 
@@ -499,12 +500,13 @@ journal without a question.
 ### Ontology: counts, moving a tag, the lines between tags
 
 A tag with tags under it folds as a bullet does: a press on its arrow, or Cmd-Up and Cmd-Down on its row, hides and shows
-the tags under it, its bullet carrying Logseq's ring while folded; what is folded is kept on this Mac, and a line to a tag folded
+the tags under it, its bullet carrying Logseq's ring while folded; what is folded is kept on this Mac, with the folds of every other list of tags, and a line to a tag folded
 away stops at the nearest tag that shows. Each tag is a row as before the rebuild: its name at the small size, no tag in bold, the rows close, and a hairline from each
 tag's bullet down along the tags under it, as Logseq's own outline has. Each tag says in a column at its area's right edge how
 many nodes stand under it, its own and those of the tags below it. With the keys on a tag, Tab
-puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline; its right-click menu has
-Show its nodes (Search, with the tag taken), Move under… (the same list as the row of actions) and Move to the top. A move is written at once and is two steps of
+puts it under the tag above it at its level and Shift-Tab takes it out one level, as in any outline (on the page, where every
+top tag heads an area of its own, a top tag goes under the top tag before it, as in the sidebar); its right-click menu has
+Move values…, Move under… (the same list as the row of actions) and Move to the top. A move is written at once and is two steps of
 Logseq's Undo. The selected tag shows its lines to the tags it is joined with (and those of the tags under it): a tag is
 joined to another when its nodes hold, under one of your properties, nodes of the other. The lines are drawn as the released
 Ontology drew them: one hairline a pair, in the quiet grey, from the edge of an area at one row to the edge at the other,
@@ -519,7 +521,9 @@ tags under it as an outline, as many areas side by side as fit. The lines of the
 areas, in the gaps and over the band above the areas, never over a name. Properties shows your properties as the table they
 were before the rebuild (below). History lists what was changed from Ontology (a move, a merge, a rename, a deletion, a move of values),
 newest first, each with its day and time, kept on this computer for 30 days; "Nothing has been changed yet." when there is
-nothing. Under the tabs stand the New tag line (on Tags), **Move values…** (the box, with the property still to choose) and
+nothing. Under the tabs stand one line to type in (**New tag** on Tags; on Properties the same line reads **Find a property**
+and narrows the table to the properties whose name holds what is typed, Escape emptying it), **Move values…** (the box, with
+the property still to choose; there, and in the right-click menus, only while the part Move values is switched on) and
 **In the sidebar**, which opens the same outline as a section of the right sidebar, for use beside a page you are reading.
 Everything the outline does, it does in both places, the tabs, the tick boxes and the row of actions included; each place keeps
 its own tab and its own ticks.
@@ -544,14 +548,19 @@ there is no room for them.
 edge whatever its depth, faint until it is ticked or pointed at; Space ticks the row the keys are on, Escape lets every tick
 go, and a ticked row is lit. Above the rows stands the row of actions, its presses waiting faintly until they can be pressed:
 "Tick tags, then" (with ticks, "2 tags picked"), **Merge…** (two or more), **Move up a level** (not at the top), **Move
-under…**, **Rename** (one), **Delete** (in red; only tags with no nodes and no child tags) and a × that lets the ticks go. On
+under…**, **Rename** (one), **Delete** (in red) and a × that lets the ticks go. On
 Properties: "Tick properties, then", **Merge…** and **Rename**. Each is written at once and Logseq's own Undo takes it back,
-the faded arrow standing after the row it changed (at the bottom right where the row is gone):
+the faded arrow standing after the row it changed (at the bottom right where the row is gone). Where Logseq refuses one write
+of several (a merge, several tags moved or deleted), what was written before it keeps its arrow and its line in History, and
+the notice says so:
 - Move up a level puts each ticked tag under the tag above its own, or at the top; Move under… opens your tags as an outline
   with a find line, the ticked tags and those under them left out, and "The top" at its end.
 - Rename turns the row's name into a field, underlined, the name selected: Enter writes it (Logseq refuses a name another tag
   or property has, and says so), Escape or a press elsewhere leaves it.
-- Delete asks under the row, with a red Delete and Cancel.
+- Delete asks under the row first, with a red yes and Cancel, and counts what goes: the nodes that hold the tag itself (it is
+  taken off them), its child tags (they stay, without it as their parent) and the bullets written on its page (deleted with
+  it, for good). Logseq deletes a tag's page for good and its Undo does not bring those back, so the question then says "This
+  cannot be undone." and no Undo arrow is offered afterwards; only a tag that took nothing with it gets the arrow.
 - Merge… opens a box under the row of actions that says the change once: "Merge test into Hospital", the tags as tags, then up
   to four of the nodes as they will read, the tag that goes struck through in red and the kept one in green, then "1 node ·
   links to the tag follow". The tag with the most nodes is kept; "Keep the other name" (with more than two, "Keep another
@@ -559,9 +568,10 @@ the faded arrow standing after the row it changed (at the bottom right where the
   tag, its child tags go under the kept tag, its properties are given by the kept tag, the properties whose values had to be it
   take the kept tag instead, values and links in the words that pointed at it point at the kept tag, the bullets on its page
   move to the kept tag's page, and then it is deleted. Merging properties moves the values of the others into the kept one (the
-  one most nodes hold) and has the tags that gave them give it, shown first as Move values shows a move; where the kept property
-  takes one value and a node would get a second, that node keeps its own and the box says how many. The merged property stays,
-  empty, as before the rebuild. One Undo takes the whole merge back. A tag that Logseq deletes and its Undo brings back comes back
+  one most nodes hold) and has the tags that gave them give it, shown first as Move values shows a move. With three or more, a
+  node that holds a value under two of the merged properties gets both; where the kept property takes one value and a node
+  would get a second, that node keeps its own under the property it stood under, and so does a value that has bullets written
+  under it: the box says how many of each. The merged property stays, empty, as before the rebuild. One Undo takes the whole merge back. A tag that Logseq deletes and its Undo brings back comes back
   also under Logseq's own Root Tag.
 
 Nothing opens under a tag or a property: a press on its name goes to its page (Shift: in the sidebar; Enter too), and a
