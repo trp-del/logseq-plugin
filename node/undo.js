@@ -29,6 +29,12 @@
                                  it stopped part of the way or was refused). uuid: the node the arrow stood for ('' for a held
                                  change). Not run when the arrow merely goes. Gives back what stops it. So a place that keeps
                                  a line for the change (Ontology's History) needs no ear of its own on the arrow
+     G.undo.own(key, putBack)    a change kept on this computer and not in the graph (Ontology's property groups): the same arrow,
+                                 standing and going as every arrow does (after the row whose uuid is key, or after the words of an
+                                 element given G.undo.beside(words, key); at the bottom right where none shows), whose press runs
+                                 putBack() in place of Logseq's Undo. One step: a putBack that throws is said (G.write.refused) and
+                                 the arrow goes; G.undo.taken is told (key, whole) as for any arrow. A new way into the one arrow,
+                                 added in round rundown-070 for the groups
    One change shows one arrow: the one at the bottom right is drawn only while no arrow shows in a line, and goes when one does.
      G.undo.clear()              the arrow taken away (node/node.js calls it when the plugin stops) */
 (function () {
@@ -57,7 +63,8 @@ async function back(only) {
   for (const button of doc.querySelectorAll('.lk-undo')) button.disabled = true;
   let done = 0, failed = null, why = '';
   try {
-    for (; done < steps; done++) {
+    if (mine.putBack) { await mine.putBack(); done = steps; }   // a change kept on this computer: its own way back, one step
+    else for (; done < steps; done++) {
       // What the person does meanwhile is never what goes back: words begun in a bullet, or another change made through the plugin.
       if (done && (why = last !== mine ? 'the change you made meanwhile is' : G.touch.writing() ? 'the words you began to write are' : '')) break;
       await G.write.undo();
@@ -122,7 +129,11 @@ function mark(uuid, steps = 1) {
   uuid = String(uuid || '').toLowerCase();
   const n = count(steps);
   if (!uuid || !n) return;   // nothing was written: no arrow
-  const doc = G.host(), view = doc.defaultView, mine = stand(n, uuid, null);
+  show(stand(n, uuid, null));
+}
+// The arrow set where the change shows: after each row of its node, after each line given its key; at the bottom right where none shows.
+function show(mine) {
+  const doc = G.host(), view = doc.defaultView, uuid = mine.uuid;
   const rows = () => [...doc.querySelectorAll(`:is(.lk-row, .lk-trow)[data-uuid="${uuid}"]`)];
   const light = () => { for (const row of rows()) dress(row); for (const words of doc.querySelectorAll(`[data-lk-undo="${uuid}"]`)) put(words); };
   light();
@@ -131,9 +142,16 @@ function mark(uuid, steps = 1) {
   // No line shows it any more: the arrow waits at the bottom right.
   mine.timers.push(view.setTimeout(() => { if (last !== mine || [...doc.querySelectorAll('.lk-undo:not(.lk-undo-dock)')].some(shows)) return; mine.dock = arrow(doc, true); doc.body.appendChild(mine.dock); }, 1500));
 }
+function own(key, putBack) {
+  key = String(key || '').toLowerCase();
+  if (!key || typeof putBack !== 'function') return;
+  const mine = stand(1, key, null);
+  mine.putBack = putBack;
+  show(mine);
+}
 const hold = (steps, gone) => { const n = count(steps); return n ? stand(n, '', typeof gone === 'function' ? gone : null) : null; };
 async function after(uuid, write) { const made = await write; mark(uuid, typeof made === 'number' ? made : 1); return made; }   // a write that answers a number says how many steps it was; none, no arrow
-G.undo = { after, mark, hold, back, dress, beside, taken, clear };
+G.undo = { after, mark, own, hold, back, dress, beside, taken, clear };
 G.undo.CSS = `
 /* After a line's words, on the words' own line: its middle on the middle of the small letters (it sat 2 below, and its box
    reached under the line and made the row 1 taller), and it takes no room in the run of the words, so where the words
