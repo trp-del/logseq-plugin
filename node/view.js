@@ -35,11 +35,6 @@ function shape(state, list, names, today) {
   made.finding ||= !!(time.span || time.lane);
   made.finding = !!(view.find.words || view.find.upTo) || made.finding;
   made.kind = view.kinds.get(list.key) || '';
-  /* The tags every row of the list holds, beside the one the head already names as its kind: said once, on the head, and left
-     off the rows. Task is not counted on a row that shows its status circle. (A deciding piece: core/view.js shape should
-     answer it; until then it is worked out here.) */
-  const sayable = row => (row.tags || []).map(tag => tag.title).filter(title => title && !(title === 'Task' && row.status)), kindsHere = new Set(list.rows.map(row => row.tag));
-  made.shared = list.rows.length > 1 ? sayable(list.rows[0]).filter(title => !kindsHere.has(title) && list.rows.every(row => sayable(row).includes(title))) : [];   // not a tag the head counts as a kind: that one is said there already
   made.picking = view.picking.has(list.key);
   made.picked = view.picked.get(list.key) || new Set();
   return made;
@@ -48,19 +43,22 @@ const icon = (name, size = 14) => G.touch.icon(name, size);
 // The second line of a list's head: its kinds, what is new, the + and the ⋯, what is set, the days.
 function head(state, list, made, plus, today) {
   const tab = (kind, word, n, on, extra = '') => `<button type="button" class="lk-tab${on ? ' on' : ''}${extra}" data-kind="${G.esc(kind)}" aria-pressed="${on}">${G.esc(word)}${n == null ? '' : ` <span class="lk-n">${n}</span>`}</button>`;
-  let kinds = '';
+  const kinds = [];   // the head's words, one piece each, in order
   if (made.tabs.length) {
-    kinds = made.tabs.map(one => tab(one.kind, one.word, one.n, one.on)).join('');
-    if (made.kind && made.kind !== '@new' && !made.tabs.some(one => one.kind === made.kind)) kinds += tab(made.kind, made.kind === '@none' ? 'No tag' : made.kind, made.count, true);
-    if (made.more) kinds += `<button type="button" class="lk-tab lk-tabmore">and ${made.more} more</button>`;
-  } else kinds = tab(made.one || '', made.one || 'All', made.count, !!made.one && made.kind === made.one);   // one kind: the same tab every head has, its name and count (the owner's marked page, 26 Nov: "Recommended, then Recommendations")
-  kinds += (made.shared || []).map(title => `<span class="lk-tag">${G.esc(title)}</span>`).join('');   // a tag every row holds, said once here (after the kinds, as a head says a tag after its name)
-  if (made.fresh) kinds += tab('@new', `${made.fresh} new`, null, made.kind === '@new', ' lk-newtab');
+    kinds.push(...made.tabs.map(one => tab(one.kind, one.word, one.n, one.on)));
+    if (made.kind && made.kind !== '@new' && !made.tabs.some(one => one.kind === made.kind)) kinds.push(tab(made.kind, made.kind === '@none' ? 'No tag' : made.kind, made.count, true));
+    if (made.more) kinds.push(`<button type="button" class="lk-tab lk-tabmore">and ${made.more} more</button>`);
+  } else kinds.push(tab(made.one || '', made.one || 'All', made.count, !!made.one && made.kind === made.one));   // one kind: the same tab every head has, its name and count (the owner's marked page, 26 Nov: "Recommended, then Recommendations")
+  kinds.push(...(made.shared || []).map(title => `<span class="lk-tag">${G.esc(title)}</span>`));   // a tag every row holds, said once here (after the kinds, as a head says a tag after its name)
+  if (made.fresh) kinds.push(tab('@new', `${made.fresh} new`, null, made.kind === '@new', ' lk-newtab'));
   const dots = `<button type="button" class="lk-dots" title="View and more" aria-label="View and more">${icon('dots', 16)}</button>`;
   const said = made.said.length ? `<button type="button" class="lk-set" title="View">${G.esc(made.said.join(' · '))}</button>` : '';
   const finding = !!(state.view.find.words || state.view.find.upTo);
-  if (finding && made.total !== made.count) kinds += `<span class="lk-today">${made.total} today</span>`;
-  return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds}</span><span class="lk-head-do">${plus}${dots}</span><span class="lk-head-end">${said}${made.from && made.to ? `<span class="lk-span">${G.esc(D.short(made.from, today))} to ${G.esc(D.short(made.to, today))}</span>` : ''}</span>`;   // the span of the list's days at the head's right end, as before 0.9 (the owner's choice, 26 November 2026: "before for list head")
+  if (finding && made.total !== made.count) kinds.push(`<span class="lk-today">${made.total} today</span>`);
+  // The + and the ⋯ are held to the head's last word, so they never stand on a line of their own: where they do not fit after
+  // it, that word goes to the next line with them, and the line starts on the edge every line of the head starts on.
+  const last = kinds.pop() || '';
+  return `${made.picking ? `<input type="checkbox" class="lk-tick lk-tick-all" aria-label="Pick every node of the list">` : ''}<span class="lk-tabs">${kinds.join('')}<span class="lk-head-last">${last}<span class="lk-head-do">${plus}${dots}</span></span></span><span class="lk-head-end">${said}${made.from && made.to ? `<span class="lk-span">${G.esc(D.short(made.from, today))} to ${G.esc(D.short(made.to, today))}</span>` : ''}</span>`;   // the span of the list's days at the head's right end, as before 0.9 (the owner's choice, 26 November 2026: "before for list head")
 }
 // What stands under the head, in order: a group's line, a node's row, the line saying since when.
 const GROUP_FEW = 12;   // a group's nodes before its own "Show more", as before the rebuild
@@ -97,7 +95,7 @@ function paint(el, item, today) {
 // Where a row's day stands, the same two lines in every list's menu: before the words, or at the line's right end.
 const dayPlaces = (start, take) => [{ group: 'Date position' }, ...[[true, 'Beginning of the line'], [false, 'End of the line']].map(([value, word]) => ({ word, on: value === start, take: () => take(value) }))];
 // View: what a list goes by, as an ordinary menu: a line per setting, its choices in a menu beside it, the one in force ticked.
-function viewItems(state, box) {
+function viewItems(state, box, at) {
   const list = box.lkList, key = list.key, now = viewOf(key), offers = V.offers(list.rows), view = state.view;
   const set = change => { setView(key, change); state.redraw(); };
   const choose = (title, name, choices) => choices.map(([value, word, face]) => ({ word, face, on: (now[name] || '') === value, take: () => set({ [name]: value }) }));
@@ -116,6 +114,7 @@ function viewItems(state, box) {
     timeline,
     { word: 'Date', sub: [...choose('Date', 'date', [['', 'Date or journal'], ...offers.dates.map(name => [name, name === 'Journal' ? 'The day it is written on' : name, name === 'Journal' ? '' : 'prop']), ['none', 'No date']]),
       { gap: true }, ...dayPlaces(now.at === 'start', start => set({ at: start ? 'start' : '' }))] },
+    ...(list.kind === 'property' ? [{ gap: true }, ...ofName(state, box, at)] : []),   // a property's list: how it reads back, and hiding it where it points
     { gap: true },
     { word: picking ? 'Stop picking' : 'Pick nodes', take: () => { if (picking) { view.picking.delete(key); view.picked.delete(key); } else view.picking.add(key); state.redraw(); } },
     ...(at0 > 0 || (at0 >= 0 && at0 < keys.length - 1) ? [{ gap: true }] : []),
@@ -123,19 +122,16 @@ function viewItems(state, box) {
     ...(at0 >= 0 && at0 < keys.length - 1 ? [{ word: 'Move down', take: () => move(1) }] : []),
   ];
 }
-const menu = (state, box, at) => G.menu(at, viewItems(state, box));
-// A property's name, right-clicked: View, how it reads back, and hiding it where it points.
-function nameMenu(state, box, at) {
-  const list = box.lkList;
-  if (list.kind !== 'property') return menu(state, box, at);
-  const title = list.prop.title, give = name => { const all = { ...reads.get() }; if (name && name !== G.reads.back(title)) all[title] = name; else delete all[title]; reads.set(all); state.again(); };
-  G.menu(at, [
-    { word: 'View', sub: () => viewItems(state, box) },
-    { gap: true },
+// The one menu of a list's head, whichever way it is opened: the ⋯ on the head, or a right-click anywhere on it.
+const menu = (state, box, at) => G.menu(at, viewItems(state, box, at));
+// What a property's list offers beside its View: how the property reads on the pages it points to, and hiding it there.
+function ofName(state, box, at) {
+  const list = box.lkList, title = list.prop.title, give = name => { const all = { ...reads.get() }; if (name && name !== G.reads.back(title)) all[title] = name; else delete all[title]; reads.set(all); state.again(); };
+  return [
     { word: 'Reads back as…', take: () => G.menu(at, [{ group: `How ${title} reads on the pages it points to` }, { word: G.reads.back(title), value: 'by grammar', on: !reads.get()[title], take: () => give('') },
       ...(G.reads.back(title) === title ? [] : [{ word: title, value: 'its own name', on: reads.get()[title] === title, take: () => give(title) }])], { find: 'Or type how it reads', enter: give }) },
     { word: 'Hide where it points', take: () => { oneEnd.set([...new Set([...oneEnd.get(), list.prop.ident])]); state.again(); G.say(`${list.name} is no longer listed on the pages it points to. Right-click the word Relations to bring it back.`); } },
-  ]);
+  ];
 }
 // Every kind of a list with its count, for "and 3 more".
 function kindsMenu(state, box, at) {
@@ -148,7 +144,7 @@ function act(state, event) {
   const target = event.target, box = target.closest('.lk-list');
   if (!box || box.parentElement !== state.el || !box.lkList || !VIEWED.has(box.lkList.kind)) return false;
   const key = box.lkList.key, view = state.view, press = event.type === 'click' || (event.type === 'keydown' && (event.key === 'Enter' || event.key === ' '));
-  if (event.type === 'contextmenu' && target.closest('.lk-list-head')) { event.preventDefault(); (target.closest('.lk-list-via') ? nameMenu : menu)(state, box, { x: event.clientX, y: event.clientY, from: target.closest('.lk-list-head') }); return true; }
+  if (event.type === 'contextmenu' && target.closest('.lk-list-head')) { event.preventDefault(); menu(state, box, { x: event.clientX, y: event.clientY, from: target.closest('.lk-list-head') }); return true; }
   if (!press) return false;
   const tab = target.closest('.lk-tab');
   if (tab) {
@@ -222,6 +218,7 @@ G.listview.CSS = `
 .lk-tabs { display: contents; }
 .lk-list-name > .lk-tabs > * { margin-right: 24px; }
 .lk-list-name > .lk-tabs > :last-child { margin-right: 0; }
+.lk-head-last { flex: none; display: inline-flex; align-items: baseline; white-space: nowrap; }
 .lk-head-do { flex: none; align-self: baseline; display: inline-flex; align-items: center; gap: 12px; height: 24px; margin-left: 8px; }   /* the + and the ⋯ follow the last word, on whichever line it stands */
 .lk-tab { appearance: none; position: relative; border: 0; background: none; padding: 0; margin: 0; font: inherit; line-height: 1; color: var(--lk-quiet); cursor: pointer; white-space: nowrap; }
 .lk-tab:hover, .lk-tab:focus-visible { color: var(--lk-text); outline: none; }
