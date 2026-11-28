@@ -73,7 +73,7 @@ function mount(holder, uuid, from = '', bare = false) {   // bare: without what 
       if (!seat) { dug.style.top = dug.style.left = ''; continue; }
       dug.style.top = Math.round(page.offsetTop + seat.top) + 'px'; dug.style.left = Math.round(page.offsetLeft + seat.left) + 'px';
       css += `.lk-open[data-k="${k}"] > .lk-editor ${seat.mark}::before { transform: rotate(90deg); }\n`;
-      if (dug.dataset.whole) css += `.lk-open[data-k="${k}"] > .lk-editor ${seat.row} { margin-bottom: ${dug.offsetHeight}px !important; }\n`;   // room only once the node has come to rest: one move, not a stutter
+      if (dug.dataset.whole) css += `.lk-open[data-k="${k}"] > .lk-editor ${seat.row} { margin-bottom: ${dug.offsetHeight}px !important;${dug.lkClosing ? ' transition: none !important;' : ''} }\n`;   // room only once the node has come to rest: one move, not a stutter; while it rolls up, the room follows it exactly
     }
     if (rule.textContent !== css) rule.textContent = css;
   };
@@ -88,7 +88,15 @@ function mount(holder, uuid, from = '', bare = false) {   // bare: without what 
   const drawn = () => { listed = true; ready(); }, cap = bare ? 0 : view.setTimeout(drawn, 1200);
   if (!bare) rel.addEventListener('lk-drawn', drawn, { once: true });
   const offEditor = G.touch.editor.show(page, uuid), offLists = bare ? () => {} : lists(rel, uuid, from);
-  const undig = value => { const dug = dugs.get(value); if (!dug) return; dugs.delete(value); sized?.unobserve(dug); dug.lkOff?.(); dug.remove(); place(); };
+  /* A dug node closes as every opened node does: it rolls up into its value's row, the room under the row closing with it frame
+     by frame (place() follows its height while it rolls), and only then is it taken away. */
+  const undig = value => {
+    const dug = dugs.get(value); if (!dug || dug.lkClosing) return;
+    const gone = () => { dugs.delete(value); sized?.unobserve(dug); dug.lkOff?.(); dug.remove(); place(); };
+    if (!dug.dataset.whole || !holder.isConnected || still(dug)) return gone();
+    dug.lkClosing = true; place();
+    rollUp(dug).then(gone);
+  };
   holder.lkDig = value => {
     if (dugs.has(value)) { undig(value); return; }
     const dug = doc.createElement('div'); dug.className = 'lk-open lk-dugopen';
