@@ -857,3 +857,11 @@ test('Tab puts a property or a group into the group above it, Shift-Tab takes it
   const out = groups.step(three, { group: 'm' }, true);
   assert.deepEqual(out.list.map(one => [one.id, one.under]), [['d', null], ['m', null], ['w', null]]);
 });
+test('groups made in 0.5.17 are carried over once, for their graph, only where none are kept yet', () => {
+  const old = { list: [{ id: 'g1', name: 'Dates', under: null, open: false }], of: { due: 'g1' } };
+  assert.deepEqual(groups.carry(undefined, old), { list: [{ id: 'g1', name: 'Dates', under: null, open: false }], of: { due: 'g1' } });
+  assert.equal(groups.carry({ list: [], of: {} }, old), null);   // kept already, even with every group taken away since: not carried again
+  assert.equal(groups.carry(undefined, null), null);
+  assert.equal(groups.carry(undefined, { list: [] }), null);
+  assert.equal(groups.carry(undefined, 'broken'), null);
+});

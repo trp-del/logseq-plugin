@@ -580,7 +580,7 @@ Delete…. In the sidebar the columns narrow, a long name cut with "…", and th
 there is no room for them.
 
 **Property groups**, as before the rebuild (0.5.17): named groups that put the table's rows in an order of your own. They
-are kept on this computer for each graph and never written to the graph, and no property changes by being put in one. With no
+are kept on this computer for each graph and never written to the graph, and no property changes by being put in one. Groups made in 0.5.17 are carried over once, for the graph they were made in, where none are kept for it yet. With no
 group made the table reads as above. **New group**, the line at the table's foot, makes one with the name typed (Enter; a
 name that is there already is that group, not a second one). Each group is a line across the table: Logseq's fold arrow, its
 name in the small bold, and after the name how many properties it holds (none said while it holds none); its properties stand

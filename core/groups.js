@@ -5,6 +5,9 @@
    record it was given, the very same object.
      clean(kept)                 what was kept, made safe: { list: [{ id, name, under, open }], of: { ident: id } }; a group under
                                  one that is gone stands at the top, a property in a group that is gone is in none
+     carry(now, old)             groups made in 0.5.17 (old: what it kept for the graph, the same shape) to keep now, where nothing
+                                 is kept for the graph yet (now: undefined); null where there is nothing to carry. Kept once: a
+                                 graph's record stays, empty, when its last group is taken away, so they are not carried again
      named(g, name)              the group of that name (any letter case), or null
      make(g, name, id, under)    a group made, open, at the end (under: the group it stands in, or null)
      rename(g, id, name)         a group named anew
@@ -35,6 +38,7 @@ const clean = kept => {
   if (kept?.of && typeof kept.of === 'object') for (const [ident, id] of Object.entries(kept.of)) if (ids.has(id)) of[ident] = id;
   return { list: out, of };
 };
+const carry = (now, old) => { if (now != null) return null; const g = clean(old); return g.list.length ? g : null; };
 const copy = g => ({ list: g.list.map(one => ({ ...one })), of: { ...g.of } });
 const named = (g, name) => { const want = String(name || '').trim().toLowerCase(); return want ? g.list.find(one => one.name.toLowerCase() === want) || null : null; };
 const make = (g, name, id, under = null) => {
@@ -117,7 +121,7 @@ const layout = (g, rows, identOf, finding = false) => {
   for (const row of rows) if (groupOf(row) == null) out.push({ kind: 'row', row, depth: 0, in: null });
   return out;
 };
-const api = { clean, named, make, rename, put, inside, drop, fold, step, tree, layout, within };
+const api = { clean, carry, named, make, rename, put, inside, drop, fold, step, tree, layout, within };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).groups = api;
 })(typeof window !== 'undefined' ? window : globalThis);

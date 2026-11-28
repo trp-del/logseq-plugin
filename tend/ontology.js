@@ -54,9 +54,18 @@ const history = {
 };
 const listeners = new Set();
 // The property groups, by graph: what core/groups.js decides, kept on this computer (the window's local storage).
+/* Groups made in 0.5.17 are carried over once, for the graph they were made in, where none are kept for it yet: 0.5.17 kept them
+   under 'structure-groups:' and the graph's name, in the same shape, in the storage this window shares with the plugin's frame.
+   The old entry is left as it is. A graph's record stays, empty, once its last group is taken away, so it is not carried again. */
+const OLD = 'structure-groups:';
 const kept = {
-  read(graph) { const all = G.touch.kept(GROUPS, {}).get(); return G.groups.clean(all && typeof all === 'object' ? all[graph] : null); },
-  write(graph, g) { const was = G.touch.kept(GROUPS, {}).get(), all = was && typeof was === 'object' ? { ...was } : {}; if (g.list.length) all[graph] = g; else delete all[graph]; G.touch.kept(GROUPS, {}).set(all); },
+  read(graph) {
+    const all = G.touch.kept(GROUPS, {}).get(), now = all && typeof all === 'object' ? all[graph] : undefined;
+    const carried = graph ? G.groups.carry(now, G.touch.kept(OLD + graph, null).get()) : null;
+    if (carried) { this.write(graph, carried); return carried; }
+    return G.groups.clean(now);
+  },
+  write(graph, g) { const was = G.touch.kept(GROUPS, {}).get(), all = was && typeof was === 'object' ? { ...was } : {}; all[graph] = g; G.touch.kept(GROUPS, {}).set(all); },
 };
 const saidHtml = said => said.map(([kind, text]) => kind ? `<span class="lk-${kind}">${G.esc(text)}</span>` : G.esc(text)).join('');
 const names = (list, kind) => list.flatMap((one, i) => [...(i ? [['', i === list.length - 1 ? ' and ' : ', ']] : []), [kind, one]]);
