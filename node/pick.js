@@ -20,7 +20,7 @@ const tagged = (list, id) => new Set(list.rows.filter(row => (row.tags || []).so
 /* Every write of one action, one node after another; then picking ends and one line says what was done. each(uuid, did) answers
    the steps of Undo it made on that node, or calls did() after each step where a later one may be refused, so a node left
    halfway is counted as far as it got. The way back is handed to the Undo arrow's own piece with exactly those steps. */
-async function run(state, box, uuids, words, each, before = 0) {
+async function run(state, box, uuids, words, each, before = 0, whole = true) {   // whole: false where Undo would not bring back all that went (no Undo is offered then)
   const key = box.lkList.key, view = state.view;
   let steps = Number(before) || 0, done = 0;
   const did = (n = 1) => { steps += n; };
@@ -30,7 +30,8 @@ async function run(state, box, uuids, words, each, before = 0) {
   delete box.dataset.busy;
   view.picking.delete(key); view.picked.delete(key);
   const said = done || steps ? { key, words: words(done), way: null } : null;
-  if (said) said.way = G.undo.hold(steps, () => { if (view.did === said) { said.way = null; state.redraw(); } });   // the Undo goes when the arrow would
+  if (said && whole) said.way = G.undo.hold(steps, () => { if (view.did === said) { said.way = null; state.redraw(); } });   // the Undo goes when the arrow would
+  else if (said && steps) G.undo.clear();   // nor an older arrow left standing over what cannot be brought back
   view.did = said;
   state.again();
 }
@@ -150,12 +151,30 @@ function bar(state, box, made) {
   const all = head.querySelector('.lk-tick-all');
   if (all) { const shown = made.rows.length; all.checked = shown > 0 && n >= shown; all.indeterminate = n > 0 && n < shown; }
 }
-// Delete asks first, in the bar's own place: pages named apart from bullets, and the keyboard waits on Cancel.
-function askDelete(state, box, el, uuids) {
-  const rows = box.lkList.rows.filter(row => uuids.includes(row.uuid)), pages = rows.filter(row => row.isPage).length, bullets = rows.length - pages;
-  const what = [pages ? `${pages} ${pages === 1 ? 'page' : 'pages'} with all ${pages === 1 ? 'its' : 'their'} bullets` : '', bullets ? `${bullets} ${bullets === 1 ? 'bullet' : 'bullets'}` : ''].filter(Boolean).join(' and ');
-  el.dataset.asking = '1'; el.lkHtml = '';
-  el.innerHTML = `<span class="lk-did"><b>Delete ${G.esc(what)}?</b> ${bullets ? `Undo brings the ${bullets === 1 ? 'bullet' : 'bullets'} back.` : 'A page goes to Logseq’s Recycle.'}</span><button type="button" class="lk-del" data-do="delete-yes">Delete</button><button type="button" class="lk-btn" data-do="delete-no">Cancel</button>`;
+/* Delete asks first, in the bar's own place, and says truly where each kind of thing picked goes (node/ask.js has what Logseq
+   does with a deleted page): a bullet comes back with Undo; a page goes to Logseq's Recycle; today's journal is emptied for
+   good and keeps its page. Tags and properties are deleted only through the one way they are deleted everywhere, with its
+   counting question (G.ask.remove): picked alone they are handed to it; picked among other things they are left, and the
+   question says so. The keyboard waits on Cancel. */
+async function askDelete(state, box, el, uuids) {
+  const rows = box.lkList.rows.filter(row => uuids.includes(row.uuid)), plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+  const kinds = new Map(await Promise.all(rows.filter(row => row.isPage).map(async row => [row.uuid, await G.ask.pageKind(row.uuid)])));
+  const of = what => rows.filter(row => (kinds.get(row.uuid) || (row.isPage ? 'page' : '')) === what), schema = [...of('tag'), ...of('property')];
+  if (schema.length && schema.length === rows.length && (!of('tag').length || !of('property').length)) {
+    const first = box.querySelector(`.lk-row[data-uuid="${schema[0].uuid}"]`);
+    if (first && await G.ask.remove(first, schema.map(row => row.uuid))) { state.view.picking.delete(box.lkList.key); state.view.picked.delete(box.lkList.key); state.redraw(); }
+    return;
+  }
+  const pages = of('page').length, today = of('today').length, bullets = of('').length, going = [...of('page'), ...of('today'), ...of('')].map(row => row.uuid);
+  const what = [pages ? `${plural(pages, 'page')} with all ${pages === 1 ? 'its' : 'their'} bullets` : '', today ? 'everything written on today’s journal' : '', bullets ? plural(bullets, 'bullet') : ''].filter(Boolean);
+  const left = schema.length ? `${of('tag').length ? plural(of('tag').length, 'tag') : ''}${of('tag').length && of('property').length ? ' and ' : ''}${of('property').length ? plural(of('property').length, 'property', 'properties') : ''}` : '';
+  const stays = left ? `${schema.length === 1 ? `The ${left.slice(2)} is` : `The ${left} are`} left: delete ${schema.length === 1 ? 'it from its own row' : 'them from their own rows'}.` : '';
+  if (!going.length) { G.say(stays); return; }
+  // With today's journal among them no Undo is offered afterwards (it would not bring all of it back), so none is promised for the bullets.
+  const said = [bullets && !today ? `Undo brings the ${bullets === 1 ? 'bullet' : 'bullets'} back.` : '', pages ? 'A page goes to Logseq’s Recycle.' : '',
+    today ? `Today’s journal keeps its page and loses every bullet on it, for good${bullets ? `, and no Undo is offered for the ${bullets === 1 ? 'bullet' : 'bullets'} either` : ''}.` : '', stays].filter(Boolean).join(' ');
+  el.dataset.asking = '1'; el.lkHtml = ''; el.lkDelete = { uuids: going, forGood: today > 0 };
+  el.innerHTML = `<span class="lk-did"><b>Delete ${G.esc(what.join(' and '))}?</b> ${G.esc(said)}</span><button type="button" class="lk-del" data-do="delete-yes">Delete</button><button type="button" class="lk-btn" data-do="delete-no">Cancel</button>`;
   el.querySelector('[data-do="delete-no"]').focus();
 }
 function act(state, event) {
@@ -188,9 +207,9 @@ function act(state, event) {
   else if (what === 'tag') askTag(at, 'Set tag', tag => { const has = tagged(box.lkList, tag.id); return run(state, box, uuids, n => `${tag.title} put on ${nodes(n)}`, async uuid => { if (has.has(uuid)) return 0; await G.write.tag(uuid, tag.uuid); return 1; }); }).catch(refused('The tags could not be read'));   // a node that holds the tag already is not written to, so no step is counted for it
   else if (what === 'prop') askProperty(at, 'Set property', prop => value(at, prop, (write, before) => run(state, box, uuids, n => `${prop.title} set on ${nodes(n)}`, write, before)).catch(refused('The choices could not be read'))).catch(refused('The properties could not be read'));
   else if (what === 'more') more(state, box, at, uuids);
-  else if (what === 'delete') askDelete(state, box, el, uuids);
+  else if (what === 'delete') askDelete(state, box, el, uuids).catch(refused('What was picked could not be read'));
   else if (what === 'delete-no') { delete el.dataset.asking; state.redraw(); box.querySelector('.lk-row > .lk-line')?.focus(); }
-  else if (what === 'delete-yes') { delete el.dataset.asking; const rows = new Map(box.lkList.rows.map(one => [one.uuid, one])); run(state, box, uuids, n => `${nodes(n)} deleted`, async uuid => { await G.write.remove(uuid, !!rows.get(uuid)?.isPage); return 1; }); }
+  else if (what === 'delete-yes') { delete el.dataset.asking; const rows = new Map(box.lkList.rows.map(one => [one.uuid, one])), plan = el.lkDelete || { uuids, forGood: false }; run(state, box, plan.uuids, n => `${nodes(n)} deleted`, async uuid => { await G.write.remove(uuid, !!rows.get(uuid)?.isPage); return 1; }, 0, !plan.forGood); }
   return true;
 }
 G.pick = { bar, act, value, askProperty, askTag, askNode };
