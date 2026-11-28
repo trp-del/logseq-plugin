@@ -648,7 +648,7 @@ function homeAnswerFind(words, st, lit, note) {
     if (!typed) {
       // The Todo press carries its count only when the list was read; a refusal is said in the foot, in red.
       let todo = "";
-      try { todo = todoCounts(); } catch (error) { refused = "The tasks could not be read: " + messageFrom(error); }
+      try { todo = todoCounts(); } catch (error) { refused = error.absent ? "The tasks could not be read: " + messageFrom(error) : messageFrom(error); }   // the plugin's refusal names what was not done itself
       lines.push(doLine(todo));
     }
     const kinds = (got.kinds || []).map(k => ({ text: k.title + "  " + k.count, what: "kind:" + k.id + ":" + k.title, lit: typed && !tab && begins(k.title, typed) && (tab = "kind:" + k.id + ":" + k.title) && (tabLabel = k.title) }));

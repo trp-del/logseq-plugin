@@ -32,13 +32,15 @@
                                               back that later change and not this one (as the Undo arrow goes, node/undo.js)
    Files, put into the graph as Logseq puts a dropped file (a node of its own, the file copied into the graph):
      check({ files })                         before anything is added: { files: [{ path, name, title, type, size, twin, said }] }
-                                              twin: the name of the node the file already is in the graph; said: why it cannot be read
+                                              twin: the name of the node the file already is in the graph; said: why it cannot be
+                                              read, or that its node lies on a page in the Recycle (it is then left out)
      add({ files, where, linkTwins })         the files added to today's journal, the open page or a page by its name; a file
                                               already in the graph is refused, or with linkTwins linked on the page. Answered
                                               { ok, page, added, linked, made } or, when Logseq's ten seconds for a call from
                                               outside would run out first, { ok, pending: true } while the files keep going in
      progress()                               how far the last add is: { total, done, now, made, linked, failed, page }
      unadd({ made })                          the bullets an add made ("uuid,uuid"), taken away again
+   A refusal is answered { ok: false, said }, said in the plugin's words: Logseq's own go to the console (write.refused, quiet).
    A node whole: { uuid, title, isPage, day, task, tags: [{ uuid, title }],
      props: [{ ident, name, kind, many, values: [{ raw, text, uuid }], choices: [{ raw, text }] }],   kind: node, date, choice, number, checkbox, text
      lines: [{ uuid, depth, words, task, tag, tags: [{ uuid, title }], under }],   its bullets; words as a person reads them, a link as [[its name]];
@@ -47,7 +49,10 @@
 (function () {
 const G = window.PluginDoor, R = G.read, Wr = G.write, W = G.words, D = G.days, T = G.tags, S = G.search;
 const FEW = 5;
-const fail = said => { throw new Error(said); };
+// A refusal of the answers' own, in words a panel says as they are. Anything else that stops an answer (Logseq refusing a write)
+// is said as the ground says a refusal, in everyday words after what was not done, with no notice in Logseq (plainly, below).
+const fail = said => { throw Object.assign(new Error(said), { mine: true, plain: true }); };
+const plainly = (what, error) => (error?.mine ? String(error.message) : Wr.refused(what, error, '', { quiet: true }));
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 /* What Alfred changed last, and may still take back: { key, steps, until, stale }. key: the node a panel will name when it asks
    (the node it shows, the task, the note); steps: how many steps of Logseq's Undo the change took. Any change to the graph after
@@ -105,43 +110,56 @@ const shown = async request => (await whole(request.node)) || fail('That node is
 const lineOf = (node, uuid) => node.lines.find(line => line.uuid === String(uuid || '').toLowerCase()) || fail('That bullet is no longer under this node.');
 const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
-// Where something from outside goes: today's journal, the page open in Logseq, or a page by its name, made if there is none.
+/* Where something from outside goes: today's journal, the page open in Logseq, or a page by its name, made if there is none.
+   steps: the step of Logseq's Undo a page made here took (1), else 0. */
 async function place(where) {
   if (where && typeof where === 'object') {
     const name = String(where.page || '').trim() || fail('No page was named.'), found = await R.pageNamed(name);
-    if (found && !found.gone) return { uuid: found.uuid, title: name, isPage: true };
-    return { uuid: await Wr.newPage(name) || fail(`The page “${name}” could not be made.`), title: name, isPage: true };
+    if (found && !found.gone) return { uuid: found.uuid, title: name, isPage: true, steps: 0 };
+    return { uuid: await Wr.newPage(name) || fail(`The page “${name}” could not be made.`), title: name, isPage: true, steps: 1 };
   }
   if (where === 'open') {
-    const uuid = await G.touch.beside.mainPage() || fail('No page is open in Logseq.'), at = await R.node(uuid) || fail('No page is open in Logseq.');
+    const uuid = await G.touch.openPage() || fail('No page is open in Logseq.'), at = await R.node(uuid) || fail('No page is open in Logseq.');
     const me = (await R.describe([at.id])).get(at.id), names = await R.names(W.named(me?.words || ''));
-    return { uuid: at.uuid, title: W.plain(W.firstLine(me?.words || '').line, names) || 'the open page', isPage: !!me?.isPage };
+    return { uuid: at.uuid, title: W.plain(W.firstLine(me?.words || '').line, names) || 'the open page', isPage: !!me?.isPage, steps: 0 };
   }
-  const today = D.number(new Date());
-  return { uuid: await Wr.day(today), title: D.short(today), isPage: true };
+  const today = D.number(new Date()), day = await Wr.dayPage(today);
+  return { uuid: day.uuid, title: D.short(today), isPage: true, steps: day.steps };
 }
-/* Files into the graph. The ground gives three pieces for it (touch.file, read.fileTwin, write.addFile); a plugin without them
-   says so in plain words and adds nothing. going: how far the last add is, for the files tray's bar. */
-const filesGround = () => { if (typeof G.touch.file !== 'function' || typeof R.fileTwin !== 'function' || typeof Wr.addFile !== 'function') fail('This Logseq Plugin cannot put files into the graph yet.'); };
+/* Files into the graph, by the ground's three pieces: touch.file reads a file of this Mac, read.fileTwin finds the node it
+   already is, write.addFile puts it in as Logseq takes a pasted file. Everything is read and looked for before anything is
+   made. A twin on a page in the Recycle is neither added (Logseq takes no file the graph holds) nor linked into a deleted page.
+   going: how far the last add is, for the files tray's bar. The add is one record of what Alfred changed, with every step it
+   made (a page made for it, each file's steps, each link). */
+const twinSaid = (file, twin) => `${file.name} is already in the graph, as “${twin.title}”${twin.gone ? ', on a page in the Recycle' : ''}.`;
 const pathsOf = files => [].concat(files || []).map(one => String(one ?? '').trim()).filter(Boolean);
 let adding = Promise.resolve(), going = { total: 0, done: 0, now: '', made: [], linked: [], failed: '', page: '' };
 async function addFiles({ files, where, linkTwins }) {
-  filesGround();
   const paths = pathsOf(files), fresh = [], twins = [];
   if (!paths.length) fail('No file was given.');
   if (paths.some(path => !path.startsWith('/'))) fail('A file needs its whole path.');
   for (const path of paths) {
     const file = await G.touch.file(path), twin = await R.fileTwin(file);
-    if (twin && !linkTwins) fail(`${file.name} is already in the graph, as “${twin.title}”.`);
+    if (twin && (!linkTwins || twin.gone)) fail(twinSaid(file, twin));
     if (twin) twins.push(twin); else fresh.push(file);
   }
   const to = await place(where), now = going = { total: fresh.length, done: 0, now: '', made: [], linked: [], failed: '', page: to.title };
+  let steps = to.steps, doing = '';
   try {
-    for (const file of fresh) { now.now = file.name; now.made.push(await Wr.addFile(to.uuid, file, { under: !to.isPage })); now.done++; }
-    for (const twin of twins) { const uuid = await Wr.addBullet(to.uuid, `[[${twin.uuid}]]`, to.isPage ? { page: true } : { under: true }); if (uuid) now.made.push(uuid); now.linked.push(twin.title); }
+    for (const file of fresh) { doing = `${file.name} was not added`; now.now = file.name; const made = await Wr.addFile(to.uuid, file, { under: !to.isPage }); now.made.push(made.uuid); steps += made.steps; now.done++; }
+    for (const twin of twins) {
+      doing = `“${twin.title}” was not linked`;
+      const uuid = await Wr.addBullet(to.uuid, `[[${twin.uuid}]]`, to.isPage ? { page: true } : { under: true });
+      if (!uuid) fail(`${doing}: Logseq made no bullet.`);
+      now.made.push(uuid); steps++; now.linked.push(twin.title);
+    }
     now.now = '';
-  } catch (error) { now.failed = String(error?.message || 'Logseq did not take it'); throw error; }
-  finally { did('', 1); }
+  } catch (error) {
+    steps += Number(error?.steps) || 0;   // what a write refused halfway left standing
+    const before = now.made.length ? ` What went in before it stays on ${to.title}.` : '';
+    now.failed = (error?.mine ? String(error.message) : Wr.refused(doing || 'The files were not added', error, '', { quiet: true })) + before;
+    fail(now.failed);
+  } finally { did('', steps); }
   return { ok: true, page: to.title, added: fresh.map(file => file.title), linked: [...now.linked], made: [...now.made] };
 }
 
@@ -202,8 +220,9 @@ const answers = {
     const node = await shown(request), prop = node.props.find(one => one.ident === request.ident) || fail('That property is no longer on this node.');
     const lit = 'p:' + prop.ident, has = prop.values.map(value => value.raw), text = String(request.text ?? '').trim();
     /* The ground refuses a change that would take away a value with bullets written under it, before anything is written.
-       Its refusal carries the plugin's own words (why, and what to do): they are said as they are, after what was not done. */
-    const written = async write => { try { return await write(); } catch (error) { if (error?.plain) fail([`${prop.name} was not changed: ${error.message}.`, error.then].filter(Boolean).join(' ')); throw error; } };
+       Its refusal carries the plugin's own words (why, and what to do), and Logseq's refusal is said in everyday words: either
+       after what was not done. */
+    const written = async write => { try { return await write(); } catch (error) { fail(Wr.refused(`${prop.name} was not changed`, error, '', { quiet: true })); } };
     const put = async (raw, ref, reads) => {
       if (!prop.many) { await written(() => (ref ? Wr.setNode(node.uuid, prop.ident, raw) : Wr.setText(node.uuid, prop.ident, raw))); return changed(node.uuid, 1, `${prop.name} is now ${reads}`, lit); }
       // One of several: the ground writes the whole set in one step and answers the steps it made (none where nothing changed).
@@ -273,7 +292,7 @@ const answers = {
      so the bullet being written in Logseq is set down first, as for every addition of the plugin's. { uuid } */
   async append({ page, words }) {
     const uuid = await Wr.addBullet(String(page || ''), String(words ?? ''), { page: true });
-    if (!uuid) fail('Logseq refused');
+    if (!uuid) fail('Logseq made no bullet.');
     did('', 1);
     return { ok: true, uuid };
   },
@@ -289,7 +308,7 @@ const answers = {
     try {
       if (picked) { doing = `The tag ${picked.title} could not be put on it`; await Wr.tag(uuid, picked.uuid); steps++; }
       if (under) { doing = 'Your own words could not be written under it'; if (!(await Wr.addBullet(uuid, under, { under: true }))) fail('Logseq made no bullet'); steps++; }
-    } catch (error) { said = `${doing}: ${error?.message || 'Logseq refused'}.`; }
+    } catch (error) { said = Wr.refused(doing, error, '', { quiet: true }); }
     did(uuid, steps);
     return { ok: true, uuid, page: to.title, tag: picked && !/^The tag/.test(said) ? picked.title : '', said };
   },
@@ -323,27 +342,29 @@ const answers = {
   },
   /* Files. Each is read and looked for in the graph before anything is made, so a file refused leaves no page and no bullet. */
   async check({ files }) {
-    filesGround();
     const out = [];
     for (const path of pathsOf(files)) {
       const name = path.split('/').filter(Boolean).pop() || path;
-      try { const file = await G.touch.file(path), twin = await R.fileTwin(file); out.push({ path, name: file.name, title: file.title, type: String(file.type || '').toUpperCase(), size: file.size, twin: twin ? twin.title : '', said: '' }); }
-      catch (error) { out.push({ path, name, title: name, type: '', size: 0, twin: '', said: String(error?.message || 'It could not be read') }); }
+      try {
+        const file = await G.touch.file(path), twin = await R.fileTwin(file), gone = twin && twin.gone;
+        out.push({ path, name: file.name, title: file.title, type: String(file.type || '').toUpperCase(), size: file.size, twin: twin && !gone ? twin.title : '', said: gone ? twinSaid(file, twin) : '' });
+      } catch (error) { out.push({ path, name, title: name, type: '', size: 0, twin: '', said: error?.plain ? String(error.message) : Wr.refused(`${name} could not be read`, error, '', { quiet: true }) }); }
     }
     return { ok: true, files: out };
   },
   add(request) {
     // Two adds go one after the other: one bullet is open at a time.
-    const job = adding.then(() => addFiles(request)); adding = job.catch(() => {});
+    const job = adding.then(() => addFiles(request)).catch(error => fail(plainly('The files were not added', error))); adding = job.catch(() => {});
     let late = false;
-    job.catch(error => { if (late) G.say(`Not every file was added from outside Logseq: ${error?.message || 'Logseq did not take it'}`, 'warning'); });
+    job.catch(error => { if (late) G.say(`Not every file was added from outside Logseq. ${error.message}`, 'warning'); });   // the panel has its answer already: the notice is the one place left to say it
     return Promise.race([job, sleep(8000).then(() => { late = true; return { ok: true, pending: true }; })]);
   },
   async progress() { return { ok: true, ...going, made: [...going.made], linked: [...going.linked] }; },
   /* What an add made, taken away again: { made: "uuid,uuid" }. */
   async unadd({ made }) {
-    for (const uuid of String(made || '').split(',').map(one => one.trim()).filter(Boolean)) await Wr.remove(uuid);
-    did('', 1);
+    let steps = 0;
+    try { for (const uuid of String(made || '').split(',').map(one => one.trim()).filter(Boolean)) { await Wr.remove(uuid); steps++; } }
+    finally { did('', steps); }
     return { ok: true };
   },
   async undo(request) {
@@ -352,6 +373,17 @@ const answers = {
   },
 };
 for (const name of WRITES) answers[name] = guarded(answers[name]);
+/* What a panel says was not done, when Logseq refuses: every refusal reaches a panel in the plugin's words (F22). */
+const NOT_DONE = {
+  find: 'Nothing could be found', node: 'The node could not be read', tags: 'Your tags could not be read', candidates: 'The list could not be read',
+  markdown: 'Nothing was copied', setWords: 'The words were not changed', newBullet: 'The bullet was not added', move: 'The bullet was not moved',
+  remove: 'The bullet was not deleted', setValue: 'The property was not changed', tag: 'The tag was not changed', status: 'The status was not set',
+  todoList: 'The tasks could not be read', todoStatus: 'The status was not set', todoUndo: 'Nothing was taken back', todoAdd: 'The task was not added',
+  append: 'Nothing was added', note: 'The note was not added', show: 'Logseq could not go there', browse: 'Nothing could be found',
+  check: 'The files could not be read', add: 'The files were not added', progress: 'How far the files are could not be read',
+  unadd: 'The files were not taken out of the page', undo: 'Nothing was taken back',
+};
+for (const [name, run] of Object.entries(answers)) answers[name] = async request => { try { return await run(request); } catch (error) { return fail(plainly(NOT_DONE[name] || 'It was not done', error)); } };
 
 G.part({
   key: 'outside', title: 'Alfred', about: 'Answers the Alfred workflow: its search, a node whole with its bullets and properties, and the changes made there. Needs Logseq’s HTTP APIs server switched on.',

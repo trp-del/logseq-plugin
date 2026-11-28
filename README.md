@@ -732,9 +732,9 @@ because a value has bullets written under it is answered in the plugin's words, 
 words as they were read and changed, and every link and tag the bullet already held stays the link it is. A bullet is
 answered with every tag it has. For files the plugin answers
 `check` (each file's name, and the node it already is in the graph), `add` (to today, the open page or a page by its name, a
-file already in the graph linked instead where asked), `progress` and `unadd`; they stand on three pieces of the ground
-(`touch.file`, `read.fileTwin`, `write.addFile`), and while the ground does not give them, `add` and `check` answer in plain
-words that the plugin cannot put files into the graph yet, and add nothing. A day typed as words ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot
+file already in the graph linked instead where asked, one on a page in the Recycle left out), `progress` and `unadd`, through
+the ground's `touch.file`, `read.fileTwin` and `write.addFile`, which puts a file in as Logseq takes a pasted file. Every
+refusal reaches a panel in the plugin's words, never Logseq's, and shows no notice in Logseq. A day typed as words ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot
 read is refused, never guessed. The part can be switched off in the plugin's settings like any other.
 
 ## What it writes
