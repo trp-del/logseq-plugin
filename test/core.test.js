@@ -656,3 +656,63 @@ test('several of a kind are said one way: the list\'s head, its count and its na
   assert.equal(view.shape({ rows: [node('a', 'Child'), node('b', 'Child')] }, {}, {}, 20261127).of, 'Children');
   assert.deepEqual(['Person of', 'Child of', 'Symptom of'].map(title => reads.back(title)), ['People', 'Children', 'Symptoms']);
 });
+
+// ---- the round of 27 November 2026: what a merge, a move and a delete in Ontology must never lose
+test('three properties merged at once: no value is left under no property, and a node that keeps its own is counted', () => {
+  const kept = many => ({ ident: 'p/provider', title: 'Provider', type: 'node', many }), id = (raw, text) => ({ raw, text });
+  const gone = [{ prop: P('Doctor'), nodes: [{ uuid: 'n', words: 'Visit', values: [id(11, 'Dr. Mei Chen')] }] }, { prop: P('Physician'), nodes: [{ uuid: 'n', words: 'Visit', values: [id(12, 'Dr. Paul Okafor')] }] }];
+  const many = move.merge({ kept: kept(true), held: [], gone });
+  assert.deepEqual(many.map(({ made }) => made.rows.map(row => [row.stays.map(one => one.raw), row.comes.map(one => one.raw), row.goes.length])), [[[[], [11], 1]], [[[11], [12], 1]]]);   // the second is written on top of the first
+  const one = move.merge({ kept: kept(false), held: [], gone });
+  assert.deepEqual(one.map(({ made }) => [made.rows[0].comes.length, made.rows[0].goes.length, made.kept]), [[1, 1, 0], [0, 0, 1]]);   // the second value stays under Physician
+  assert.match(one[1].made.rows[0].skip, /Provider takes one value/);
+});
+test('a value that has bullets written under it is left where it is, and the plan says how many nodes and why', () => {
+  const nodes = [{ uuid: 'a', words: 'X', from: [{ raw: 'first line', text: 'first line', under: 2 }], into: [] }, { uuid: 'b', words: 'Y', from: [v('plain')], into: [] }];
+  const moved = move.plan({ nodes, from: P('Notes', { type: 'default' }), into: P('Remarks', { type: 'default' }), remove: true });
+  assert.deepEqual(moved.rows.map(row => [row.comes.length, row.goes.length, row.why]), [[0, 0, 'under'], [1, 1, '']]);
+  assert.deepEqual([moved.kept, moved.left.map(one => [one.why, one.n]), move.yes(moved, true)], [1, [['under', 1]], 'Move 1 value']);
+  assert.match(moved.left[0].words, /bullets written under it/);
+  assert.equal(move.plan({ nodes, from: P('Notes', { type: 'default' }), into: P('Remarks', { type: 'default' }) }).rows[0].why, 'under');   // a copy would arrive without them
+});
+test('two times are two values: a property that takes one time is not given a second, and the box can say so', () => {
+  const at = (raw, text) => ({ raw, text }), nodes = [{ uuid: 'a', words: 'Consultation', from: [at(1795798800000, 'Nov 27, 09:00')], into: [at(1795802400000, 'Nov 27, 10:00')] }];
+  const made = move.plan({ nodes, from: P('Start', { type: 'datetime' }), into: P('Time', { type: 'datetime' }), remove: true });
+  assert.deepEqual([made.rows[0].skip, made.rows[0].goes, made.kept, move.yes(made, true)], ['Time takes one value and this would hold 2', [], 1, '']);
+  assert.deepEqual(move.left(made), ['1 node is left as it is: Time takes one value and this would hold 2']);
+});
+test('the Undo of a move puts back only the nodes that still hold what the move left', () => {
+  const rows = [
+    { uuid: 'a', was: { from: [11], into: [] }, wrote: { into: [11], from: true } },      // as the move left it
+    { uuid: 'b', was: { from: [12], into: [] }, wrote: { into: [12], from: true } },      // set by hand to another node since
+    { uuid: 'c', was: { from: [13], into: [9] }, wrote: { into: [9, 13], from: false } }, // a copy; the first property untouched
+    { uuid: 'd', was: { from: [14], into: [] }, wrote: { into: [14], from: true } },      // deleted since: it holds nothing
+  ];
+  const now = { into: new Map([['a', [11]], ['b', [99]], ['c', [13, 9]]]), from: new Map([['c', [13]]]) };
+  const made = move.back(rows, now);
+  assert.deepEqual([made.back.map(row => row.uuid), made.left.map(row => row.uuid)], [['a', 'c'], ['b', 'd']]);
+});
+test('Tab and Shift-Tab on a tag are worked out from the tags, the same on the page and in the sidebar', () => {
+  const tags = new Map([[1, { id: 1, title: 'Entity', uuid: 'e', parents: [] }], [2, { id: 2, title: 'Occurrence', uuid: 'o', parents: [] }], [3, { id: 3, title: 'Consultation', uuid: 'c', parents: [2] }], [4, { id: 4, title: 'Call', uuid: 'k', parents: [3] }], [5, { id: 5, title: 'Visit', uuid: 'v', parents: [2] }]]);
+  assert.equal(tagTree.step(2, tags, false), 1);      // a top tag goes under the top tag above it, though on the page it heads an area of its own
+  assert.equal(tagTree.step(1, tags, false), null);   // the first has none above it
+  assert.equal(tagTree.step(5, tags, false), 3);      // under the tag above it at its level
+  assert.equal(tagTree.step(4, tags, true), 2);       // out one level: under the tag its own sits under
+  assert.equal(tagTree.step(3, tags, true), 0);       // out of a top tag: to the top
+  assert.equal(tagTree.step(1, tags, true), null);    // already at the top
+});
+test('the question before a delete counts what truly goes, and never calls a tag empty whose page holds bullets', () => {
+  const scratch = tagTree.going([{ kind: 'tag', title: 'Scratch', nodes: 0, kids: 0, bullets: 2 }]);
+  assert.equal(scratch.words, 'Delete the tag “Scratch”? This cannot be undone.');
+  assert.match(scratch.note, /2 bullets written on its page are deleted with it, for good/);
+  assert.doesNotMatch(scratch.note, /no nodes|No node holds it, it has no child tags and nothing/);
+  assert.equal(scratch.whole, false);
+  const empty = tagTree.going([{ kind: 'tag', title: 'Empty', nodes: 0, kids: 0, bullets: 0 }]);
+  assert.deepEqual([empty.words, empty.whole, empty.yes], ['Delete the tag “Empty”?', true, 'Delete the tag']);
+  const full = tagTree.going([{ kind: 'tag', title: 'Doctor', nodes: 12, kids: 2, bullets: 1 }]);
+  assert.match(full.note, /^12 nodes hold it\. It is taken off every one of them\. Its 2 child tags stay, without it as their parent\. The bullet written on its page is deleted with it, for good\.$/);
+  const prop = tagTree.going([{ kind: 'property', title: 'Provider', nodes: 3, bullets: 0 }]);
+  assert.deepEqual([prop.words, prop.whole, prop.yes], ['Delete the property “Provider”? This cannot be undone.', false, 'Delete the property']);
+  assert.match(prop.note, /3 nodes hold a value under it\. Those values are deleted with it, for good/);
+  assert.equal(tagTree.going([{ kind: 'tag', title: 'A', nodes: 1, kids: 0, bullets: 0 }, { kind: 'tag', title: 'B', nodes: 0, kids: 0, bullets: 0 }]).words, 'Delete 2 tags? This cannot be undone.');
+});
