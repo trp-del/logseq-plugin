@@ -103,10 +103,10 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | A mention | Click a step of where it sits | Under a mention stands the page it is on, and the bullet it is under: each opens |
 
 A day in the journals feed has its lists at the foot of the day. **Relations: the Recycle list** opens Logseq's Recycle as a
-plain list: Restore brings a page or a bullet back; Delete asks under the line, as every delete that asks does (a red yes
-and Cancel, the keyboard waiting on Cancel), and deletes for good. A line is said to be back or gone only when it is: a
-bullet whose page is itself in the Recycle is not brought back, and the notice says to restore the page first; a delete
-Logseq refused is said, and its line stays.
+plain list of the deleted pages (a deleted bullet is gone from the graph; only a page lies in Logseq's Recycle): Restore
+brings a page back; Delete asks under the line, as every delete that asks does (a red yes and Cancel, the keyboard waiting on
+Cancel), and deletes for good. A page is said to be back or gone only when it is: a restore or a delete Logseq refused is
+said, and its line stays.
 
 Everything inside an opened node is Logseq's own: its words, bullets, properties, menus and keys. How it is laid out, and how
 a node it points at is opened under it, is under "An opened node, and digging" below.
