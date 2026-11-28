@@ -108,15 +108,20 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-row .lk-line').nth(1).click({ button: 'right' }); await wait(400);
       const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
       await page.keyboard.press('Escape'); await wait(300);
-      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Tags…', 'Delete'], 0, 0]);
+      return is([items, await count('.lk-menu'), await count('.lk-row[data-open]')], [['Open', 'Open in sidebar', 'Tags…', 'Delete…'], 0, 0]);   // the line is a page's: its Delete… asks first (F153)
     });
-    await step('Delete takes a node away and Logseq\'s own Undo brings it back', async () => {
-      const before = await count('.lk-rows > .lk-row');
+    /* F153 of the rundown, 27 November 2026: a page was deleted from a row at one press. Delete… asks first, as Logseq asks
+       before it deletes a page; the red yes sends the page to Logseq's Recycle, and Logseq's own Undo brings it back. */
+    await step('Delete… on a page\'s line asks first with the keys on Cancel; the red yes takes the page away to the Recycle, and Logseq\'s own Undo brings it back', async () => {
+      const before = await count('.lk-rows > .lk-row'), uuid = await page.locator('.lk-row').nth(2).getAttribute('data-uuid');
+      const recycled = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?d :where [?b :block/uuid #uuid "${u}"] [?b :logseq.property/deleted-at ?d]]`)).length, uuid);
       await page.locator('.lk-row .lk-line').nth(2).click({ button: 'right' }); await wait(400);
-      await page.locator('.lk-menu .lk-item', { hasText: 'Delete' }).click(); await wait(1600);
-      const after = await count('.lk-rows > .lk-row');
-      await page.keyboard.press('Meta+z'); await wait(1600);
-      return is([after - before, await count('.lk-rows > .lk-row') - before], [-1, 0]);
+      await page.locator('.lk-menu .lk-item', { hasText: 'Delete…' }).click(); await wait(900);
+      const asked = [/^Delete the page “/.test(await page.locator('.lk-ask-gone .lk-ask-head').innerText().catch(() => '')), /Recycle/.test(await page.locator('.lk-ask-gone .lk-ask-note').innerText().catch(() => '')), await page.evaluate(() => document.activeElement?.innerText), await count('.lk-rows > .lk-row') - before, await recycled()];
+      await page.locator('.lk-ask-gone [data-do="yes"]').click(); await wait(1800);
+      const gone = [await count('.lk-rows > .lk-row') - before, await recycled()];
+      await page.keyboard.press('Meta+z'); await wait(2200);
+      return is([asked, gone, [await count('.lk-rows > .lk-row') - before, await recycled()]], [[true, true, 'Cancel', 0, 0], [-1, 1], [0, 0]]);
     });
     await goto(OCT7);
     await step('on a journal day the rows do not repeat the day', async () => is(await page.locator('.lk-row .lk-day').evaluateAll(els => els.map(el => el.textContent)), ['', '']));
@@ -700,7 +705,11 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const bar = await list.locator('.lk-pickbar').innerText();
       await list.locator('.lk-pickbar [data-do="tag"]').click(); await wait(600); await page.keyboard.type('Zzontag', { delay: 30 }); await wait(500);
       const offered = await page.locator('.lk-menu .lk-item:not([hidden])').count();
-      if (!offered) { await page.keyboard.press('Escape'); await wait(200); await list.locator('.lk-pickbar [data-do="clear"]').click(); return is('the tag made earlier in the walk is not offered', 'offered'); }
+      if (!offered) {   // said with what tells the causes apart: whether the list is open, what its line holds, whether the graph still holds the tag
+        const open = await count('.lk-menu'), holds = await page.evaluate(() => document.querySelector('.lk-menu .lk-menu-find')?.value ?? null), inGraph = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?t :where [?t :block/title "Zzontag"] [?t :block/tags :logseq.class/Tag]]')).length);
+        await page.keyboard.press('Escape'); await wait(200); await list.locator('.lk-pickbar [data-do="clear"]').click();
+        return is(`the tag made earlier in the walk is not offered (the list of tags is ${open ? 'open' : 'not open'}, its line holds ${JSON.stringify(holds)}, the graph holds ${inGraph} tag(s) named Zzontag)`, 'offered');
+      }
       await page.keyboard.press('Enter'); await wait(3500);
       const did = await list.locator('.lk-pickbar .lk-did').innerText().catch(() => ''), held = await box.frame().evaluate(async () => (await logseq.DB.datascriptQuery('[:find ?b :where [?t :block/title "Zzontag"] [?b :block/tags ?t]]')).length);
       await list.locator('.lk-pickbar [data-do="undo"]').click(); await wait(4000);
