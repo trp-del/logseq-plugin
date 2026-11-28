@@ -636,16 +636,19 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     await step('u p has Logseq load the plugin again from its folder and says in one line what that brought; typed in a bullet it is letters', async () => {   // the owner, 25 November 2026: "can you add update plugins with `u p`?"
       const run = () => box.frame().evaluate(() => (window.lkRun = (window.lkRun || 0) + 1));   // 1 in a plugin just loaded
       const toast = async () => { for (let i = 0; i < 40; i++) { const text = await page.evaluate(() => [...document.querySelectorAll('.ui__toast-description')].map(el => el.innerText.trim()).find(t => /^Plugins /.test(t)) || ''); if (text) return text; await wait(250); } return ''; };
-      // It says at once that it has begun (the rundown of 27 November 2026: nothing was said until the end, up to a minute a plugin).
-      const begun = async () => { for (let i = 0; i < 30; i++) { if (await page.evaluate(() => [...document.querySelectorAll('.ui__toast-description')].some(el => el.innerText.trim() === 'Updating plugins…'))) return true; await wait(100); } return false; };
+      /* It says at once that it has begun (the rundown of 27 November 2026: nothing was said until the end, up to a minute a
+         plugin), and what it brought then takes that notice's place: the two never stand together. Every notice is noted as it comes. */
+      await page.evaluate(() => { const seen = window.lkNotices = { begun: false, together: false }; const look = () => { const all = [...document.querySelectorAll('.ui__toast-description')].map(el => el.innerText.trim()), begun = all.includes('Updating plugins…'); if (begun) seen.begun = true; if (begun && all.some(t => /^Plugins /.test(t))) seen.together = true; };
+        (window.lkNoticesWatch = new MutationObserver(look)).observe(document.body, { childList: true, subtree: true, characterData: true }); });
       await goto(CHEN); await run();
       await page.locator('#main-content-container .block-add-button').first().click(); await wait(900);
       await page.keyboard.type('up', { delay: 150 }); await wait(2500);
       const typed = [await page.evaluate(() => document.activeElement?.value), await run()];
       await page.keyboard.press('Meta+z'); await page.keyboard.press('Escape'); await wait(700);
       await page.keyboard.press('Escape'); await wait(300); await page.keyboard.press('u'); await wait(150); await page.keyboard.press('p');
-      const first = await begun(), said = await toast(); await wait(4500);
-      return is([typed, first, /^Plugins up to date: Logseq Plugin \d/.test(said), await run()], [['up', 2], true, true, 1]);
+      const said = await toast(); await wait(4500);
+      const notices = await page.evaluate(() => { window.lkNoticesWatch.disconnect(); return [window.lkNotices.begun, window.lkNotices.together]; });
+      return is([typed, notices, /^Plugins up to date: Logseq Plugin \d/.test(said), await run()], [['up', 2], [true, false], true, 1]);
     });
     // ---- Relations as it was: kinds, View, picking, the find line, the timeline
     await step('a list of several kinds names them with their counts; a kind pressed narrows the list, All gives it back', async () => {   // the owner, 25 November 2026: "relations from original was quite developed. take all the features from it"
@@ -972,21 +975,25 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
     }
     {
     await step('a read that fails behind a folded bullet is said once, and asked again only when the screen next changes', async () => {   // the rundown of 27 November 2026: it was asked again at once, without end
+      /* Counted against the changes of the screen, not against time: Logseq's own page can change in every frame (the walk of
+         27 November 2026 met that here), and the part may ask once at each change. The fault asked far more often than that. */
       const asks = await box.frame().evaluate(async () => {
-        const G = window.PluginDoor, read = G.read.folded, spots = G.touch.foldedSpots; let asked = 0;
-        G.read.folded = () => new Promise((_, fail) => { asked += 1; setTimeout(() => fail(new Error('the walk made this read fail')), 5); });
+        const G = window.PluginDoor, read = G.read.folded, spots = G.touch.foldedSpots; let asked = 0, looked = 0;
+        G.read.folded = () => new Promise((_, fail) => { asked += 1; setTimeout(() => fail(new Error('the walk made this read fail')), 1); });
         G.touch.foldedSpots = () => [{ uuid: '00000000-0000-4000-8000-00000000f01d', at: null, put() {} }];
-        const stir = () => { const el = G.host().createElement('i'); G.host().body.appendChild(el); el.remove(); };   // the screen changes, so the part looks again
+        const off = G.touch.watch(() => { looked += 1; });   // runs whenever the part looks at the screen again
+        const stir = () => { const el = G.host().createElement('i'); G.host().body.appendChild(el); el.remove(); };   // the screen changes
         const pause = ms => new Promise(done => setTimeout(done, ms));
-        stir(); await pause(700); const first = asked;
-        stir(); await pause(400); const second = asked;
-        G.read.folded = read; G.touch.foldedSpots = spots; stir(); await pause(200);
-        return [first > 0 && first < 10, second > first && second < 20];   // not one for one: Logseq's own page may change meanwhile
+        stir(); await pause(700); const first = [asked, looked];
+        stir(); await pause(400); const second = [asked, looked];
+        G.read.folded = read; G.touch.foldedSpots = spots; off(); stir(); await pause(200);
+        // asked at all; never more often than the screen changed (two to spare for a change of the graph meanwhile); asked again after the next change
+        return [first[0] > 0, first[0] <= first[1] + 2 && second[0] <= second[1] + 2, second[0] > first[0]];
       });
       await wait(200);
       const mine = line => line.includes('what a folded bullet holds could not be read'), said = errors.filter(mine).length;
       for (let i = errors.length - 1; i >= 0; i--) if (mine(errors[i])) errors.splice(i, 1);   // this step's own, made on purpose
-      return is([asks, said], [[true, true], 1]);
+      return is([asks, said], [[true, true, true], 1]);
     });
     // ---- Export: the window the owner chose again (26 November 2026), Markdown and the one paper template
     const written = () => page.evaluate(async () => JSON.stringify(await window.logseq.api.datascript_query('[:find (count ?b) (max ?u) :where [?b :block/uuid _] [?b :block/updated-at ?u]]')));

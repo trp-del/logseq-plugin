@@ -644,7 +644,7 @@ palette, brings every plugin Logseq runs to its newest:
 
 A notice says at once that it has begun ("Updating plugins…"): Logseq's updater can take up to a minute for a plugin, and the
 keys pressed again meanwhile are told the same and start nothing.
-One line then says what that brought: "Plugins updated: Logseq Plugin 0.9.0 to 0.9.1. Up to date: Calendar 1.2.0", that every
+One line then says what that brought, in that notice's place: "Plugins updated: Logseq Plugin 0.9.0 to 0.9.1. Up to date: Calendar 1.2.0", that every
 plugin was up to date, or which could not be updated and why (GitHub did not answer, or the plugin is not in Logseq's list).
 The keys do nothing while you write in a bullet, and can be changed in Logseq's own keyboard settings. A folder is not fetched
 from anywhere: the key loads what the folder holds.
