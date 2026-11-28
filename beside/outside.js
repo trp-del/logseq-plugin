@@ -304,7 +304,7 @@ const answers = {
     const picked = tag ? [...(await R.tags()).values()].find(one => one.uuid === String(tag).toLowerCase()) || fail('That tag is no longer in the graph.') : null;
     const to = await place(where), uuid = await Wr.addBullet(to.uuid, text, to.isPage ? { page: true } : { under: true });
     if (!uuid) fail('Logseq made no bullet.');
-    let steps = 1, said = '', doing = '';
+    let steps = 1 + (to.steps || 0), said = '', doing = '';   // the page made for it (a day's journal, a page by its name) goes with it
     try {
       if (picked) { doing = `The tag ${picked.title} could not be put on it`; await Wr.tag(uuid, picked.uuid); steps++; }
       if (under) { doing = 'Your own words could not be written under it'; if (!(await Wr.addBullet(uuid, under, { under: true }))) fail('Logseq made no bullet'); steps++; }
