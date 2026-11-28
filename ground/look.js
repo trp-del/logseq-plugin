@@ -41,7 +41,8 @@ G.look = {
   --lk-fade: .12s ease;   /* the short fade: a fold arrow turning, a hairline darkening under the pointer (written after what changes: transition: transform var(--lk-fade)) */
   --lk-bullet: var(--lx-gray-08, var(--ls-block-bullet-color, var(--rx-gray-08, color-mix(in srgb, var(--lk-text) 28%, transparent))));
   --lk-bullet-ring: var(--lx-gray-04-alpha, var(--ls-block-bullet-border-color, var(--rx-gray-04-alpha, color-mix(in srgb, var(--lk-text) 7%, transparent))));   /* Logseq's bullet and the ring of a folded one, by Logseq's own names */
-  --lk-coming: var(--rx-green-11, #18794e); --lk-going: var(--rx-red-10, #dc3e42); }`,
+  --lk-coming: var(--rx-green-11, #18794e); --lk-going: var(--rx-red-10, #dc3e42);
+  --lk-tick-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.2 6.5 11.2 12.5 5.2'/%3E%3C/svg%3E");   /* the check in a ticked box (lk-tick, and Logseq's own box where the plugin shows a node) */ }`,
   /* What is pressed, and what a change will do. One kind for each job: the yes that decides (filled), a plain press (a quiet
      capsule), a third-level press (no ground), Delete in red with its bin, a word that opens a
      menu, a tick box; a small picture before a press's word where its job has one. What a change brings is green text; what it takes away is struck
@@ -104,7 +105,7 @@ G.look = {
 input.lk-tick[type=checkbox] { appearance: none; -webkit-appearance: none; position: relative; box-sizing: border-box; width: 14px; height: 14px; margin: 0; padding: 0; flex: none; border: 1.5px solid var(--lk-line); border-radius: 4px; background: none; color: inherit; cursor: pointer; vertical-align: -1px; box-shadow: none; outline: none; }
 input.lk-tick[type=checkbox]:is(:checked, :indeterminate, :focus, :hover) { border-color: currentColor; background: none; box-shadow: none; outline: none; }
 input.lk-tick[type=checkbox]:checked { background: var(--lk-paper); border-color: var(--lk-text); }   /* ticked: the page's ground, the tick and the edge in the text colour: a black tick on white in light, a white tick on dark in dark (the owner, 27 November 2026, evening: "the check boxes are inverted") */
-input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; inset: 0; background: var(--lk-text); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.2 6.5 11.2 12.5 5.2'/%3E%3C/svg%3E") center / 8px 8px no-repeat; }
+input.lk-tick[type=checkbox]:checked::before { content: ""; position: absolute; inset: 0; background: var(--lk-text); -webkit-mask: var(--lk-tick-mark) center / 8px 8px no-repeat; mask: var(--lk-tick-mark) center / 8px 8px no-repeat; }
 input.lk-tick[type=checkbox]:indeterminate::before { content: ""; position: absolute; left: 2.5px; right: 2.5px; top: 4.75px; height: 1.5px; border-radius: 1px; background: currentColor; }
 /* lk-window: a window in the middle of the screen, the page dimmed behind it (lk-clear leaves the page as it is); lk-pop: what
    floats beside the thing pressed, on the Mac's glass. As before the rebuild (the owner chose them back, 26 November 2026). */

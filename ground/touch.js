@@ -1573,6 +1573,16 @@ ${PAGE}:has(.lk-relpage) .references, ${PAGE}:has(.lk-relpage) .ls-bidirectional
    properties), and nothing else opens those. */
 const ARROW = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='6 4 12 16'%3E%3Cpath d='M9 6l6 6l-6 6' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E\")";   // the one fold arrow, thin, as every list's (the owner's marked pages, 26 November 2026)
 const OPENED = `
+/* Where the plugin shows a node, a yes-or-no value is the plugin's own tick box (lk-tick): the page's ground, the edge and the
+   check in the text colour, no blue (F132); and a value being written (a number) shows where the caret is by the line under it,
+   as the plugin's own fields do, not by Logseq's blue ring (F137). Logseq's own pages keep Logseq's. */
+.lk-editor button.ui__checkbox { position: relative; box-sizing: border-box; width: 14px !important; min-width: 14px !important; height: 14px !important; padding: 0 !important; border: 1.5px solid var(--lk-line) !important; border-radius: 4px !important; background: none !important; color: inherit !important; box-shadow: none !important; outline: none !important; }
+.lk-editor button.ui__checkbox:is(:hover, :focus-visible, [aria-checked="true"]) { border-color: currentColor !important; }
+.lk-editor button.ui__checkbox[aria-checked="true"] { background: var(--lk-paper) !important; border-color: var(--lk-text) !important; }
+.lk-editor button.ui__checkbox > * { display: none !important; }
+.lk-editor button.ui__checkbox[aria-checked="true"]::before { content: ""; position: absolute; inset: 0; background: var(--lk-text); -webkit-mask: var(--lk-tick-mark) center / 8px 8px no-repeat; mask: var(--lk-tick-mark) center / 8px 8px no-repeat; }
+.lk-editor input.ui__input { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; outline: none !important; }
+.lk-editor input.ui__input:focus { box-shadow: inset 0 -1px 0 var(--lk-line) !important; }
 /* One form for every node (25 November 2026: "this does not look like a coherent system to dig"). Logseq draws a page's
    properties as rows, name then value, and a tagged bullet's as capsules in one clipped strip. Inside an opened node both are
    laid out as one kind of row: the names in one column as wide as the longest of them (--lk-keycol, set by the node's holder),

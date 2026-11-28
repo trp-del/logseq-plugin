@@ -629,6 +629,26 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(700);
       return is(got, [true, 0, true, 0]);
     });
+    await step('in an opened node a yes-or-no value is the plugin\'s own tick box, and a number being written has no blue ring round it', async () => {   // F132 and F137 of the rundown, 27 November 2026: Logseq's blue box and ring inside the plugin's own place
+      const row = page.locator(MAIN + ' > .lk-rows > .lk-row', { has: page.locator('.lk-line') }).nth(1), uuid = await row.getAttribute('data-uuid');
+      const idents = await box.frame().evaluate(async u => { const T = window.PluginDoor.touch, yes = await T.makeProperty('Zzpaid', 'checkbox'), sum = await T.makeProperty('Zzsum', 'number');
+        await logseq.Editor.upsertBlockProperty(u, yes.ident, true); await logseq.Editor.upsertBlockProperty(u, sum.ident, 12); return [yes.ident, sum.ident]; }, uuid);
+      await wait(1200); await row.locator(':scope > .lk-line').click(); await wait(2500);
+      const tick = await row.evaluate(el => {   // the box against the library's own tick box, ticked, drawn beside it
+        const box = el.querySelector(':scope > .lk-open > .lk-editor button.ui__checkbox'), mine = document.createElement('input');
+        if (!box) return 'no tick box';
+        mine.type = 'checkbox'; mine.className = 'lk-tick'; mine.checked = true; box.parentElement.append(mine);
+        const look = one => { const c = getComputedStyle(one); return [c.width, c.height, c.backgroundColor, c.borderTopColor, c.borderTopWidth, c.borderTopLeftRadius].join(' '); };
+        const same = look(box) === look(mine) || `${look(box)} | ${look(mine)}`; mine.remove(); return same;
+      });
+      const value = row.locator(':scope > .lk-open > .lk-editor :is(.bottom-property-pill, .property-pair)', { hasText: 'Zzsum' }).locator('.property-value-inner').first();
+      await value.click(); await wait(700);
+      const ring = await page.evaluate(() => { const field = document.activeElement; return field?.closest('.lk-editor') && field.matches('input') ? !/(^|, )\S+(?: \S+)? 0px 0px 0px [1-9]/.test(getComputedStyle(field).boxShadow.replace(/rgba?\([^)]*\)/g, 'c')) : 'no field being written'; });
+      await page.keyboard.press('Escape'); await wait(400); await page.keyboard.press('Escape'); await wait(400);
+      if (await row.getAttribute('data-open')) { await page.keyboard.press('Escape'); await wait(700); }
+      await box.frame().evaluate(async ([u, all]) => { for (const one of all) await logseq.Editor.removeBlockProperty(u, one); }, [uuid, idents]); await wait(800);
+      return is([tick, ring], [true, true]);
+    });
     await step('in an opened node every property is one kind of row: names in one column, values in the next, no capsule', async () => {
       const row = page.locator(MAIN + ' > .lk-rows > .lk-row', { has: page.locator('.lk-line') }).nth(1);
       await row.locator(':scope > .lk-line').click(); await wait(2500);
