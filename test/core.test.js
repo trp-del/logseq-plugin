@@ -153,7 +153,7 @@ test('tasks stand under Overdue, Today, Coming up and Any time; an overdue one s
   assert.deepEqual([got[0].rows.map(r => r.late), got[1].rows.map(r => r.late)], [[true], [false]], 'a task past its day is late, one due today is not');
   assert.deepEqual(todo.groups([{ uuid: 'a', words: 'x', day: 0, tag: 'Task' }, { uuid: 'b', words: 'y', day: 0, tag: 'Bill' }], 20261125)[0].rows.map(r => r.tagShown), [false, true]);
 });
-const { sure, addresses, links } = require('../core/sure.js'), { above, folds, found } = require('../core/tags.js');
+const { sure, addresses, links, linking } = require('../core/sure.js'), { above, folds, found } = require('../core/tags.js');
 test('a folded tag hides the tags under it, and only those', () => {
   const list = [{ depth: 0, name: 'a' }, { depth: 1, name: 'b' }, { depth: 2, name: 'c' }, { depth: 1, name: 'd' }, { depth: 0, name: 'e' }];
   const at = shut => folds(list, name => shut.includes(name)).map(one => (one.hidden ? 'h' : '') + (one.kids ? 'k' : '') + (one.shut ? 's' : ''));
@@ -177,6 +177,17 @@ test('what only looks like an address is left alone', () => {
   for (const words of ['notes.md and node.js and run.sh', 'e.g. 3.14 and $1.5k', 'mail me@chen.com or first.last@x.org', 'done.It was fine', 'open Logseq.app',
     'https://vanguard.com and http://a.org/b', '[the site](https://vanguard.com)', '[vanguard.com](https://vanguard.com)', 'in `vanguard.com` code', '```\nvanguard.com\n```',
     '[[vanguard.com]] page', '{{video youtube.com/x}}', 'file:///Users/a/b.com', 'no address here']) assert.equal(addresses(words), null, words);
+});
+test('a link is written only into a bullet nobody is writing in, and only while the graph still holds the words that were left', () => {   // rundown-070, F67: letters typed after Escape and Enter were written over
+  const left = 'Rates at vanguard.com are', linked = 'Rates at [vanguard.com](https://vanguard.com) are';
+  assert.equal(linking({ kept: left, left, writing: false }), linked);
+  assert.equal(linking({ kept: left, left, writing: true }), null, 'the bullet is being written in again');
+  assert.equal(linking({ kept: 'Rates at vanguard.com', left, writing: false }), null, 'Logseq has not saved the last letters yet');
+  assert.equal(linking({ kept: left + ' lower now', left, writing: false }), null, 'the bullet was written on since');
+  assert.equal(linking({ kept: left, left: left + ' \n', writing: false }), linked, 'Logseq keeps the words without the spaces round them');
+  assert.equal(linking({ kept: 'no address here', left: 'no address here', writing: false }), null);
+  assert.equal(linking({ kept: null, left, writing: false }), null);
+  assert.equal(linking({ kept: left, writing: false }), null, 'what was left is not known');
 });
 test('the pages a bullet\'s words link by name are told from its box, each once, so a save of plain words asks the graph nothing', () => {   // rundown-070, F75
   assert.deepEqual(links('The rates were lower than in the spring'), []);

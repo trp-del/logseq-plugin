@@ -406,6 +406,18 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Meta+z'); await wait(1200);
       return is([made, links, await words()], ['Rates at [vanguard.com](https://vanguard.com), see notes.md', [['vanguard.com', 'https://vanguard.com']], 'Rates at vanguard.com, see notes.md']);
     });
+    await step('a bullet with an address, gone back into at once and written on, keeps every letter and gets its link when it is next left', async () => {   // rundown-070, F67: the link was written over the letters typed since
+      const at = await box.frame().evaluate(async u => (await logseq.Editor.appendBlockInPage(u, '')).uuid, OCT7);
+      const words = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?w :where [?b :block/uuid #uuid "${u}"] [?b :block/title ?w]]`)).flat()[0], at);
+      await wait(600); await box.frame().evaluate(u => logseq.Editor.editBlock(u), at); await wait(700);
+      await page.keyboard.type('Fees at vanguard.com are', { delay: 40 });
+      await page.keyboard.press('Escape'); await wait(80); await page.keyboard.press('Enter');   // out, and straight back in
+      await page.keyboard.type(' lower now than last spring', { delay: 50 });   // written across the moment the link used to be made
+      await wait(1500);
+      const open = await page.evaluate(() => { const el = document.activeElement; return el?.tagName === 'TEXTAREA' ? el.value : null; });
+      await page.keyboard.press('Escape'); await wait(2200);
+      return is([open, await words()], ['Fees at vanguard.com are lower now than last spring', 'Fees at [vanguard.com](https://vanguard.com) are lower now than last spring']);
+    });
     await step('a list of tags folds: its arrow hides the tags under a tag, and the next list keeps it folded', async () => {   // the owner, 26 November 2026
       const row = () => page.locator('.lk-menu .lk-item', { hasText: /^Organization$/ }), seen = () => page.locator('.lk-menu .lk-item:visible', { hasText: /^Hospital$/ }).count();
       const open = async () => { await box.frame().evaluate(async u => window.PluginDoor.line.pickTags({ x: 200, y: 120, from: window.PluginDoor.host().body }, u, true), typed); await wait(700); };

@@ -72,10 +72,23 @@ function addresses(words) {
   out += text.slice(at).replace(ADDRESS, linkOne);
   return out === text ? null : out;
 }
+/* The words to write into a bullet just left so that its typed addresses are links, or null where nothing may be written.
+   A bullet's words are written whole, so a copy that is not the bullet as it was left would take letters away:
+     linking({ kept, left, writing })
+       kept     the words the graph holds for the bullet at this moment
+       left     the words its box held when it was left, in the form the graph keeps them (a link by its id)
+       writing  whether it is the bullet being written in at this moment
+   Nothing is written into a bullet being written in (Logseq would put the words into its open box), nor where the graph does
+   not hold what was left: its last letters are not saved yet, or it was written on since. Logseq keeps a bullet's words
+   without the spaces round them, so those do not count. */
+function linking({ kept, left, writing } = {}) {
+  if (writing || kept == null || left == null || String(kept).trim() !== String(left).trim()) return null;
+  return addresses(String(kept));
+}
 /* The pages a bullet's words link by name, as they stand in its box while it is written: [[A name]]. links(words) answers the
    names in their order, each once; a link still empty or not yet closed is none. */
 const links = words => [...new Set([...String(words == null ? '' : words).matchAll(/\[\[([^\[\]\n]+)\]\]/g)].map(found => found[1].trim()).filter(Boolean))];
-const api = { sure, addresses, links };
+const api = { sure, addresses, linking, links };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).sure = api;
 })(typeof window !== 'undefined' ? window : globalThis);
