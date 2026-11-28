@@ -66,22 +66,25 @@ function make(at, items, opts, parent) {
     return false;
   };
   foldUp();
-  if (opts.height) menu.style.maxHeight = Math.min(opts.height, win.innerHeight - 16) + 'px';   // a long list scrolls under its line to type in
   const box = at.from ? { left: at.x, right: at.x, top: at.y, bottom: at.y } : from.getBoundingClientRect();
+  /* The window's top band moves the window, and a press there reaches no line of a menu: a menu stands under it, and is no
+     taller than the room under it (it stood from 8 px under the window's top where it was tall or opened upward). */
+  const band = (G.touch.dragBand?.() || 48) + 4;
+  if (!opts.dock) menu.style.maxHeight = Math.max(120, Math.min(opts.height || Infinity, win.innerHeight - band - 8)) + 'px';   // a long list scrolls under its line to type in
   const w = menu.offsetWidth, h = menu.offsetHeight;
   if (parent) {   // beside the line it opens from, on the right where there is room, else on the left
     const side = parent.menu.getBoundingClientRect(), right = side.right - 2 + w <= win.innerWidth - 8;
     menu.style.left = (right ? side.right - 2 : Math.max(8, side.left + 2 - w)) + 'px';
-    menu.style.top = Math.max(8, Math.min(box.top - 4, win.innerHeight - h - 8)) + 'px';
+    menu.style.top = Math.max(band, Math.min(box.top - 4, win.innerHeight - h - 8)) + 'px';
   } else
   menu.style.left = Math.max(8, Math.min(box.left, win.innerWidth - w - 8)) + 'px';
-  if (opts.dock) Object.assign(menu.style, { left: 'auto', top: 'auto', right: '12px', bottom: '12px', width: Math.max(w, 352) + 'px', height: Math.min(opts.height || 420, win.innerHeight - 24) + 'px', boxSizing: 'border-box' });
+  if (opts.dock) Object.assign(menu.style, { left: 'auto', top: 'auto', right: '12px', bottom: '12px', width: Math.max(w, 352) + 'px', height: Math.min(opts.height || 420, win.innerHeight - band - 20) + 'px', boxSizing: 'border-box' });
   if (opts.quiet) {
     // Never over the line being written: under it where there is room for a good part of the list, else above it; the list scrolls.
     const below = win.innerHeight - box.bottom - 12, above = box.top - 12, under = h <= below || below >= 220 || below >= above, room = Math.min(320, Math.max(120, under ? below : above));
     menu.style.maxHeight = room + 'px';
-    menu.style.top = (under ? box.bottom + 4 : Math.max(8, box.top - 4 - Math.min(h, room))) + 'px';
-  } else if (!parent && !opts.dock) menu.style.top = (box.bottom + 4 + h > win.innerHeight - 8 ? Math.max(8, box.top - 4 - h) : box.bottom + 4) + 'px';
+    menu.style.top = (under ? box.bottom + 4 : Math.max(band, box.top - 4 - Math.min(h, room))) + 'px';
+  } else if (!parent && !opts.dock) menu.style.top = (box.bottom + 4 + h > win.innerHeight - 8 ? Math.max(band, box.top - 4 - h) : box.bottom + 4) + 'px';
   const rows = () => [...menu.querySelectorAll('.lk-item')].filter(row => !row.hidden);
   // An outline's one highlight, laid under the line it is on. It appears where it is wanted and glides from there.
   let glow = null;
@@ -330,10 +333,10 @@ G.menu.CSS = `
 .lk-menu-find { position: sticky; top: -4px; z-index: 1; background: var(--lk-glass); -webkit-backdrop-filter: var(--lk-glass-blur); backdrop-filter: var(--lk-glass-blur); }
 .lk-menu-tree .lk-item { position: relative; gap: 0; }
 .lk-menu .lk-item-fold { flex: none; width: 16px; display: inline-flex; align-items: center; justify-content: center; align-self: stretch; color: var(--lk-off); opacity: 0; visibility: hidden; position: relative; z-index: 1; }
-.lk-menu .lk-item-fold svg { transform: rotate(90deg); transition: transform var(--lk-fade); }
+.lk-menu .lk-item-fold > * { transform: rotate(90deg); transition: transform var(--lk-fade); }   /* down while the tag is open, as Logseq's own arrow; the arrow is a letter of Logseq's icon face or a picture, and both turn (the rule named a picture only, so the arrow never turned) */
 .lk-menu .lk-item.lk-kids > .lk-item-fold { visibility: visible; cursor: pointer; }
 .lk-menu .lk-item.lk-kids:is(:hover, :focus-visible, .lit, .lk-shut) > .lk-item-fold { opacity: 1; }
-.lk-menu .lk-item.lk-shut > .lk-item-fold svg { transform: none; }
+.lk-menu .lk-item.lk-shut > .lk-item-fold > * { transform: none; }
 .lk-menu .lk-item.lk-shut > .lk-item-bul::before { box-shadow: 0 0 0 4.8px var(--lk-bullet-ring); }   /* folded: the ring Logseq puts round a folded bullet */
 .lk-menu-tree.lk-narrowed .lk-item-fold { visibility: hidden !important; }
 .lk-menu-tree.lk-narrowed .lk-item.lk-shut > .lk-item-bul::before { box-shadow: none; }
