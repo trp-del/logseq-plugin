@@ -97,9 +97,9 @@ function put(words) {
 }
 function dress(row) {
   if (!last || !last.uuid || row.dataset.uuid !== last.uuid) { row.querySelector(':scope > .lk-line .lk-undo, :scope > .lk-td .lk-undo')?.remove(); return; }
-  const line = row.querySelector(':scope > .lk-line') || row.querySelector(':scope > .lk-td');   // a line, or a table's row (node/table.js): after its first cell's words
+  const cell = row.querySelector(':scope > .lk-line') ? null : row.querySelector(':scope > .lk-td'), line = row.querySelector(':scope > .lk-line') || cell;   // a line, or a table's row (node/table.js): after its first cell's words
   if (!line || line.querySelector('.lk-undo')) return;
-  put(line.querySelector(':scope > .lk-words') || line);
+  put(cell || line.querySelector(':scope > .lk-words') || line);   // in a table's cell beside the words, whose cut-off end would hide it from the pointer
 }
 function beside(words, uuid) {
   uuid = String(uuid || '').toLowerCase();

@@ -19,7 +19,7 @@
                                  one level up, a group just after the group it stood in
      tree(g)                     every group in order as an outline: [{ id, name, depth }]
      layout(g, rows, identOf, finding)   the table in groups: rows (in the table's order) answered as
-                                 [{ kind: 'group', id, name, depth, n, open } | { kind: 'row', row, depth }]: each group, then
+                                 [{ kind: 'group', id, name, depth, n, open, under } | { kind: 'row', row, depth, in }] (in: the row's group, or null): each group, then
                                  inside it its groups and its rows one step in; then the rows in no group, at the top level.
                                  n: the rows a group holds at any depth. A folded group's insides are left out. With no group
                                  made, the rows alone. finding: the rows are what a search found, and a group holding none is
@@ -100,21 +100,21 @@ const step = (g, what, out) => {
 const kids = (g, id) => g.list.filter(one => one.under === id);
 const tree = g => { const out = [], walk = (id, depth) => { for (const one of kids(g, id)) { out.push({ id: one.id, name: one.name, depth }); walk(one.id, depth + 1); } }; walk(null, 0); return out; };
 const layout = (g, rows, identOf, finding = false) => {
-  if (!g.list.length) return rows.map(row => ({ kind: 'row', row, depth: 0 }));
+  if (!g.list.length) return rows.map(row => ({ kind: 'row', row, depth: 0, in: null }));
   const groupOf = row => g.of[identOf(row)] ?? null, out = [];
   const count = id => rows.filter(row => groupOf(row) === id).length + kids(g, id).reduce((n, one) => n + count(one.id), 0);
   const walk = (id, depth) => {
     for (const one of kids(g, id)) {
       const n = count(one.id);
       if (finding && !n) continue;
-      out.push({ kind: 'group', id: one.id, name: one.name, depth, n, open: one.open });
+      out.push({ kind: 'group', id: one.id, name: one.name, depth, n, open: one.open, under: one.under });
       if (!one.open) continue;
       walk(one.id, depth + 1);
-      for (const row of rows) if (groupOf(row) === one.id) out.push({ kind: 'row', row, depth: depth + 1 });
+      for (const row of rows) if (groupOf(row) === one.id) out.push({ kind: 'row', row, depth: depth + 1, in: one.id });
     }
   };
   walk(null, 0);
-  for (const row of rows) if (groupOf(row) == null) out.push({ kind: 'row', row, depth: 0 });
+  for (const row of rows) if (groupOf(row) == null) out.push({ kind: 'row', row, depth: 0, in: null });
   return out;
 };
 const api = { clean, named, make, rename, put, inside, drop, fold, step, tree, layout, within };
