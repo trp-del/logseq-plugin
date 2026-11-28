@@ -14,7 +14,10 @@ G.part({
 .lk-todo { padding: 4px 4px 16px 10px; font-size: var(--lk-line-size); line-height: var(--lk-line-lead); }
 .lk-todo .lk-list { margin-top: 14px; }
 .lk-todo > .lk-time { margin: 0 0 2px; }
-.lk-todo .lk-add { align-items: baseline; }
+.lk-todo .lk-add { align-items: baseline; flex-wrap: wrap; }
+/* The line's words are never cut: the line is at least as wide as they are, and where the two choices find no room beside it
+   (the sidebar, a narrow window) they go under it, at its right end (F169: "Add or fin"). */
+.lk-todo .lk-add .lk-field { flex: 1 0 auto; field-sizing: content; max-width: 100%; }
 .lk-todo-hint { flex: none; margin-left: 8px; color: var(--lk-off); font-size: var(--lk-small); white-space: nowrap; }
 .lk-todo-hint:empty { display: none; }
 /* On its own page the list keeps a reading width and stands in the middle. */
