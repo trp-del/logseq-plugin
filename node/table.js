@@ -37,8 +37,11 @@ G.table = (el, opts) => {
   const doc = el.ownerDocument, cols = opts.columns, grouped = opts.groups || null;
   let sort = { ...(opts.sort || { key: cols[0].key, dir: 1 }) }, rows = [], turn = 0, gone = false, dragging = null;
   const box = doc.createElement('div'); box.className = 'lk-table'; if (opts.face) box.dataset.face = opts.face;
-  box.style.setProperty('--lk-cols', cols.map(col => col.width || 'minmax(0, 1fr)').join(' '));
-  box.style.setProperty('--lk-min', cols.reduce((n, col) => n + (col.min || 0), 0) + 'px');   // narrower than this, the table scrolls sideways
+  /* The first column gives back the room its rows are stepped in by in a group (--lk-deep steps, set at each drawing), so a name
+     in a group has as much room as one outside it (F167: "Com…" for Completed on in a group, whole outside one). */
+  const deep = 'var(--lk-deep, 0) * (var(--lk-mark-box) + var(--lk-mark-gap))';
+  box.style.setProperty('--lk-cols', cols.map((col, i) => { const width = col.width || 'minmax(0, 1fr)', parts = !i && width.match(/^minmax\(\s*([^,]+?)\s*,\s*(.+)\)$/); return parts ? `minmax(calc(${parts[1]} + ${deep}), ${parts[2]})` : width; }).join(' '));
+  box.style.setProperty('--lk-min', `calc(${cols.reduce((n, col) => n + (col.min || 0), 0)}px + ${deep})`);   // narrower than this, the table scrolls sideways
   const grid = doc.createElement('div'); grid.className = 'lk-tgrid'; grid.setAttribute('role', 'table'); box.appendChild(grid);
   el.replaceChildren(box);
   const order = () => {
@@ -53,6 +56,9 @@ G.table = (el, opts) => {
   const parts = () => {
     const sorted = order(), items = grouped ? grouped.layout(sorted) : sorted.map(row => ({ kind: 'row', row, depth: 0, in: null }));
     const drag = !!grouped?.drop && items.some(item => item.kind === 'group');
+    // How many steps in the deepest row may stand: a group's rows one past its name, whether the group is open or folded.
+    const steps = String(Math.max(0, ...items.map(item => item.kind === 'group' ? item.depth + 2 : item.depth ? item.depth + 1 : 0)));
+    if (box.style.getPropertyValue('--lk-deep') !== steps) box.style.setProperty('--lk-deep', steps);
     const out = [['head', head()]];
     for (const item of items) out.push(item.kind === 'group' ? [`g:${item.id}`, heading(item), item] : [`r:${item.row.uuid}`, line(item.row, item.depth, item.in, drag)]);
     if (!items.length) out.push(['none', `<div class="lk-none">${G.esc(opts.none || '')}</div>`]);
