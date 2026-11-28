@@ -119,7 +119,11 @@ G.timeline.CSS = `
 .lk-time-dot:hover { opacity: 1; box-shadow: 0 0 0 3px var(--lk-wash); }
 .lk-time-dot.off { opacity: .22; }
 .lk-time-dot.late { background: var(--lk-going); opacity: 1; }
-.lk-time-strip .lk-time-track { cursor: default; }
+/* A strip over a list (Todo's) is no taller than its line and its two rows of words need: a row of 17, the months' names 4
+   nearer the line, the word today still clear of its tick (measured in Logseq, 27 November 2026: 52 high before, 47 after). */
+.lk-time.lk-time-strip { --lk-time-row: 17px; }
+.lk-time-strip .lk-time-track { height: calc(var(--lk-time-row) + 14px); cursor: default; }
+.lk-time-strip .lk-time-month::before { top: -13px; }
 .lk-time-dot.at { opacity: 1; box-shadow: 0 0 0 2px var(--lk-paper), 0 0 0 3.2px var(--lk-text); }
 .lk-time-more { position: absolute; top: calc((var(--lane, 0) + 1) * var(--lk-time-row) - 16px - var(--pile, 0) * 9px); transform: translateX(-50%); font-size: var(--lk-label); line-height: 12px; color: var(--lk-quiet); pointer-events: none; }
 .lk-time-name { position: absolute; top: calc((var(--lane, 0) + 1) * var(--lk-time-row) - 31px - var(--pile, 0) * 9px); transform: translateX(-8px); max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--lk-small); line-height: 16px; padding: 0 4px; background: var(--lk-paper); color: var(--lk-text); border-radius: 3px; pointer-events: none; z-index: 1; }
