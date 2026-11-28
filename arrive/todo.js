@@ -29,38 +29,51 @@ G.part({
 .lk-todo-view button::after { content: ""; width: 4px; height: 4px; margin-top: -3px; border: solid currentColor; border-width: 0 1.1px 1.1px 0; transform: rotate(45deg); opacity: .8; }
 .lk-todo .lk-add .lk-field { padding-left: 22px; background: linear-gradient(var(--lk-off), var(--lk-off)) no-repeat 3px 50% / 11px 1.2px, linear-gradient(var(--lk-off), var(--lk-off)) no-repeat 8px 50% / 1.2px 11px; }`);
     const PRIORITIES = ['Urgent', 'High', 'Medium', 'Low'];
-    const refused = what => error => G.say(`${what}: ${error?.message || 'Logseq refused'}`, 'warning');
+    const refused = what => error => G.write.refused(what, error, 'The task was not changed.');
+    // What is listed (the statuses left out), how it is grouped and sorted and where a task's day stands are kept for the next
+    // time, on this Mac, by the one keeper of what the window remembers.
+    const kept = { by: G.touch.kept('lk.todo-by', 'day'), sort: G.touch.kept('lk.todo-sort', 'day'), out: G.touch.kept('lk.todo-out', []), dayAt: G.touch.kept('lk.todo-date-at', 'end') };
     // The one list, drawn the same in the sidebar's section and on the page of its own.
     const draw = holder => {
       const doc = holder.ownerDocument;
       holder.classList.add('lk-todo');
       holder.innerHTML = '<div class="lk-time" hidden></div><div class="lk-todo-view"><div><button type="button" data-of="show"></button><button type="button" data-of="by"></button></div></div><div class="lk-rel"></div>';
-      const timeEl = holder.children[0], viewEl = holder.children[1], store = doc.defaultView.localStorage;
+      const timeEl = holder.children[0], viewEl = holder.children[1];
       // A day said in the words ("by friday") becomes the task's Deadline and leaves the words; it is said at the line's right before Return.
       const offAdd = G.node.adder(holder, 'Add or find a todo', async words => {
         const read = G.todo.dayIn(words, G.days.number(new Date())), made = await G.write.addTask(read ? read.words : words, read ? read.day : 0);
-        doc.defaultView.setTimeout(() => narrow(), 0);   // the line empties without a key: the list is whole again, and the day said at its right goes
+        doc.defaultView.setTimeout(() => narrow(true), 0);   // the line empties without a key: the list is whole again with the new task in it, and the day said at its right goes
         return made;
       }, 'The task could not be added');
       const field = holder.firstElementChild.firstElementChild, hint = doc.createElement('span'); hint.className = 'lk-todo-hint'; field.after(hint); hint.after(viewEl);
-      // What is typed in that line narrows the list to the tasks holding every word of it; Return still adds it as a new task.
+      // What is typed in that line narrows the list to the tasks holding every word of it (G.todo.holding: a link is read as the
+      // name of its node, so a task is found by a name it links); Return still adds it as a new task.
       let typed = '';
-      const holds = task => { const words = String(task.words).toLowerCase(); return typed.split(/\s+/).every(word => words.includes(word)); };
-      // What is listed (the statuses left out), how it is grouped and how it is sorted are kept for the next time, on this Mac.
-      const kept = (key, fallback) => { try { return JSON.parse(store.getItem(key)) ?? fallback; } catch (error) { return fallback; } };
-      const keep = (key, value) => { try { store.setItem(key, JSON.stringify(value)); } catch (error) { /* this sitting only */ } };
       const BY = { day: 'By day', page: 'By page', parent: 'By parent', tag: 'By tag', priority: 'By priority', status: 'By status' };
-      let by = BY[kept('lk.todo-by', 'day')] ? kept('lk.todo-by', 'day') : 'day', sort = kept('lk.todo-sort', 'day') === 'name' ? 'name' : 'day', out = new Set(kept('lk.todo-out', []));
-      let dayAt = kept('lk.todo-date-at', 'end');   // where a task's day stands: 'start' or 'end' of its line
-      const plain = words => String(words || '').replace(/\[\[|\]\]/g, '');
+      let by = BY[kept.by.get()] ? kept.by.get() : 'day', sort = kept.sort.get() === 'name' ? 'name' : 'day', out = new Set([].concat(kept.out.get() || []));
+      let dayAt = kept.dayAt.get() === 'start' ? 'start' : 'end';   // where a task's day stands: 'start' or 'end' of its line
       let held = new Set();   // every open task, listed or not
+      /* What the graph holds is asked for when it may have changed (the list reads again by itself at a change), when what is
+         listed or how it is grouped is chosen, and when the day turns over. Narrowing the list to the words typed asks nothing:
+         it shapes the last reading again (narrow says so in fresh, which the list's next reading takes; the list reads at once). */
+      let got = null, fresh = true;
+      const gather = async () => {
+        const [all, statuses] = await Promise.all([G.read.tasks(), G.read.statuses()]);
+        const titleOf = new Map(statuses.map(status => [status.id, status.title])), listed = all.filter(task => !out.has(titleOf.get(task.status) || ''));
+        // Where each task sits: its page, then the bullet it is under. Said under a task's words, except what the group's own heading says.
+        const sits = await G.read.where(listed.map(task => task.id));
+        // The names of the nodes linked in a task's words and in the words of where it sits: a link reads as its name, never as its id.
+        const names = await G.read.names([...new Set([...listed.map(task => task.words), ...[...sits.values()].flat().map(step => step.words)].flatMap(G.words.named))]);
+        return { all, statuses, titleOf, listed, sits, names };
+      };
       const read = async () => {
-        const [all, statuses] = await Promise.all([G.read.tasks(), G.read.statuses()]), today = G.days.number(new Date());
+        if (fresh || !got) { const asked = got = gather(); asked.catch(() => { if (got === asked) got = null; }); }   // a reading that failed is not kept
+        fresh = true;
+        const { all, statuses, titleOf, listed, sits, names } = await got, today = G.days.number(new Date());
         held = new Set(all.map(task => task.uuid));
-        const titleOf = new Map(statuses.map(status => [status.id, status.title])), open = statuses.filter(status => all.some(task => task.status === status.id));
-        const listed = all.filter(task => !out.has(titleOf.get(task.status) || ''));
+        const open = statuses.filter(status => all.some(task => task.status === status.id));
         // The strip of time: every listed task that has a day, a late one in red; a press on a dot goes to its line.
-        const dots = listed.filter(task => task.day).map(task => ({ day: task.day, title: plain(task.words), uuid: task.uuid, late: task.day < today }));
+        const dots = listed.filter(task => task.day).map(task => ({ day: task.day, title: G.words.plain(task.words, names), uuid: task.uuid, late: task.day < today }));
         timeEl.hidden = dots.length < 5;   // a strip of two or three dots says less than the lines under it
         if (dots.length >= 5) G.timeline.strip(timeEl, dots, today, dot => { const line = holder.querySelector(`.lk-row[data-uuid="${dot.uuid}"] > .lk-line`); if (line) { line.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); line.focus({ preventScroll: true }); } });
         const left = open.filter(status => out.has(status.title)), shown = open.filter(status => !out.has(status.title));
@@ -68,49 +81,48 @@ G.part({
         showEl.textContent = left.length ? (shown.length <= 2 ? shown.map(status => status.title).join(', ') : `${shown.length} statuses`) : 'All open'; showEl.classList.toggle('on', !!left.length);
         byEl.textContent = BY[by]; byEl.classList.toggle('on', by !== 'day' || sort !== 'day');
         showEl.lkOpen = open;
-        // Where each task sits: its page, then the bullet it is under. Said under a task's words, except what the group's own heading says.
-        const sits = await G.read.where(listed.map(task => task.id));
-        const tasks = (typed ? listed.filter(holds) : listed).map(task => { const at = sits.get(task.id) || []; return { ...task, at, where: by === 'page' ? at.slice(1) : by === 'parent' ? [] : at.slice(0, 1).filter(step => !step.day) }; });   // a journal is only a day, and a task says one day: its own
+        const tasks = G.todo.holding(listed, typed, names).map(task => { const at = sits.get(task.id) || []; return { ...task, at, where: by === 'page' ? at.slice(1) : by === 'parent' ? [] : at.slice(0, 1).filter(step => !step.day) }; });   // a journal is only a day, and a task says one day: its own
         if (by === 'day') return G.todo.groups(tasks, today, sort);
         if (by === 'status') return G.todo.by('status', tasks, today, task => titleOf.get(task.status) || '', statuses.map(status => status.title), sort);
         if (by === 'tag') return G.todo.by('tag', tasks, today, task => task.tag && task.tag !== 'Task' ? task.tag : '', [], sort);
         if (by === 'priority') return G.todo.by('priority', tasks, today, task => task.priority, PRIORITIES, sort);
-        if (by === 'parent') return G.todo.by('parent', tasks, today, task => plain(task.at[task.at.length - 1]?.words), [], sort);
-        return G.todo.by('page', tasks, today, task => task.at[0]?.day ? G.days.short(task.at[0].day) : plain(task.at[0]?.words), [], sort);
+        if (by === 'parent') return G.todo.by('parent', tasks, today, task => G.todo.under('parent', task, names), [], sort);
+        return G.todo.by('page', tasks, today, task => G.todo.under('page', task, names), [], sort);
       };
       // A task's right-click: its priority and its deadline, each from a short list, with the way back at the task's line.
       const more = (row, at) => {
         const uuid = row.dataset.uuid, change = write => G.undo.after(uuid, write);
         const task = async () => (await G.read.tasks()).find(one => one.uuid === uuid) || {};
-        const day = n => { const d = new Date(); return G.days.number(new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)); };
+        const today = G.days.number(new Date());
         return [{ gap: true },
           { word: 'Priority…', take: async () => { const now = (await task()).priority; G.menu(at, [...PRIORITIES.map(word => ({ word, on: word === now, take: () => change(G.write.setPriority(uuid, word)).catch(refused('The priority could not be set')) })),
             ...(now ? [{ gap: true }, { word: 'Remove priority', take: () => change(G.write.setPriority(uuid, '')).catch(refused('The priority could not be taken off')) }] : [])]); } },
-          { word: 'Deadline…', take: async () => { const now = await task(), has = now.dayFrom === 'Deadline' ? now.day : 0, monday = ((8 - new Date().getDay()) % 7) || 7;
-            G.menu(at, [...[['Today', day(0)], ['Tomorrow', day(1)], ['Next week', day(monday)]].map(([word, to]) => ({ word, value: G.days.short(to, day(0)) || '', on: has === to, take: () => change(G.write.setDeadline(uuid, to)).catch(refused('The deadline could not be set')) })),
+          { word: 'Deadline…', take: async () => { const now = await task(), has = now.dayFrom === 'Deadline' ? now.day : 0;
+            G.menu(at, [...[['Today', today], ['Tomorrow', G.days.shift(today, 1)], ['Next week', G.todo.nextWeek(today)]].map(([word, to]) => ({ word, value: G.days.short(to, today) || '', on: has === to, take: () => change(G.write.setDeadline(uuid, to)).catch(refused('The deadline could not be set')) })),
               ...(has ? [{ gap: true }, { word: 'Remove deadline', take: () => change(G.write.setDeadline(uuid, 0)).catch(refused('The deadline could not be taken off')) }] : [])]); } }];
       };
       const list = G.node.listing(holder.lastElementChild, read, { few: 30, none: 'No open tasks', dayStart: () => dayAt === 'start', more, leaves: uuid => !held.has(uuid) });
-      const narrow = () => {
+      const narrow = anew => {   // anew: the graph was written to (a task added), so it is read again
         const now = field.value.trim().toLowerCase(), said = G.todo.dayIn(field.value, G.days.number(new Date()));
         hint.textContent = said ? G.days.short(said.day) : '';   // a day is written one way everywhere
-        if (now !== typed) { typed = now; list.again(); }
+        if (now !== typed) { typed = now; fresh = anew === true; list.again(); }
       };
-      field.addEventListener('input', narrow); field.addEventListener('keyup', narrow);
+      const onTyped = () => narrow(false);
+      field.addEventListener('input', onTyped); field.addEventListener('keyup', onTyped);
       const onView = event => {
         const button = event.target.closest('button'); if (!button) return;
-        if (button.dataset.of === 'by') return void G.menu(button, [{ group: 'Group by' }, ...Object.entries(BY).map(([key, word]) => ({ word: word.slice(3, 4).toUpperCase() + word.slice(4), on: key === by, take: () => { by = key; keep('lk.todo-by', by); list.again(); } })),
-          { gap: true }, { group: 'Sort by' }, ...[['day', 'Day'], ['name', 'Name']].map(([key, word]) => ({ word, on: key === sort, take: () => { sort = key; keep('lk.todo-sort', sort); list.again(); } })),
-          { gap: true }, ...G.listview.dayPlaces(dayAt === 'start', start => { dayAt = start ? 'start' : 'end'; keep('lk.todo-date-at', dayAt); list.again(); })]);
-        const open = button.lkOpen || [], flip = title => { if (out.has(title)) out.delete(title); else if (open.filter(status => !out.has(status.title)).length > 1) out.add(title); keep('lk.todo-out', [...out]); list.again(); };   // the last one listed cannot be left out
+        if (button.dataset.of === 'by') return void G.menu(button, [{ group: 'Group by' }, ...Object.entries(BY).map(([key, word]) => ({ word: word.slice(3, 4).toUpperCase() + word.slice(4), on: key === by, take: () => { by = key; kept.by.set(by); list.again(); } })),
+          { gap: true }, { group: 'Sort by' }, ...[['day', 'Day'], ['name', 'Name']].map(([key, word]) => ({ word, on: key === sort, take: () => { sort = key; kept.sort.set(sort); list.again(); } })),
+          { gap: true }, ...G.listview.dayPlaces(dayAt === 'start', start => { dayAt = start ? 'start' : 'end'; kept.dayAt.set(dayAt); list.again(); })]);
+        const open = button.lkOpen || [], flip = title => { if (out.has(title)) out.delete(title); else if (open.filter(status => !out.has(status.title)).length > 1) out.add(title); kept.out.set([...out]); list.again(); };   // the last one listed cannot be left out
         G.menu(button, [{ group: 'Show' }, ...open.map(status => ({ word: status.title, icon: G.touch.statusIcon(status.icon), on: !out.has(status.title), take: () => flip(status.title) })),
-          ...(open.some(status => out.has(status.title)) ? [{ gap: true }, { word: 'Show all', take: () => { out = new Set(); keep('lk.todo-out', []); list.again(); } }] : [])]);
+          ...(open.some(status => out.has(status.title)) ? [{ gap: true }, { word: 'Show all', take: () => { out = new Set(); kept.out.set([]); list.again(); } }] : [])]);
       };
       viewEl.addEventListener('click', onView);
       // The day turns over while the window stays open: read again when it does.
       let today = G.days.number(new Date());
       const tick = doc.defaultView.setInterval(() => { const now = G.days.number(new Date()); if (now !== today) { today = now; list.again(); } }, 60000);
-      return () => { doc.defaultView.clearInterval(tick); viewEl.removeEventListener('click', onView); field.removeEventListener('input', narrow); field.removeEventListener('keyup', narrow); offAdd(); list.off(); };
+      return () => { doc.defaultView.clearInterval(tick); viewEl.removeEventListener('click', onView); field.removeEventListener('input', onTyped); field.removeEventListener('keyup', onTyped); offAdd(); list.off(); };
     };
     // In the sidebar from the corner; in the middle of the window, a page of its own, from the command or g then d.
     const section = G.touch.section('lk-todo', 'Todo', draw, CHECK), page = G.touch.page('lk-todo-page', 'Todo', draw);
