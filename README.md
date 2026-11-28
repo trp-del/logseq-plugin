@@ -415,7 +415,8 @@ A web address typed without http:// in front is made a link when you leave its b
 `[vanguard.com](https://vanguard.com)`, so it reads as typed, with the arrow after it, and one step of Undo takes it back.
 An address starts with www. or ends in a common ending (.com, .org, .gov …); .in, .me, .app and the like need www. before
 or a / after. Mail addresses, file names, code, page names and a property's value are left as typed. Only bullets you write
-in are touched.
+in are touched, and never one you are writing in at that moment: gone back into at once, a bullet gets its link when you
+next leave it.
 
 ### Where a tag sits (`write/where.js`)
 
