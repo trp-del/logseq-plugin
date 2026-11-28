@@ -43,7 +43,11 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 
 - one list for each of your properties that points at the page, named by the property; on a journal day, Logseq's Scheduled
   and Deadline; then **Mentioned in**, where a node that names the page inside the words of one of its values stands too;
-- a tag every row of a list shares is said once, beside the list's name;
+- a tag every row of a list shares is said once, beside the list's name; any other tag a node holds is said after that
+  row's words, and a list of one node, whose head names no kind, says its node's tag on the row;
+- while a bullet is being written in, the lists do not read the graph at each pause: they read once, when the bullet is left;
+- a row you have open stays open, where it is, until you close it, also when its node no longer belongs to the list (you
+  changed in it the very value that pointed here): it leaves when it is closed;
 - the lists stand under the quiet word **Relations** and a hairline, each list's name on that word's edge; its fold arrow, as
   a bullet's, shows under the pointer; the find line under it says **Search**;
 - a second hairline closes the section under its last row, running on under the word. A press on the word rolls the lists up
@@ -93,9 +97,9 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | | Move up, Move down | The list's place among the page's lists, kept for the page. A list's name can also be dragged above or below another |
 | The timeline | Click a dot, or drag across | A dot for each dated node from the first node's month to today. A dot narrows the list to its week; Left and Right walk the dots, Enter opens the node; a drag narrows to any span. By a property: a lane for each of its three most held values and one for the others; a lane's name narrows to it. Taller piles a week's dots. Escape lets go of the lane, then of the span |
 | A node's line | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, what the place itself offers, Delete. Words alone, Delete in red (the owner chose the short menu, 25 November 2026) |
-| | Right, Left | Opens the node in place, closes it |
-| | Drag onto another list's head | The node gets that list's property, pointing here |
-| "no Topic?" after a node | Click | A property four in five of the list hold and this node lacks: asks its value there |
+| | Right, Left | Right opens the node in place and the keys rest on it; Left closes it. Once you go into the node the keys are Logseq's, and Escape closes it |
+| | Drag onto another list's head | The node gets that list's property, pointing here, with the Undo arrow after its words |
+| "no Topic?" after a node | Click | A property four in five of the list hold and this node lacks: asks its value there; the value written gets the Undo arrow |
 | A mention | Click a step of where it sits | Under a mention stands the page it is on, and the bullet it is under: each opens |
 
 A day in the journals feed has its lists at the foot of the day. **Relations: the Recycle list** opens Logseq's Recycle as a
@@ -236,7 +240,9 @@ again: a sidebar the key had opened is shut, and the keys go back to the bullet 
 - Plain words: Logseq's own search answers: what holds the words first, then what holds them in a value (said after the words),
   then the rest Logseq found; grouped by kind, the kinds among them offered above. The typed letters are marked a step heavier.
 - A kind taken: its nodes (and those of the kinds under it), newest first, and above them what they hold to narrow by, each
-  value with how many hold it, then the months. A value or month pressed becomes a piece; words narrow further.
+  value with how many hold it, then the months. A value or month pressed becomes a piece; words narrow further. Of many
+  nodes the list is given the first 120: **Show 180 more** counts all that wait, and each press past the given ones brings
+  120 more.
 - One line does it all; there are no ways of searching to switch between. "Consultation with Mei Chen around Aug 2026" typed
   there is read as a kind, a value and a time, each said under the line with what it was read as; the time is a strip of months,
   and the nodes just outside it follow under **Near**. Words that name no time, and no kind with something else, are plain

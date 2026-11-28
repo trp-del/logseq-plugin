@@ -28,8 +28,16 @@ function statusHtml(node, statuses) {
   if (!s) return '';
   return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
+/* The tags a line says after its words: its tag, where the list's head does not say it for every row (tagShown), and every
+   other tag the node holds, which no head says: so a tag set on a row shows on the row. Task is not said again on a line that
+   has its status circle. A place that blanks a row's tag (Ontology's own rows) gets none. */
+function tagsHtml(node, tagShown) {
+  if (!node.tag) return '';
+  const rest = (node.tags || []).map(tag => tag.title).filter(title => title && title !== node.tag && !(title === 'Task' && node.status));
+  return [...(tagShown ? [node.tag] : []), ...rest].map(title => `\u2002<span class="lk-tag">${G.esc(title)}</span>`).join('');
+}
 function html(node, { names, statuses, tagShown, day }) {
-  return `<span class="lk-bul${node.holds ? ' lk-folded' : ''}" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagShown && node.tag ? `\u2002<span class="lk-tag">${G.esc(node.tag)}</span>` : ''}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
+  return `<span class="lk-bul${node.holds ? ' lk-folded' : ''}" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagsHtml(node, tagShown)}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
 }
 
 const ended = status => /^(done|canceled|cancelled)$/.test(status.name);
@@ -138,7 +146,7 @@ function act(event, row, more) {
   }
   if (event.type === 'keydown' && line && target === line) {
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (event.shiftKey) G.touch.open(row.dataset.uuid, true); else G.node.toggle(row); return true; }
-    if (event.key === 'ArrowRight' && !row.dataset.open) { event.preventDefault(); G.node.open(row); return true; }   // Right opens in place, Left closes
+    if (event.key === 'ArrowRight' && !row.dataset.open) { event.preventDefault(); G.node.open(row, true); return true; }   // Right opens in place, Left closes (while the node is open the keys rest on it: node/node.js)
     if (event.key === 'ArrowLeft' && row.dataset.open) { event.preventDefault(); G.node.close(row, true); return true; }
   }
   return false;
