@@ -754,9 +754,11 @@ What it writes, each through the same writes as in Logseq:
   Logseq or of a page by its name (made if there is none), with the tag picked and the person's own words under it.
 - `add`: files put into the graph as Logseq puts a dropped file (a node of its own, the file copied into the graph's `assets`
   folder), at the end of today's journal, of the open page or of a page by its name; a file already in the graph is refused,
-  or linked instead where asked. `unadd` deletes again the bullets an `add` made.
+  or linked instead where asked, and one whose node lies on a page in the Recycle is left out. `unadd` deletes again the
+  bullets an `add` made.
 
-Every change answers the node read afresh and how many steps of Logseq's Undo it took. `undo` (and Todo's `todoUndo`) takes
+Every change answers the node read afresh and how many steps of Logseq's Undo it took. Every refusal reaches a panel in
+the plugin's words, never Logseq's, and shows no notice in Logseq. `undo` (and Todo's `todoUndo`) takes
 back only what Alfred changed last on the node it names, in as many steps as that change took, and refuses, taking nothing
 back, once anything else has changed in the graph: Logseq's Undo would then take back that later change. A day typed as words
 ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot read is refused, never guessed. The part can

@@ -60,7 +60,9 @@ wrote. When it did not (Logseq refused, the plugin is off or does not answer), t
   Option** and the foot names what can be done to the lit line. Undo and Copy work and are never named.
 - **Files**, the Universal Action **Add files to Logseq…**: each file with the name its node will have; a file already in the graph
   is said before anything is added and is linked, not copied again. ↩ adds them, with a progress bar; then one Undo for all.
-  The plugin puts the files into the graph; one that cannot says so at the head of the tray, and nothing is said to be added.
+  The plugin puts the files into the graph as Logseq takes a pasted file. A file that cannot be read, or that is already in the graph
+  on a page in the Recycle, says so in red on its row and is left out; a refusal is said in plain words, and nothing is said to be
+  added that was not.
 - **A selection**, the Universal Action **Add to Logseq…** or the hotkey: a quote with its citation (web page, document, PDF in the
   graph, as Cite writes them), or a page's link, shown as it will read before it is written, with a line for your own words under
   it, and where it goes (today, the open page, a page named after the source). Undo takes the quote and your words back together.
@@ -118,8 +120,6 @@ installer; Alfred keeps the token and keywords from the earlier version, since t
 - **Logseq rejected the API token**: paste the current token into the workflow's configuration.
 - **The Logseq Plugin in Logseq did not answer**: the plugin is off, reloading, or older than this workflow. Switch it on in
   Logseq, or install the plugin this workflow came with.
-- **This Logseq Plugin cannot put files into the graph yet**: the plugin in Logseq has no way to take a file in. Words, links and
-  selections still go in.
 - **Not taken back: the graph has changed since**: something else was changed after the change you want back. Use Undo in Logseq.
 - **No page is open in Logseq**: open a page before `la`, or add to Today.
 - **Select some words first, or choose a file**: the hotkey found nothing selected and no saved document in front.
