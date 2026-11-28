@@ -30,29 +30,37 @@ G.part({
       // Restore: said only when the bullet or page is back. Logseq brings nothing back when the page a bullet was on is itself in
       // the Recycle.
       const restore = async row => {
-        let back = false, why = '';
-        try { back = !!(await G.write.restore(row.uuid)); } catch (error) { why = error?.message || ''; }
+        let back = false, failed;
+        try { back = !!(await G.write.restore(row.uuid)); } catch (error) { failed = error; }
         if (!back) back = !(await still([row])).length;
         if (back) G.say(`“${said(row)}” is back.`);
         else if (!row.isPage && row.from && rows.some(one => one.isPage && one.words === row.from)) G.say(`“${said(row)}” was not brought back: the page it was on, “${row.from}”, is in the Recycle too. Restore that page first, then this bullet.`, 'warning');
-        else G.say(`“${said(row)}” was not brought back: ${why || 'Logseq found no place to put it'}. It is still in the Recycle.`, 'warning');
+        else G.write.refused(`“${said(row)}” was not brought back`, failed, 'It is still in the Recycle.');
         draw(el);
       };
       // Delete for good, one by one: what Logseq refused stays in the list and is said.
       const forGood = async list => {
-        let kept = [], why = '';
-        for (const row of list) { try { if (!(await G.write.deleteForGood(row.uuid))) kept.push(row); } catch (error) { kept.push(row); why ||= error?.message || ''; } }
+        let kept = [], failed;
+        for (const row of list) { try { if (!(await G.write.deleteForGood(row.uuid))) kept.push(row); } catch (error) { kept.push(row); failed ||= error; } }
         if (kept.length) kept = await still(kept);
-        if (kept.length) G.say(`${kept.length === 1 ? `“${said(kept[0])}” was` : `${kept.length} of ${list.length} were`} not deleted: ${why || 'Logseq refused'}. ${kept.length === 1 ? 'It is' : 'They are'} still in the Recycle; press Delete again to try once more.`, 'warning');
+        if (kept.length) G.write.refused(`${kept.length === 1 ? `“${said(kept[0])}” was` : `${kept.length} of ${list.length} were`} not deleted`, failed, `${kept.length === 1 ? 'It is' : 'They are'} still in the Recycle; press Delete again to try once more.`);
         draw(el);
+      };
+      // The shared question under a line. Left by Cancel or Escape, the keys go back to the press it was opened from (the shared
+      // question hands them to a shared line, which this list has not).
+      const ask = (holder, press, what) => {
+        G.ask.gone(holder, what);
+        const box = holder.querySelector(':scope > .lk-ask-gone'), view = el.ownerDocument.defaultView;
+        const left = event => { if (event.type === 'keydown' ? event.key === 'Escape' : !!event.target.closest('[data-do="no"]')) view.setTimeout(() => { if (!box.isConnected && press.isConnected) press.focus({ preventScroll: true }); }, 0); };
+        box?.addEventListener('keydown', left, true); box?.addEventListener('click', left, true);
       };
       el.onclick = event => {
         const press = event.target.closest('[data-do]'), line = press?.closest('.lk-recycle-row'), what = press?.dataset.do;
         if (!what) return;
         const row = line && rows.find(one => one.uuid === line.dataset.uuid);
         if (what === 'restore' && row) { press.disabled = true; restore(row); }   // one press, one restore: the list is drawn again when Logseq has answered
-        else if (what === 'delete' && row) G.ask.gone(line.parentElement, { words: `Delete “${said(row)}” for good?`, note: 'Nothing brings it back.', yes: 'Delete for good', take: () => forGood([row]) });
-        else if (what === 'all') G.ask.gone(press.closest('.lk-row'), { words: `Delete all ${rows.length} for good?`, note: 'Nothing brings them back.', yes: 'Delete for good', take: () => forGood(rows) });
+        else if (what === 'delete' && row) ask(line.parentElement, press, { words: `Delete “${said(row)}” for good?`, note: 'Nothing brings it back.', yes: 'Delete for good', take: () => forGood([row]) });
+        else if (what === 'all') ask(press.closest('.lk-row'), press, { words: `Delete all ${rows.length} for good?`, note: 'Nothing brings them back.', yes: 'Delete for good', take: () => forGood(rows) });
       };
     };
     const page = G.touch.page('lk-recycle', 'The Recycle list', el => { draw(el); });
