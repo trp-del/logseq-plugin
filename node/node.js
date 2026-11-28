@@ -491,8 +491,9 @@ function foldList(state, box) {
   rollUp(rows).then(() => { box.lkShutting = false; flip(); for (const name of ['height', 'overflow', 'transition']) rows.style.removeProperty(name); });
 }
 /* A line that adds: one field at the head of a place's list. Enter hands its words to add(words), which answers the uuid of what
-   it made (or of what was there already); the list then moves to that row and lights it for a moment, while the field stays in
-   view. Escape empties the field and lets go. Gives back what takes the line's ears away. */
+   it made, or { uuid, steps }: the steps of Logseq's Undo it made, 0 where the thing was there already. The list then moves to
+   that row while the field stays in view, and the Undo arrow is set only where something was made: an arrow for nothing would
+   take back the person's last change. Escape empties the field and lets go. Gives back what takes the line's ears away. */
 function adder(holder, name, add, failed) {
   const doc = holder.ownerDocument, view = doc.defaultView, line = doc.createElement('div'); line.className = 'lk-add';
   line.innerHTML = `<input class="lk-field" type="text" placeholder="${G.esc(name)}" aria-label="${G.esc(name)}" spellcheck="true" autocomplete="off">`;
@@ -502,15 +503,19 @@ function adder(holder, name, add, failed) {
     const row = uuid && holder.querySelector(`.lk-row[data-uuid="${uuid}"]`);
     if (!row) { if (tries < 20 && holder.isConnected) view.setTimeout(() => show(uuid, tries + 1), 150); return; }
     row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    G.undo.mark(uuid);   // what was added lights, with the way back at its end
   };
   const onKey = async event => {
     if (event.key === 'Escape') { field.value = ''; field.blur(); return; }
     if (event.key !== 'Enter' || !field.value.trim() || field.disabled) return;
     event.preventDefault(); event.stopPropagation();
     field.disabled = true;
-    try { const uuid = await add(field.value.trim()); field.value = ''; show(String(uuid || '').toLowerCase()); }
-    catch (error) { G.say(`${failed}: ${error?.message || 'Logseq refused'}`, 'warning'); }
+    try {
+      const got = await add(field.value.trim()), told = !!got && typeof got === 'object', uuid = String((told ? got.uuid : got) || '').toLowerCase();
+      field.value = '';
+      G.undo.mark(uuid, told ? got.steps : 1);   // the way back, at once and only for what was made; the arrow is drawn when the row is
+      show(uuid);
+    }
+    catch (error) { G.write.refused(failed, error); }
     field.disabled = false; field.focus();
   };
   field.addEventListener('keydown', onKey);
@@ -523,6 +528,7 @@ function once(base) {
   load().catch(() => {});   // before the graph is up there is none; the next change brings them
   base.onStop(G.touch.changed(() => load().catch(() => {})));
   base.onStop(G.touch.watch(() => G.touch.once(placed)));
+  base.onStop(() => G.undo.clear());   // the Undo arrow goes with the plugin: this is the node's one piece main.js starts with a base
 }
 G.node = { peek, toggle, open, close, roll, rollUp, moved, back, listing, lists, related, adder, folded, hit, once, ARROW, CHEV };
 G.node.CSS = `

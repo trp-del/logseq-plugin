@@ -186,8 +186,10 @@ function drags(state) {
       const keys = [...el.querySelectorAll(':scope > .lk-list')].map(one => one.dataset.key).filter(key => key !== was.key), i = keys.indexOf(box.dataset.key) + (at === 'below' ? 1 : 0);
       keys.splice(i, 0, was.key); orders.set({ ...orders.get(), [view.uuid]: keys }); state.again(); return;
     }
-    try { const here = await G.read.node(view.uuid); await G.write.setNode(was.uuid, box.lkList.prop.ident, here.id); G.say(`${was.words.trim().slice(0, 60) || 'The node'} now points here through ${box.lkList.prop.title}. Cmd-Z takes it back.`); state.again(); }
-    catch (error) { G.say(`It could not be given ${box.lkList.prop.title}: ${error?.message || 'Logseq refused'}`, 'warning'); }
+    if (box.lkList.rows.some(row => row.uuid === was.uuid)) return;   // it points here through that property already: nothing to write
+    // The way back is the Undo arrow after the line's words, as for every change made from a line.
+    try { const here = await G.read.node(view.uuid); await G.undo.after(was.uuid, G.write.setNode(was.uuid, box.lkList.prop.ident, here.id)); state.again(); }
+    catch (error) { G.write.refused(`It could not be given ${box.lkList.prop.title}`, error); }
   };
   const end = () => { unmark(); moving = null; };
   const ears = [['dragstart', start], ['dragover', over], ['drop', drop], ['dragend', end], ['dragleave', event => { if (!el.contains(event.relatedTarget)) unmark(); }]];

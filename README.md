@@ -89,7 +89,7 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole; a group shows twelve nodes, then **Show more**), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none; and **Date position**, the beginning or the end of the line), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
 | | Reads back as… | How the property reads on the pages it points to. By grammar unless you type a name: "Prescribed by" reads "Prescribed", "Symptom of" reads "Symptoms", "Provider" reads "Provider of", a plain noun keeps its name |
 | | Hide where it points | The list is no longer shown on the pages the property points to |
-| | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first. One line then says what was done, with an Undo |
+| | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first. One line then says what was done, with an Undo: the Undo arrow's own, for the steps that were made, and gone at the next change to the graph as the arrow is. Set property asks for the value by the property's kind: its set choices where it has them, a node (found by typing its name, however many there are), yes or no, a day ("Oct 7" is this year's), a day and a time ("Oct 7 14:30"), a number, words |
 | | Move up, Move down | The list's place among the page's lists, kept for the page. A list's name can also be dragged above or below another |
 | The timeline | Click a dot, or drag across | A dot for each dated node from the first node's month to today. A dot narrows the list to its week; Left and Right walk the dots, Enter opens the node; a drag narrows to any span. By a property: a lane for each of its three most held values and one for the others; a lane's name narrows to it. Taller piles a week's dots. Escape lets go of the lane, then of the span |
 | A node's line | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, what the place itself offers, Delete. Words alone, Delete in red (the owner chose the short menu, 25 November 2026) |
@@ -122,10 +122,13 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 - Colour is kept for a change: green for what comes, red struck through for what goes; Delete in a menu is red.
 - After the plugin changes a node shown as a line (a status, a tag, a new task, a tag moved in Ontology), a small faint arrow
   stands right after the line's words: a press takes the change back with Logseq's own Undo, in as many steps as the change
-  took. Nothing lights. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow goes at
-  the next change to the graph. Move values keeps its own way back.
-- Delete on a tag or a property, and Delete in the Recycle list, ask first, in a box under the line: what goes, what that
-  takes with it, a red yes and Cancel. The keys wait on Cancel; only a press on the red yes deletes.
+  took. Nothing lights. Where the node is no longer shown (it was deleted), the arrow waits at the bottom right. The arrow
+  stands only for a change that was made: a press that changed nothing (a tag put where it already is) leaves none. It goes at
+  the next change to the graph, when another graph is opened and when the plugin stops. A change of several steps goes back
+  one step after another; if you begin to write in a bullet meanwhile, the steps stop there and a notice says so, so that your
+  new words are never what is taken back. Move values keeps its own way back.
+- Delete on a tag or a property, in whichever list shows one (Ontology, Search, a page's Relations), and Delete in the
+  Recycle list, ask first, in a box under the line: what goes, what that takes with it, a red yes and Cancel. The keys wait on Cancel; only a press on the red yes deletes.
 - The presses are drawn as before the rebuild: the yes that decides filled in the ink, a plain press a quiet capsule, a
   third-level press with no ground, Delete in red on no ground with its bin; a small picture before a press's word where its job has one (Open in sidebar, Set tag, Set property,
   Undo, Restore, Move values).
