@@ -135,7 +135,11 @@ const hold = (steps, gone) => { const n = count(steps); return n ? stand(n, '', 
 async function after(uuid, write) { const made = await write; mark(uuid, typeof made === 'number' ? made : 1); return made; }   // a write that answers a number says how many steps it was; none, no arrow
 G.undo = { after, mark, hold, back, dress, beside, taken, clear };
 G.undo.CSS = `
-.lk-undo { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 20px; height: 20px; margin: 0 0 0 4px; padding: 0; vertical-align: -4px; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-text); font: inherit; opacity: .45; cursor: pointer; }
+/* After a line's words, on the words' own line: its middle on the middle of the small letters (it sat 2 below, and its box
+   reached under the line and made the row 1 taller), and it takes no room in the run of the words, so where the words
+   fill their line it still stands after the last of them and never on a line of its own (the row grew by a line when
+   the arrow came and shrank when it went). */
+.lk-undo { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 20px; height: 20px; margin: 0 -24px 0 4px; padding: 0; vertical-align: middle; border: 0; border-radius: var(--lk-corner); background: none; color: var(--lk-text); font: inherit; opacity: .45; cursor: pointer; }
 .lk-undo svg { width: 13px; height: 13px; }
 .lk-undo:hover, .lk-undo:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }
 .lk-undo:disabled { opacity: .45; pointer-events: none; cursor: default; }   /* its steps are going back: faint, not pressable, until the last has gone */
