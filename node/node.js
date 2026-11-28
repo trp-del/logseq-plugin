@@ -518,11 +518,10 @@ function hit(words, want) {
   words.normalize();
   const doc = words.ownerDocument, walk = doc.createTreeWalker(words, 4), nodes = [];
   for (let node; (node = walk.nextNode());) if (!node.parentElement.closest('.lk-tag, .lk-tell, .lk-lacks, .lk-sits')) nodes.push(node);
-  for (const node of nodes) {
-    const low = node.textContent.toLowerCase(); let at = -1, len = 0;
-    for (const word of want) { const i = low.indexOf(word); if (i >= 0 && (at < 0 || i < at)) { at = i; len = word.length; } }
-    if (at < 0) continue;
-    const rest = node.splitText(at); rest.splitText(len);
+  // Every typed word found in a stretch of the words is marked, each once and none over another: the places come from the
+  // deciding piece (core/search.js marks), taken from the end so the places before stay true.
+  for (const node of nodes) for (const [at, length] of G.search.marks(node.textContent, want).reverse()) {
+    const rest = node.splitText(at); rest.splitText(length);
     const mark = doc.createElement('mark'); mark.className = 'lk-hit'; rest.replaceWith(mark); mark.appendChild(rest);
   }
 }
@@ -635,6 +634,10 @@ function once(base) {
 }
 G.node = { peek, toggle, open, close, roll, rollUp, moved, back, listing, lists, related, adder, follow, folded, hit, once, ARROW, CHEV };
 G.node.CSS = `
+/* The letters typed, where they are found: semibold in the words' own ink, no colour behind them, no line under them and no
+   room of their own, so a word never comes apart. The one look of a match, in every list, menu and sheet (the grammar:
+   "The letters typed, in a match are semibold, with no colour behind them"). */
+mark.lk-hit { background: none; color: inherit; font-weight: 600; padding: 0; margin: 0; border-radius: 0; }
 .lk-rel:empty { display: none; }
 .lk-rel { display: flex; flex-direction: column; gap: 18px; container: lk-list / inline-size; }
 .lk-list-head[hidden] { display: none; }

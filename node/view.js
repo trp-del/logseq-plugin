@@ -233,7 +233,6 @@ G.listview.CSS = `
 .lk-tabmore { text-decoration: underline; text-decoration-color: var(--lk-link); text-decoration-thickness: var(--lk-link-width); text-underline-offset: 3px; }
 .lk-newtab { font-size: var(--lk-small); }
 .lk-today { font-size: var(--lk-small); color: var(--lk-quiet); white-space: nowrap; }
-.lk-words mark.lk-hit { background: color-mix(in srgb, var(--ls-link-text-color, #2563eb) 14%, transparent); color: inherit; border-radius: 2px; text-decoration: underline; text-decoration-color: var(--lk-link); text-underline-offset: 3px; }
 .lk-dots, .lk-set { appearance: none; border: 0; background: none; padding: 0; font: inherit; cursor: pointer; color: var(--lk-quiet); }
 .lk-dots { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-left: 2px; border-radius: 6px; opacity: .55; }
 .lk-dots:hover, .lk-dots:focus-visible { opacity: 1; background: var(--lk-wash); outline: none; }

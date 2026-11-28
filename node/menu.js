@@ -347,6 +347,5 @@ G.menu.CSS = `
 .lk-menu .lk-glow.on { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .lk-menu .lk-glow { transition: none; } }
 .lk-menu .lk-item.lk-path { color: var(--lk-quiet); }   /* a tag shown only so that what is under it is seen in its place */
-.lk-menu mark.lk-hit { background: none; color: inherit; font-weight: 600; padding: 0; margin: 0; border-radius: 0; }   /* the typed letters, as Search marks them */
 .lk-menu-find::placeholder { color: var(--lk-off); }`;
 })();
