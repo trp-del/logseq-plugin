@@ -149,8 +149,8 @@ function act(event, row, more) {
     return false;
   }
   if (event.type === 'keydown' && line && target === line) {
-    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (event.shiftKey) G.touch.open(row.dataset.uuid, true); else G.node.toggle(row); return true; }
-    if (event.key === 'ArrowRight' && !row.dataset.open) { event.preventDefault(); G.node.open(row, true); return true; }   // Right opens in place, Left closes (while the node is open the keys rest on it: node/node.js)
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); if (event.shiftKey) G.touch.open(row.dataset.uuid, true); else G.node.toggle(row, true); return true; }
+    if (event.key === 'ArrowRight' && !row.dataset.open) { event.preventDefault(); G.node.open(row, true, true); return true; }   // Right opens in place, Left closes (while the node is open the keys rest on it: node/node.js)
     if (event.key === 'ArrowLeft' && row.dataset.open) { event.preventDefault(); G.node.close(row, true); return true; }
   }
   return false;

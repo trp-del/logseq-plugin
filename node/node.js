@@ -1,8 +1,9 @@
 /* NODE: a node opened in place, and the lists of what points at a node.
    An opened node is Logseq's own editor for it (its words, its bullets, its properties, its menus, its Undo) with the lists of
    what points at it underneath, each row a line that opens in turn. Nothing of the node is drawn by the plugin.
-     G.node.toggle(row), open(row, keys), close(row)   a row of a list opened and closed in place (keys: opened by a key or a
-                                                 press on its line, so the keys rest on the opened node and Left closes it)
+     G.node.toggle(row, byKey), open(row, keys, byKey), close(row)   a row of a list opened and closed in place (keys: opened by
+                                                 a key or a press on its line, so the keys rest on the opened node and Left closes
+                                                 it; byKey: by a key, so the node is brought into view)
      G.node.peek(holder, uuid, shut)             the opened node without its Relations, in a holder of the caller's (the corner's look)
      G.node.listing(el, read, opts)              lists of nodes drawn into el and kept true while the graph changes. read() answers
                                                  [{ key, kind, name, tag, rows, face }] (a list with no name has no head; face 'tag' or
@@ -180,8 +181,9 @@ function moved(root, change) {
    reaches it. Once the person goes into the node the keys are Logseq's, and Escape is the way out. */
 // The place that scrolls a thing: the nearest one above it that does, else the window's own.
 const scroller = el => { const view = el.ownerDocument.defaultView; for (let at = el.parentElement; at; at = at.parentElement) { const flow = view.getComputedStyle(at).overflowY; if ((flow === 'auto' || flow === 'scroll') && at.scrollHeight > at.clientHeight + 1) return at; } return el.ownerDocument.scrollingElement; };
-/* A thing opened at the foot of what scrolls it is brought into view as far as that holds it: its top stays in view, and as much
-   of its height as fits comes in, in the same short move. */
+/* A thing opened from the keyboard at the foot of what scrolls it is brought into view as far as that holds it: its top stays in
+   view, and as much of its height as fits comes in, in the same short move. Not after a press: the line pressed stays under
+   the pointer, and the page is the person's to scroll. */
 function reveal(el, height) {
   const doc = el.ownerDocument, port = scroller(el), at = el.getBoundingClientRect();
   const frame = port === doc.scrollingElement ? { top: 0, bottom: doc.defaultView.innerHeight } : port.getBoundingClientRect();
@@ -192,13 +194,13 @@ const rest = holder => {   // the node can hold the keys only until they leave i
   holder.tabIndex = -1; holder.focus({ preventScroll: true });
   holder.addEventListener('blur', () => holder.removeAttribute('tabindex'), { once: true });
 };
-function open(row, keys = false) {
+function open(row, keys = false, byKey = false) {   // byKey: opened from the keyboard, so no pointer rests on its line: it is brought into view
   if (row.dataset.open || !G.touch.editor.can()) { if (!row.dataset.open) G.touch.open(row.dataset.uuid); return; }
   const doc = row.ownerDocument, holder = doc.createElement('div'); holder.className = 'lk-open';
   row.appendChild(holder); row.dataset.open = 'soon';
   mount(holder, row.dataset.uuid);
   // Logseq fills the node in over a few frames (a link's name, a property's value): it is shown once it has come to rest.
-  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') { const line = row.querySelector(':scope > .lk-line'), from = line?.offsetHeight || 28, had = keys && (doc.activeElement === line || doc.activeElement === doc.body || !doc.activeElement); row.dataset.open = '1'; holder.lkFrom = from; const full = holder.offsetHeight; roll(holder, from); if (keys) reveal(row, full); if (had) rest(holder); } } });
+  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') { const line = row.querySelector(':scope > .lk-line'), from = line?.offsetHeight || 28, had = keys && (doc.activeElement === line || doc.activeElement === doc.body || !doc.activeElement); row.dataset.open = '1'; holder.lkFrom = from; const full = holder.offsetHeight; roll(holder, from); if (byKey) reveal(row, full); if (had) rest(holder); } } });
   shown.observe(holder, { attributes: true, attributeFilter: ['data-whole'] });
   holder.lkClose = () => close(row, true);
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
@@ -236,7 +238,7 @@ function close(row, focus = false) {
     if (leaving) { leaving.remove(); next?.querySelector?.(':scope > .lk-line')?.focus({ preventScroll: true }); }
   });
 }
-const toggle = row => row.dataset.open ? close(row, true) : open(row, true);
+const toggle = (row, byKey = false) => row.dataset.open ? close(row, true) : open(row, true, byKey);
 /* One step back in a place: closes the opened node the person is in there (else the one opened last), a node dug into before
    the node it was dug from. Says whether one was closed. */
 function back(scope) {

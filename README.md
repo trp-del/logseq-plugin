@@ -154,8 +154,8 @@ a node it points at is opened under it, is under "An opened node, and digging" b
 - An opened node rolls out of its line in one short move, with what points at it already in it, and rolls back up into
   its line when it is closed (the arrow, Escape, Left); nothing under it moves before the roll. So do a list's fold (its
   head's second line with its rows), a group's fold, **Show more** and **Show fewer**, after which the list's own Show
-  more stands where the press was made. A node dug into rolls out under its value the same way. A node opened at the
-  window's foot, and the line the + opens, are brought into view. A row whose node no longer belongs to the list leaves
+  more stands where the press was made. A node dug into rolls out under its value the same way. A node opened from the keyboard at the
+  window's foot, and the line the + opens, are brought into view (after a press the line pressed stays under the pointer). A row whose node no longer belongs to the list leaves
   in the one move of closing. A tick box on a line shows under the pointer and stays once ticked (no list has tick boxes yet).
 - Three corners (a small one, one for what floats, the round of a press), the sizes of text, and the box a mark stands in
   with the gap after it (16 and 4) are named once in `ground/look.js`.
