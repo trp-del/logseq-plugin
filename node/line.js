@@ -109,8 +109,8 @@ async function menu(at, row, more) {
   const uuid = row.dataset.uuid, statuses = row.dataset.status ? await G.read.statuses() : [], now = Number(row.dataset.status) || 0, face = row.closest('.lk-list, .lk-table')?.dataset.face || '';
   /* Whether the row is a tag or a property is asked of the node itself, so that Delete asks first in every place that shows one
      (Search, a page's Relations), not only where the list says what its rows are. A bullet is neither: only a page is asked after. */
-  const asked = face || row.dataset.page === '1' ? await G.read.opened(uuid).catch(() => null) : null;
-  const kind = asked?.kind || (face === 'tag' ? 'tag' : face ? 'property' : '');
+  const what = face || row.dataset.page === '1' ? await G.ask.pageKind(uuid).catch(() => '') : '';   // 'tag' | 'property' | 'today' | 'page'; '' a bullet
+  const kind = what === 'tag' || what === 'property' ? what : face === 'tag' ? 'tag' : face ? 'property' : '';
   G.menu(at, [
     { word: 'Open', take: () => G.touch.open(uuid) },
     { word: 'Open in sidebar', take: () => G.touch.open(uuid, true) },
@@ -118,16 +118,13 @@ async function menu(at, row, more) {
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => setStatus(row, s) }))] : []),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
-    { word: kind || more?.gone ? 'Delete…' : 'Delete', goes: true, take: () => {
-      // A place that has its own one way to delete what its rows are (Ontology: a tag, a property, with its one question) is
-      // handed the row: the line's own delete and question step aside, so nothing is asked twice.
-      if (more?.gone) return void more.gone(row, at);
-      // A tag and a property are pages. Logseq does not always tell of a page that went, so the list is asked to read again.
-      const del = async () => { await G.undo.after(uuid, G.write.remove(uuid, !!kind || row.dataset.page === '1')); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); };
-      if (!kind) return void del().catch(error => G.write.refused('It could not be deleted', error));
-      // A tag or a property reaches every node that holds it: the question first, in red.
-      const name = asked?.title || row.querySelector('.lk-words')?.textContent.trim() || 'this', held = Number(row.querySelector('.lk-num')?.textContent || row.dataset.held) || 0;
-      G.ask.gone(row, { words: `Delete the ${kind} “${name}”?`, note: held ? `${held} ${held === 1 ? 'node holds' : 'nodes hold'} it. It is taken off every one of them.` : 'It is taken off every node that holds it.', yes: `Delete the ${kind}`, take: del });
+    /* Delete. A bullet goes at the press, with the Undo arrow: Undo brings it back. A page asks first, in the red box under
+       the line, as Logseq asks before it deletes a page: a tag or a property through the one way they are deleted from every
+       place (G.ask.remove), any other page with where it goes (G.ask.page). */
+    { word: kind || what || row.dataset.page === '1' ? 'Delete…' : 'Delete', goes: true, take: () => {
+      if (kind) return void G.ask.remove(row, [uuid]);
+      if (what || row.dataset.page === '1') return void G.ask.page(row, uuid);   // a page that could not be read is asked after again there, and nothing is deleted unread
+      G.undo.after(uuid, G.write.remove(uuid, false)).then(() => row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })), error => G.write.refused('It could not be deleted', error));
     } },
   ]);
 }
