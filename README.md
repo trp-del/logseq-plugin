@@ -534,7 +534,8 @@ areas, in the gaps and over the band above the areas, never over a name. Propert
 were before the rebuild (below). History lists what was changed from Ontology (a move, a merge, a rename, a deletion, a move of values),
 newest first, each with its day and time, kept on this computer for 30 days; "Nothing has been changed yet." when there is
 nothing. The newest line carries the Undo arrow after its words while that change is still the last change to the graph; the
-arrow goes at the next change, as every arrow does, and no older line has an Undo. Under the tabs stand one line to type in (**New tag** on Tags; on Properties the same line reads **Find a property**
+arrow goes at the next change, as every arrow does, and no older line has an Undo. A change taken back whole with its arrow (after
+its row, on this line or at the bottom right) loses its line: History says what was changed and still stands. Under the tabs stand one line to type in (**New tag** on Tags; on Properties the same line reads **Find a property**
 and narrows the table to the properties whose name holds what is typed, Escape emptying it), **Move values…** (the box, with
 the property still to choose; there, and in the right-click menus, only while the part Move values is switched on) and
 **In the sidebar**, which opens the same outline as a section of the right sidebar, for use beside a page you are reading.
