@@ -495,15 +495,15 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.keyboard.press('Escape'); await wait(800);
       return is([asked, await count('.lk-menu'), / on$/.test(text)], [1, 0, true]);
     });
-    await step('plain words written with pauses are saved, and the graph is not read for new pages at any of the saves', async () => {   // rundown-070, F75: every node read at every save
-      const readings = () => box.frame().evaluate(() => { const R = window.PluginDoor.read; if (!R.lkWas) { R.lkWas = R.newPages; R.newPages = (...all) => { R.lkCount = (R.lkCount || 0) + 1; return R.lkWas(...all); }; } const n = R.lkCount || 0; R.lkCount = 0; return n; });
+    await step('plain words written with pauses are saved, and the graph is read neither for new pages nor for new tags at any of the saves', async () => {   // rundown-070, F75 and F148: every node, and every tag, read at every save
+      const readings = () => box.frame().evaluate(() => { const R = window.PluginDoor.read; if (!R.lkWas) { R.lkWas = [R.newPages, R.tagIds]; R.lkCount = [0, 0]; R.newPages = (...all) => { R.lkCount[0]++; return R.lkWas[0](...all); }; R.tagIds = (...all) => { R.lkCount[1]++; return R.lkWas[1](...all); }; } const n = R.lkCount; R.lkCount = [0, 0]; return n; });
       await box.frame().evaluate(u => logseq.Editor.editBlock(u), tagged); await wait(700); await readings();
       for (const part of [' and the ward', ' was quiet', ' all night']) { await page.keyboard.type(part, { delay: 50 }); await wait(900); }
       const kept = await box.frame().evaluate(async u => String((await logseq.DB.datascriptQuery(`[:find ?w :where [?b :block/uuid #uuid "${u}"] [?b :block/title ?w]]`)).flat()[0]), tagged);
       const got = [await page.evaluate(() => document.activeElement?.tagName), / was quiet/.test(kept), await readings()];
-      await box.frame().evaluate(() => { const R = window.PluginDoor.read; R.newPages = R.lkWas; delete R.lkWas; delete R.lkCount; });
+      await box.frame().evaluate(() => { const R = window.PluginDoor.read; [R.newPages, R.tagIds] = R.lkWas; delete R.lkWas; delete R.lkCount; });
       await page.keyboard.press('Escape'); await wait(800);
-      return is(got, ['TEXTAREA', true, 0]);
+      return is(got, ['TEXTAREA', true, [0, 0]]);
     });
     await step('a page made while writing asks what it is: an arrow and Enter give it its tag, and the keys stay in the bullet', async () => {
       await box.frame().evaluate(u => logseq.Editor.editBlock(u), tagged); await wait(700);

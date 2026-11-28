@@ -17,53 +17,60 @@ async function offer(box, head, skip, take, done, failed) {
     take: () => take(tag).then(() => G.say(done(tag))).catch(error => G.say(`${failed(tag)}: ${error?.message || 'Logseq refused'}`, 'warning')) }))], { quiet: true });
 }
 const fail = error => console.error('Logseq Plugin: what was just made could not be asked about', error);
+// One look at a time, in the order the changes came. A look never steps aside for a newer one, so what it found is never lost.
+const inTurn = () => { let last = Promise.resolve(); return work => (last = last.then(work).catch(fail)); };
+const HASH = /#\S/;   // a tag being typed
 G.part({
   key: 'placing', title: 'A new tag asks where it goes', about: 'A tag made while writing: a list of your tags opens at the line to put it under one.',
   start(base) {
-    let known = null, turn = 0;
+    let known = null, hash = false, alive = true;   // hash: a # stood in the bullet being written since the tags were last read
+    const turn = inTurn();
+    /* This runs at every change, so a save of plain words reads nothing. A tag is made while writing by a # in the bullet's
+       words: the tags are read once when a # first stands in the box, to know them as they were, and then at each change until
+       the box holds no # any more (Logseq takes the typed name out of the box just before it makes the tag). */
     const look = async () => {
-      const mine = ++turn, ids = await G.read.tagIds();
-      if (mine !== turn) return;
-      const fresh = known ? [...ids].filter(id => !known.has(id)) : [];
+      if (!alive || !hash) return;
+      hash = HASH.test(G.touch.writing()?.value || '');
+      const ids = await G.read.tagIds(), fresh = known ? [...ids].filter(id => !known.has(id)) : [];
       known = ids;
       const box = G.touch.writing();
-      if (fresh.length !== 1 || !box) return;
+      if (!alive || fresh.length !== 1 || !box) return;
       G.read.forget();
       const made = (await G.read.tags()).get(fresh[0]);
       if (made) await offer(box, `${made.title} is a new tag. Put it under:`, made.id, tag => G.write.placeTag(made.uuid, tag.uuid), tag => `${made.title} is now under ${tag.title}`, tag => `${made.title} could not be put under ${tag.title}`);
     };
-    look().catch(() => {});
-    base.onStop(G.touch.changed(() => look().catch(fail), true));
-    base.onStop(() => { turn++; close?.(false); });
+    base.listen(G.host(), 'input', () => { if (hash || !HASH.test(G.touch.writing()?.value || '')) return; hash = true; turn(async () => { known = await G.read.tagIds(); }); }, true);
+    base.onStop(G.touch.changed(() => turn(look), true));
+    base.onStop(() => { alive = false; close?.(false); });
   },
 });
 G.part({
   key: 'kind', title: 'A new page asks what it is', about: 'A page made while writing: a list of your tags opens at the line to say what kind of thing it is.',
   start(base) {
-    let since = Date.now(), turn = 0, at = { box: null, names: new Set() };   // at: the box being written in, and the names it links that are settled
-    const asked = new Set(), known = new Set();   // known: the pages a reading has already been made for
+    let since = Date.now(), alive = true, at = { box: null, names: new Set() };   // at: the box being written in, and the names it links that are settled
+    const asked = new Set(), known = new Set(), turn = inTurn();   // known: the pages a reading has already been made for
     /* This runs at every save, so a save of plain words asks the graph nothing. A page made while writing is one the bullet's
        words link, so only a name the box links and that is not settled yet is looked up, by that name alone; and only when a
        page of that name stands which no reading was made for are the new pages read. */
     const look = async () => {
-      const box = G.touch.writing();
+      const box = alive ? G.touch.writing() : null;
+      if (!alive) return;
       if (!box) { since = Date.now(); return; }   // only what is made while a bullet is being written
       if (at.box !== box) at = { box, names: new Set() };
-      const here = at, open = G.sure.links(box.value).filter(name => !here.names.has(name));
+      const open = G.sure.links(box.value).filter(name => !at.names.has(name));
       if (!open.length) return;
-      const mine = ++turn, found = await Promise.all(open.map(name => G.read.pageNamed(name)));
-      if (mine !== turn) return;
+      const found = await Promise.all(open.map(name => G.read.pageNamed(name)));
       let unread = false;
-      open.forEach((name, i) => { if (!found[i]) return; here.names.add(name); if (!known.has(found[i].uuid)) { known.add(found[i].uuid); unread = true; } });
-      if (!unread) return;   // a name still being typed, or a page already read for
+      open.forEach((name, i) => { if (!found[i]) return; at.names.add(name); if (!known.has(found[i].uuid)) { known.add(found[i].uuid); unread = true; } });
+      if (!unread || !alive) return;   // a name still being typed, or a page already read for
       const pages = (await G.read.newPages(since - 1000)).filter(page => !asked.has(page.id));
       for (const page of pages) asked.add(page.id);   // each is asked about once, or not at all when several came at once
-      if (mine !== turn || pages.length !== 1 || G.touch.writing() !== box) return;
+      if (!alive || pages.length !== 1 || G.touch.writing() !== box) return;
       const made = pages[0];
       await offer(box, `${made.title} is a new page. What is it?`, 0, tag => G.write.tag(made.uuid, tag.uuid), tag => `${made.title} is tagged ${tag.title}`, tag => `${made.title} could not be tagged ${tag.title}`);
     };
-    base.onStop(G.touch.changed(() => look().catch(fail), true));
-    base.onStop(() => { turn++; close?.(false); });
+    base.onStop(G.touch.changed(() => turn(look), true));
+    base.onStop(() => { alive = false; close?.(false); });
   },
 });
 })();
