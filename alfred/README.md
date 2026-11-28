@@ -13,6 +13,8 @@ Built for Logseq 2.0.2, Alfred 6.0, and the Logseq Plugin this folder comes with
 2. In Alfred, open the workflow, choose **Configure Workflow…** and paste the token into **Logseq API Token**. The token is
    not exported with the workflow.
 3. Install the Logseq Plugin in Logseq: tags, Todo, Home, search, a node whole and files go through it. Without it, words still go in.
+   Installed with **Install plugin from GitHub release**, tick the box named **effect** in that window before you press Install:
+   without it the plugin starts nothing, and says so.
 4. Keep Logseq running with the DB graph open.
 
 ## The panels
