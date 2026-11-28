@@ -418,7 +418,11 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const words = () => box.frame().evaluate(async u => (await logseq.DB.datascriptQuery(`[:find ?w :where [?b :block/uuid #uuid "${u}"] [?b :block/title ?w]]`)).flat()[0], at);
       await wait(600); await box.frame().evaluate(u => logseq.Editor.editBlock(u), at); await wait(700);
       await page.keyboard.type('Fees at vanguard.com are', { delay: 40 });
-      await page.keyboard.press('Escape'); await wait(80); await page.keyboard.press('Enter');   // out, and straight back in
+      // Out, and back in 200 ms later: gone back into sooner (80 ms), the plugin as released never noticed the leaving and wrote
+      // nothing. Then the wait of a hand before its first key: Logseq's own editor, opening again on Enter, drops a key typed
+      // at once (tried in Logseq 2.0.2 with the plugin switched off, plain words, 27 November 2026: 7 of 9 times; never from
+      // 150 ms on. F158).
+      await page.keyboard.press('Escape'); await wait(200); await page.keyboard.press('Enter'); await wait(200);
       await page.keyboard.type(' lower now than last spring', { delay: 50 });   // written across the moment the link used to be made
       await wait(1500);
       const open = await page.evaluate(() => { const el = document.activeElement; return el?.tagName === 'TEXTAREA' ? el.value : null; });
