@@ -1,5 +1,6 @@
 /* NODE: the one line any node is shown as, wherever a list shows it.
-     G.line.html(node, { names, statuses, tagShown, day })   (day: words for the day, drawn after the bullet as Relations has it)
+     G.line.html(node, { names, statuses, tagShown, day, said })   (day: words for the day, drawn after the bullet as Relations
+                                                        has it; said: the tags the list's head says for every row)
      G.line.html(node, { names, statuses, tagShown })   the line's markup: bullet, status circle if a task, words, tag, a count
                                                         at its end where the node has one (node.count), and
                                                         after them node.why: values of the node that a search matched
@@ -29,15 +30,17 @@ function statusHtml(node, statuses) {
   return `<button type="button" class="lk-status" title="${G.esc(s.title)}" aria-label="Status: ${G.esc(s.title)}">${G.touch.statusIcon(s.icon) || G.esc(s.title)}</button>`;
 }
 /* The tags a line says after its words: its tag, where the list's head does not say it for every row (tagShown), and every
-   other tag the node holds, which no head says: so a tag set on a row shows on the row. Task is not said again on a line that
-   has its status circle. A place that blanks a row's tag (Ontology's own rows) gets none. */
-function tagsHtml(node, tagShown) {
+   other tag the node holds that the head does not say (said: the tags the head says once for all its rows): so a tag set on a
+   row shows on the row. Logseq's own Task tag is never said on a line that shows its status circle: the circle says it. A
+   place that blanks a row's tag (Ontology's own rows) gets none. */
+function tagsHtml(node, tagShown, circle, said = []) {
   if (!node.tag) return '';
-  const rest = (node.tags || []).map(tag => tag.title).filter(title => title && title !== node.tag && !(title === 'Task' && node.status));
-  return [...(tagShown ? [node.tag] : []), ...rest].map(title => `\u2002<span class="lk-tag">${G.esc(title)}</span>`).join('');
+  const rest = (node.tags || []).map(tag => tag.title).filter(title => title && title !== node.tag);
+  return [...(tagShown ? [node.tag] : []), ...rest].filter(title => !(title === 'Task' && circle) && !said.includes(title)).map(title => `\u2002<span class="lk-tag">${G.esc(title)}</span>`).join('');
 }
-function html(node, { names, statuses, tagShown, day }) {
-  return `<span class="lk-bul${node.holds ? ' lk-folded' : ''}" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${statusHtml(node, statuses)}<span class="lk-words">${wordsHtml(node.words, names)}${tagsHtml(node, tagShown)}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
+function html(node, { names, statuses, tagShown, day, said }) {
+  const circle = statusHtml(node, statuses);
+  return `<span class="lk-bul${node.holds ? ' lk-folded' : ''}" aria-hidden="true"></span>${day == null ? '' : `<span class="lk-dayin">${G.esc(day)}</span>`}${circle}<span class="lk-words">${wordsHtml(node.words, names)}${tagsHtml(node, tagShown, !!circle, said || [])}${(node.why || []).map(value => ` <span class="lk-why">${G.esc(value)}</span>`).join('')}${node.tell ? `\u2004<span class="lk-tell">${G.esc(node.tell)}</span>` : ''}${node.lacks ? `\u2004<button type="button" class="lk-lacks" data-lacks="${G.esc(node.lacks)}" title="Give it a ${G.esc(node.lacks)}">no ${G.esc(node.lacks)}?</button>` : ''}${(node.where || []).length ? `<span class="lk-sits">${node.where.map(step => `<a class="lk-step" data-to="${G.esc(step.uuid)}">${G.esc(step.day ? G.days.short(step.day) : W.plain(step.words, names))}</a>`).join('<span class="lk-off"> › </span>')}</span>` : ''}</span>${node.count ? `<span class="lk-num">${Number(node.count)}</span>` : ''}`;
 }
 
 const ended = status => /^(done|canceled|cancelled)$/.test(status.name);
@@ -84,7 +87,8 @@ async function addProperty(at, uuid, only = '') {
   const [{ props, byTag }, own, held] = await Promise.all([G.read.schema(), G.read.tagsOf(node.id), G.read.held([node.id])]), has = held.get(node.id) || {};
   // The value written gets the Undo arrow after the line's words, as a status or a tag does. before: the steps a new option's page took.
   const write = prop => G.pick.value(at, prop, (set, before = 0) => G.undo.after(uuid, set(uuid).then(made => made + before)).catch(error => {
-    if (before) G.undo.mark(uuid, before);
+    const left = before + (Number(error?.steps) || 0);   // what the refusal left standing: a new option's page, a journal page made for a day
+    if (left) G.undo.mark(uuid, left);
     G.write.refused('The value could not be written', error, before ? 'The new page was made all the same; the Undo arrow takes it away.' : '');
   })).catch(error => G.write.refused('The choices could not be read', error));
   if (only) { const prop = [...props.values()].find(one => one.title === only); if (prop) write(prop); return; }
@@ -114,7 +118,10 @@ async function menu(at, row, more) {
     ...(statuses.length ? [{ gap: true }, { group: 'Status' }, ...statuses.map(s => ({ word: s.title, icon: G.touch.statusIcon(s.icon), on: s.id === now, take: () => setStatus(row, s) }))] : []),
     ...((more && more(row, at)) || []),   // what the place itself offers for this row
     { gap: true },
-    { word: kind ? 'Delete…' : 'Delete', goes: true, take: () => {
+    { word: kind || more?.gone ? 'Delete…' : 'Delete', goes: true, take: () => {
+      // A place that has its own one way to delete what its rows are (Ontology: a tag, a property, with its one question) is
+      // handed the row: the line's own delete and question step aside, so nothing is asked twice.
+      if (more?.gone) return void more.gone(row, at);
       // A tag and a property are pages. Logseq does not always tell of a page that went, so the list is asked to read again.
       const del = async () => { await G.undo.after(uuid, G.write.remove(uuid, !!kind || row.dataset.page === '1')); row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true })); };
       if (!kind) return void del().catch(error => G.write.refused('It could not be deleted', error));
@@ -171,7 +178,7 @@ G.line.CSS = `
 .lk-row[data-open="1"] > .lk-line { display: none; }
 .lk-row[data-open="soon"] > .lk-open { height: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole */
 .lk-fold { display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
-.lk-fold svg { width: 14px; height: 14px; transition: transform .12s ease; }
+.lk-fold svg { width: 14px; height: 14px; transition: transform var(--lk-fade); }
 .lk-row:hover > .lk-fold, .lk-row:has(:focus-visible) > .lk-fold, .lk-row[data-open] > .lk-fold, .lk-list-head .lk-fold { opacity: 1; }
 .lk-row[data-open] > .lk-fold svg, [aria-expanded="true"] > .lk-fold svg { transform: rotate(90deg); }
 .lk-fold:hover { color: var(--lk-text); }
