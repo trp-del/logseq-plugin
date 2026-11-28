@@ -432,11 +432,10 @@ function draw(state, made, names, statuses) {
        the words' own face, the + and the days. A list of one node has nothing to count, so its head is the first line alone. */
     const said = list.said || list.tag || '', via = list.kind === 'property', made = G.listview.shape(state, list, names, today);
     const plus = state.add && via ? `<button type="button" class="lk-plus" title="Add a ${G.esc(list.one || 'node')}" aria-label="Add a ${G.esc(list.one || 'node')}">${G.touch.icon('plus', 14)}</button>` : '';   // on a list of several kinds too: the new node gets the kind most of them are
-    const span = '';   // the days stand on the rows: a span on the head said them twice
     const lined = via || (made && list.count);   // two lines: what the list is, then what it holds
     const first = lined ? `<span class="${via || list.kind === 'due' ? 'lk-prop' : 'lk-plain'}">${G.esc(list.name)}</span>${list.count ? '' : plus}` : '';
-    const name = made && list.count ? G.listview.head(state, list, made, plus, today) : via ? (list.count ? `<span class="lk-said">${G.esc(list.tag ? said : `${said} nodes`)}</span>${plus}${span}` : '')
-      : `<span class="${list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}${span}`;
+    const name = made && list.count ? G.listview.head(state, list, made, plus, today) : via ? (list.count ? `<span class="lk-said">${G.esc(list.tag ? said : `${said} nodes`)}</span>${plus}` : '')
+      : `<span class="${list.kind === 'due' ? 'lk-prop' : list.kind === 'none' ? 'lk-none' : 'lk-plain'}">${G.esc(list.name)}</span>${said ? ` <span class="lk-tag">${G.esc(said)}</span>` : ''}`;
     if (head.children[1].innerHTML !== first) head.children[1].innerHTML = first;
     if (made && !head.dataset.thin) { head.dataset.thin = '1'; head.firstElementChild.innerHTML = CHEV; }
     if (made) head.children[1].draggable = true;   // a list's name dragged among the page's lists sets their order
@@ -462,14 +461,14 @@ function draw(state, made, names, statuses) {
       if (item.type !== 'row') return el;
       el.className = 'lk-row';
       // In a list of Relations a row's arrow is the thin one its head has, as before the rebuild; elsewhere Logseq's own.
-      el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold lk-fold-thin" aria-label="Open">${CHEV}</button><div class="lk-line" role="button" tabindex="0"></div>`;
+      el.innerHTML = `<span class="lk-day"></span><button type="button" class="lk-fold" aria-label="Open">${CHEV}</button><div class="lk-line" role="button" tabindex="0"></div>`;
       return el;
     }, (el, item) => {
       if (item.type === 'draft') return;
       if (item.type !== 'row') { G.listview.paint(el, item, today); return; }
       const row = item.row;
       el.dataset.uuid = row.uuid; el.dataset.status = row.status || ''; el.dataset.page = row.isPage ? '1' : '';
-      el.classList.toggle('lk-faint', !!item.faint); el.classList.toggle('lk-fresh', !!(state.view?.since && (row.made || 0) > state.view.since));
+      el.classList.toggle('lk-faint', !!item.faint);
       el.style.setProperty('--lk-depth', String(row.depth || 0));   // an outline's row stands in by its depth
       const day = D.short(row.dayShown, today), dayEl = el.firstElementChild;
       if (dayEl.textContent !== day) dayEl.textContent = day;
@@ -650,6 +649,8 @@ mark.lk-hit { background: none; color: inherit; font-weight: 600; padding: 0; ma
 .lk-list-head:focus-visible { outline: none; background: var(--lk-wash); }
 .lk-list-head .lk-fold { opacity: 0; margin-top: 0; }
 .lk-list-head:hover .lk-fold, .lk-list-head:focus-visible .lk-fold, .lk-list-head[aria-expanded="false"] .lk-fold { opacity: 1; }
+/* A group's name over its rows (Todo's "Overdue", Search's "Pages"): small and bold, the one form for every place that lists by groups. */
+.lk-list[data-kind="group"] > .lk-list-head > .lk-list-name { font-size: var(--lk-small); font-weight: 600; }
 .lk-prop { font-family: var(--lk-prop-face); font-weight: var(--lk-prop-weight); font-size: var(--lk-prop-size); letter-spacing: -.01em; color: var(--lk-quiet); }
 .lk-plain { color: var(--lk-quiet); }
 .lk-list-name { flex: 1; min-width: 0; display: flex; align-items: baseline; }   /* the kinds (in the tag's face), All and the counts share one baseline */
@@ -699,8 +700,6 @@ mark.lk-hit { background: none; color: inherit; font-weight: 600; padding: 0; ma
 .lk-list-head:has(> .lk-list-via:not(:empty)) .lk-fold { opacity: 1; }   /* on the count's line the arrow stays in view, faint, as it was */
 .lk-list-name .lk-tag { margin-left: .5em; font-size: var(--lk-small); }
 .lk-span { margin-left: auto; padding-left: 12px; font-size: var(--lk-small); color: var(--lk-off); white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* A row's arrow in a list of Relations is the thin one, faint until the row is under the pointer, the size of every other
-   arrow (.lk-fold svg). */
 /* Where a found node holds the words: the property and its values under its line, on the words' own edge. */
 .lk-row > .lk-found { grid-column: 3; min-width: 0; padding: 0 6px 4px 20px; font-size: 14px; line-height: 21px; }
 .lk-list:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row > .lk-found { padding-left: calc(20px + var(--lk-dayin, 54px) + 12px); }
