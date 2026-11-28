@@ -22,9 +22,9 @@ Each layer uses only the layers under it. `node tools/layers.js` fails if a file
 | 0 Ground | `core/`, `ground/` | One way to read the graph, one way to write, Logseq's own Undo, one fenced file for everything that touches Logseq's own screen, and the look's ground: the greys, the sizes and the faces (a tag in Commissioner, a property's name in Fragment Mono, both carried in `fonts/`). |
 | 1 The node | `node/` | One line for any node. A press opens the node in place as Logseq's own editor, with the lists of what points at it underneath, each row a line that opens in turn. What the plugin changes carries a small faint Undo arrow right after its words. One table, its rows sorted by a press on a column's name (Ontology's properties). |
 | 2 The node's page | `page/` | Relations: under a page, one list for each property that points at it, then where it is mentioned. At the right end of a page's title, its tags and the tags above them; on a tag's page, its parent above the title. |
-| 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, in the right sidebar. |
+| 3 Arriving | `arrive/` | Search: a section of the right sidebar to reach any node by its words, a kind or a value, opening in the main view. Todo: your open tasks by day, on a page of its own and in the right sidebar. |
 | 4 Writing | `write/` | Sure values: on leaving a bullet, what its words say for certain is written into its empty properties. Where a tag sits: Logseq's own list of tags says the tags each one sits under. A new tag asks where it goes, and a new page asks what it is. Not built yet: guessed values. |
-| 5 Tending | `tend/` | Ontology: your tags as an outline and your properties, in the right sidebar; each opens in place as Logseq's own page for it. |
+| 5 Tending | `tend/` | Ontology: your tags as an outline and your properties as a table, on a page of its own and in the right sidebar; a press on a name goes to its page. Move values: the values of one property put into another. |
 | Beside the stack | `beside/` | Two pages side by side: ⌘-click a link and its page opens beside the one you are on. Focusing into a bullet and out glides. The key sheet: Option held alone shows the keys. Export: a page or some bullets out as a printed page (PDF) or as Markdown, with a preview whose words can be changed first. Update plugins: two keys bring every plugin to its newest: Logseq's own updater for those it installed (from its marketplace or a GitHub release), a reload for those from a folder. Alfred: the plugin answers the Alfred workflow (`alfred/`), so a node is found, seen whole and changed from Alfred as on its own page. |
 
 `core/` holds the pieces that decide (how words read, how rows are grouped and ordered, how a tag's path runs). They know
@@ -34,6 +34,12 @@ nothing of Logseq and are checked without it (`node --test test/`). Each thing i
 
 `ground/touch.js` is the only file that names Logseq's own markup or uses anything outside its plugin API. A Logseq update is
 checked against that one file.
+
+A node opened in place (in every list, and in the corner's look at a node), the plugin's own pages (Ontology, Todo, Plugin
+settings, the Recycle list) and its sections of the right sidebar (Search, Todo, Ontology) stand on Logseq's Experiments
+calls, the only way Logseq gives a plugin to draw these. Logseq marks those calls as unstable: a Logseq update may change them
+without warning, and these pieces may then stop drawing until the plugin is mended. Where a Logseq lends no page or no sidebar
+section, the plugin says so in a notice when one is asked for.
 
 ## What is built
 
@@ -49,12 +55,14 @@ On every page Logseq shows (the main page, a page in the right sidebar):
 - while a bullet is being written in, the lists do not read the graph at each pause: they read once, when the bullet is left;
 - a row you have open stays open, where it is, until you close it, also when its node no longer belongs to the list (you
   changed in it the very value that pointed here): it leaves when it is closed;
-- the lists stand under the quiet word **Relations** and a hairline, each list's name on that word's edge; its fold arrow, as
-  a bullet's, shows under the pointer; the find line under it says **Search**;
+- the lists stand under the quiet word **Relations** and a hairline, each list's name on that word's edge, its fold arrow
+  before it; the find line under it says **Search**;
 - a second hairline closes the section under its last row, running on under the word. A press on the word rolls the lists up
   and the line draws up and fades with them, leaving the one line; pressed again, they roll out (no motion where less motion
   is asked for);
-- rows carry their day at the line's right end (a Date property, else the journal day they were written on), newest first; View, then Date, puts it at the **Beginning of the line** instead, right after the bullet in a column of its own (in a narrow place too), kept for the property on every page;
+- rows carry their day (a Date property, else the journal day they were written on), newest first. The day stands at the
+  line's right end, as it comes; **Date**, then **Beginning of the line**, in the list's menu puts it right after the bullet
+  instead, in a column of its own (in a narrow place too), kept for the property on every page;
 - a long list shows ten rows, then **Show 43 more**, saying how many wait;
 - what a list's head says of its nodes ("4 Transfers", the kinds with their counts) is a size under the lines it heads; the
   chosen kind is underlined across its word and count, and the span of the list's days ("Jul 8 to Aug 20") stands at the head's
@@ -75,11 +83,11 @@ A row:
 | Right-click | Open, Open in sidebar, Tags…, the statuses of a task, Delete (in red): words alone, a status with its circle |
 | Arrow up and down | Walk the lines and list names |
 | Space | Picks the node, for the bar of what is done to several |
-| Click a list's name | Folds the list; it stays folded on every page |
+| Click the arrow before a list's name, or Enter or Space on its head | Folds the list; it stays folded on every page. Only the arrow folds a list to a press: the rest of its head is for reading and choosing |
 
 A property set to "Hide by default" in Logseq is not said after a line, and no line is asked for lacking it. A list named by
-it still stands, since it is what points at the page; Search and a list's find line still find nodes by it; View can still
-group or sort by it; and the day at a line's end stays, though it comes from a hidden date.
+it still stands, since it is what points at the page; Search and a list's find line still find nodes by it; a list's menu can
+still group or sort by it; and the day at a line's end stays, though it comes from a hidden date.
 
 ### What a list of Relations can do
 
@@ -91,9 +99,9 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 | The word Relations | Click | Folds the whole section, kept for the page. Right-click: the lists hidden where they point, to show again (with none hidden, a notice says so). A right-click anywhere in the section is the section's own: Logseq's menu for the page never opens from it |
 | The find line (from twenty nodes up, or **Relations: find in them**) | Type words | Every list narrows to them, ten nodes and then **Show more**, as any list. A node found by what it holds under a property says so under its line: the property, its values with the words marked, and **Show the rest**, which opens the node (from three letters; twenty nodes at most). "on Oct 7", "up to 7 Oct", "until 2026-10-07" turn the lists back to that day, the later nodes faint under a "since" line; a week earlier, a week later and Today step the day. Enter opens the first node found, Down goes to it, Escape empties the line |
 | A list's head | Click a kind | A list whose nodes hold different tags names its three most held kinds, each with its count, All first; a kind narrows the list to it, "and 2 more" lists the rest. "2 new" narrows to the nodes made since the page was last open, which also carry a darker dot |
-| The ⋯ on a head, or a right-click on it | View | Group by (tag, month, or a property whose groups hold two nodes each on the whole; a group shows twelve nodes, then **Show more**), Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none; and **Date position**, the beginning or the end of the line), Timeline, Sort by (day, last changed, name, tag). What is not the default is said quietly on the head. Kept for the property on every page |
-| | Reads back as… | How the property reads on the pages it points to. By grammar unless you type a name: "Prescribed by" reads "Prescribed", "Symptom of" reads "Symptoms", "Provider" reads "Provider of", a plain noun keeps its name |
-| | Hide where it points | The list is no longer shown on the pages the property points to |
+| The ⋯ on a head, or a right-click anywhere on it (one menu) | Group by, Sort by, Timeline, Date | Group by (tag, month, or a property whose groups hold two nodes each on the whole; a group shows twelve nodes, then **Show more**), Sort by (day, last changed, name, tag), Timeline, Date (which day the list goes by: its own, the day written, any date its nodes hold, Deadline, Scheduled, or none; and **Date position**, the beginning or the end of the line). What is not the default is said quietly on the head, and a press on it opens the same menu. Kept for the property on every page |
+| | Reads back as… (a property's list) | How the property reads on the pages it points to. By grammar unless you type a name: "Prescribed by" reads "Prescribed", "Symptom of" reads "Symptoms", "Provider" reads "Provider of", a plain noun keeps its name |
+| | Hide where it points (a property's list) | The list is no longer shown on the pages the property points to |
 | | Pick nodes | A tick box before each node and one on the head for all; Space picks the node the keys are on. The bar: Open in sidebar, Set tag, Set property, More (Select all, Clear a property, Take out this page, Change this page, and Make it… for mentions), Delete, which asks first and says where each thing picked goes (a bullet comes back with Undo, a page goes to the Recycle, today's journal loses its bullets, which only Undo brings back; tags and properties picked alone get the one question that counts what goes, and among other things they are left). One line then says what was done, with an Undo: the Undo arrow's own, for the steps that were made, and gone at the next change to the graph as the arrow is. Set property asks for the value by the property's kind: its set choices where it has them, a node (found by typing its name, however many there are), yes or no, a day ("Oct 7" is this year's), a day and a time ("Oct 7 14:30"), a number, words |
 | | Move up, Move down | The list's place among the page's lists, kept for the page. A list's name can also be dragged above or below another |
 | The timeline | Click a dot, or drag across | A dot for each dated node from the first node's month to today. A dot narrows the list to its week; Left and Right walk the dots, Enter opens the node; a drag narrows to any span. By a property: a lane for each of its three most held values and one for the others; a lane's name narrows to it. Taller piles a week's dots. Escape lets go of the lane, then of the span |
@@ -106,7 +114,8 @@ Everything the plugin's Relations did before the rebuild, built again on the reb
 A day in the journals feed has its lists at the foot of the day. **Relations: the Recycle list** opens Logseq's Recycle as a
 plain list of the deleted pages (a deleted bullet is gone from the graph; only a page lies in Logseq's Recycle): Restore
 brings a page back; Delete asks under the line, as every delete that asks does (a red yes and Cancel, the keyboard waiting on
-Cancel), and deletes for good. A page is said to be back or gone only when it is: a restore or a delete Logseq refused is
+Cancel), and deletes for good; with more than one page in it, **Delete all** at the list's top asks once for every page. A
+page is said to be back or gone only when it is: a restore or a delete Logseq refused is
 said, and its line stays.
 
 Everything inside an opened node is Logseq's own: its words, bullets, properties, menus and keys. How it is laid out, and how
@@ -156,13 +165,13 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   head's second line with its rows), a group's fold, **Show more** and **Show fewer**, after which the list's own Show
   more stands where the press was made. A node dug into rolls out under its value the same way. A node opened from the keyboard at the
   window's foot, and the line the + opens, are brought into view (after a press the line pressed stays under the pointer). A row whose node no longer belongs to the list leaves
-  in the one move of closing. A tick box on a line shows under the pointer and stays once ticked (no list has tick boxes yet).
+  in the one move of closing. A tick box on a line (a list's Pick nodes) shows under the pointer and stays once ticked.
 - Three corners (a small one, one for what floats, the round of a press), the sizes of text, and the box a mark stands in
   with the gap after it (16 and 4) are named once in `ground/look.js`.
 
 ### Logseq's own screens, quieted (`beside/calm.js`, written in `ground/touch.js`)
 
-As the plugin drew them before 0.9; each can be switched off on its own in the plugin's settings.
+As the plugin drew them before the rebuild; each can be switched off on its own in the plugin's settings.
 
 - The top bar keeps Logseq's own menu and the sidebar button. Home, back, forward, the plugins button and Logseq's search go;
   Ontology and Todo are in the corner.
@@ -184,7 +193,7 @@ As the plugin drew them before 0.9; each can be switched off on its own in the p
 - A journal day has no **DOING** list and no **Scheduled and Deadline** list of Logseq's under it.
 - A bullet's properties under its words are one quiet line of names and values, wrapping, with no outline; the one being
   written has a capsule round it; one with nothing in it stays out of the line.
-- The right sidebar is flat, as before 0.9: no row of Logseq's own on top (Contents, Page graph, Help), no grey ground, no
+- The right sidebar is flat, as before the rebuild: no row of Logseq's own on top (Contents, Page graph, Help), no grey ground, no
   card round a section (no shadow, rounded corner or band behind its head). It stands on the page's own ground with a
   hairline at its edge (still the handle for its width) and a thin line between one section and the next. What a section
   holds is Logseq's own. A page in it reads as a page: its place first, its properties open ("Open properties" is pressed
@@ -377,7 +386,7 @@ The open graph is first and the one you were in before it is lit.
 
 ### Todo (`arrive/todo.js`)
 
-The corner, or **Todo** in the command palette, opens a section of the right sidebar: your open tasks under **Overdue** (past
+The corner, or **Todo in the sidebar** in the command palette, opens a section of the right sidebar: your open tasks under **Overdue** (past
 its day), **Today**, **Coming up** and **Any time**, each under a small bold word, the words a size smaller
 than a page's. A task's day stands at the right end of its line, red once it has passed; **Date position** in the grouping's menu (the second word on the top line) puts it at the beginning of the line instead. The line at the top, **Add or find a
 todo**, narrows the list to the tasks holding every word typed, and Return adds what is typed as a task on today's journal. A task set Done or Canceled shows its circle ticked, waits a
@@ -505,9 +514,10 @@ down its left side.
 
 ### A list's head, and + on it
 
-In Relations the head of a property's list is two lines. The first is the property's mark and name. The second says how many
-nodes the list holds and of what ("4 Transfers", or "53 nodes" where their tags differ) and, at its right end, from when to
-when; a press on it folds the list. A list of one node has nothing to count: its head is the first line alone.
+In Relations the head of a property's list is two lines. The first is the fold arrow, the property's mark and name. The second
+says how many nodes the list holds and of what ("4 Transfers", or "53 nodes" where their tags differ) and, at its right end,
+from when to when. Only the arrow folds the list, and a folded list keeps only the first line. A list of one node has nothing
+to count: its head is the first line alone.
 
 A + stands on the head. A press opens a line to type in at the list's end, laid out as a row is: the + where a row has its
 bullet, then the new node's name, then the tag it will get (the kind most of the list's nodes are; a press on it lists the
@@ -608,7 +618,10 @@ same in both places.
 
 ### Move values (`tend/move.js`, decided in `core/move.js`)
 
-In Ontology, a tag's or a property's right-click menu has "Move values…". A box opens at the head of the section: the property
+Three ways in: in Ontology, a tag's or a property's right-click menu has "Move values…", and Ontology has it as a press under
+its tabs; in one of Logseq's tables (a tag's page, a property's page), with rows ticked, Logseq's own bar for the
+ticked rows ends in **Move values…**, which takes the ticked nodes only, the property most of them hold already chosen as
+the one the values come out of. A box opens at the head of the section (under Logseq's bar, for ticked rows): the property
 the values come out of, the property they go into (one there is of the same kind, or a new one, made as your own with the first
 one's kind and node tags), and a tick, "Remove them from" the first. A tag takes its own nodes and those of the tags below it; a
 property takes every node that holds it. Before anything is written the box shows four of the nodes as they will read, what
@@ -621,17 +634,13 @@ notice, so nothing written after the move is taken back. A second move gets a li
 Logseq closed and opened again, until Done. Where Logseq refuses a write half way through a move, what was written by then
 keeps its line, its Undo and its line in History.
 
-### The day at a line's end
-
-In Search and in Todo the words start each row and the day stands at the row's right end, right-aligned. In the lists of
-Relations the day stands after the bullet, before the words.
-
 ### In a narrow place
 
-In the right sidebar a list gives its words the whole width: a line's day stays at the end (or the beginning) of its line, an outline steps in less, and
-a node opened in place takes the width of the list. A list of Relations does the same wherever it is narrower than 300: a
-row's arrow stands in the gutter and its bullet on the edge its head's words start on; narrower than 200 (both sidebars open
-in a small window) its day goes under its words, so the words keep the line. A tag after a line's words stays whole: where it
+In the right sidebar a list gives its words the whole width: a line's day stays where its list's menu puts it, at the end or
+the beginning of its line, an outline steps in less, and a node opened in place takes the width of the list. A list of
+Relations does the same wherever it is narrower than 300: a row's arrow stands in the gutter and its bullet on the edge its
+head's words start on. Narrower than 200 (both sidebars open in a small window), a day at a line's end goes under its words,
+so the words keep the line. A tag after a line's words stays whole: where it
 does not fit it goes to the next line as one piece. A property of a
 node opened there, of a page in a narrow sidebar, and of the main page where it is narrower than 300 (both sidebars open in
 a small window), has its name on one line and its values under it. Where a list is
@@ -647,9 +656,9 @@ and more), measured on one line and wrapped.
 ### Ontology (`tend/ontology.js`)
 
 **Ontology in the sidebar** in the command palette, or **In the sidebar** on Ontology's page, opens a section of the right sidebar
-with the same three tabs: your tags as an outline, each under the tag it sits under; your properties as a table; History. A tag and a property are nodes like any other, so a row opens
-in place as Logseq's own page for it. There its name is renamed, and Logseq's own arrow beside the name unfolds what it keeps:
-the tag it extends, its properties, a property's kind and what it takes. What Ontology itself writes is its row of actions, its moves, the two ▾ of its table of properties and Move values.
+with the same three tabs: your tags as an outline, each under the tag it sits under; your properties as a table; History.
+There as on the page, nothing opens under a tag or a property: a press on its name goes to its page, where Logseq's own page
+for it says what it keeps (the tag it extends, its properties, a property's kind and what it takes).
 
 ### Update plugins (`beside/update.js`, its words in `core/update.js`)
 
@@ -663,7 +672,7 @@ palette, brings every plugin Logseq runs to its newest:
 
 A notice says at once that it has begun ("Updating plugins…"): Logseq's updater can take up to a minute for a plugin, and the
 keys pressed again meanwhile are told the same and start nothing.
-One line then says what that brought, in that notice's place: "Plugins updated: Logseq Plugin 0.9.0 to 0.9.1. Up to date: Calendar 1.2.0", that every
+One line then says what that brought, in that notice's place: "Plugins updated: Calendar 1.2.0 to 1.3.0. Up to date: Tabs 1.0.4", that every
 plugin was up to date, or which could not be updated and why (GitHub did not answer, or the plugin is not in Logseq's list).
 The keys do nothing while you write in a bullet, and can be changed in Logseq's own keyboard settings. A folder is not fetched
 from anywhere: the key loads what the folder holds.
@@ -717,32 +726,92 @@ are not copied.
 ### Alfred (`beside/outside.js`, `ground/outside.js`, `alfred/`)
 
 The Alfred workflow in `alfred/` (its own README says what its panels do) asks the plugin through Logseq's HTTP APIs server,
-which must be switched on in Logseq's settings. The plugin answers by name: `find` (Logseq's own search), `node` (a node
-whole: its name and tags, each property its tags give it with what it holds and its set choices, its bullets as an outline,
-and what points at it, as Relations lists it), `candidates` (what a node property can hold), `tags`, `markdown` (a bullet
-with those under it, or a node whole, written by `core/markdown.js`), `append` (a bullet at the end of a page), and one name for each change: `setWords`, `newBullet`,
-`move`, `remove`, `setValue`, `tag`, `status`, `undo`. A property set to "Hide by default" in Logseq is not among a node's
-properties, as it is not on the node's own page. Every change answers the node read afresh and how many steps of
-Logseq's Undo it took. `note` writes a note from outside at the end of today's journal, of the page open in Logseq or of a page
-by its name (made if there is none), with the tag picked and the person's own words under it; `show` sends Logseq to a node, a
-page or a bullet. `undo` (and Todo's `todoUndo`) takes back only what Alfred changed last on the node it names, in as many
-steps as that change took, and refuses, taking nothing back, once anything else has changed in the graph: Logseq's Undo would
-then take back that later change. `setValue` asked to clear empties a property of any kind; a change the ground refuses
-because a value has bullets written under it is answered in the plugin's words, with what to do. `setWords` takes a bullet's
-words as they were read and changed, and every link and tag the bullet already held stays the link it is. A bullet is
-answered with every tag it has. For files the plugin answers
-`check` (each file's name, and the node it already is in the graph), `add` (to today, the open page or a page by its name, a
-file already in the graph linked instead where asked), `progress` and `unadd`; they stand on three pieces of the ground
-(`touch.file`, `read.fileTwin`, `write.addFile`), and while the ground does not give them, `add` and `check` answer in plain
-words that the plugin cannot put files into the graph yet, and add nothing. A day typed as words ("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot
-read is refused, never guessed. The part can be switched off in the plugin's settings like any other.
+which must be switched on in Logseq's settings. The plugin answers by name.
+
+What it reads, writing nothing:
+
+- `find`: Logseq's own search. `browse`: Alfred's Home, found as Search finds: with nothing typed the kinds with the most
+  nodes, with how many each holds, and the pages opened last; with words, the kinds whose name holds them and what holds the
+  words; with a kind taken, its nodes (and those of the kinds under it), newest first, narrowed by the words.
+- `node`: a node whole: its name and tags, each property its tags give it with what it holds and its set choices, its bullets
+  as an outline (each bullet with every tag it has), and what points at it, as Relations lists it. A property set to "Hide by
+  default" in Logseq is not among them, as it is not on the node's own page.
+- `candidates` (what a node property can hold), `tags` (your tags as an outline), `markdown` (a bullet with those under it, or a
+  node whole, written by `core/markdown.js`), `todoList` (your open tasks, grouped as Todo's sidebar section groups them).
+- For files: `check` (each file's name, and the node it already is in the graph) and `progress` (how far the last `add` is).
+- `show` writes nothing either: it sends Logseq to a node, a page or a bullet.
+
+What it writes, each through the same writes as in Logseq:
+
+- `setWords` (a bullet's words, as they were read and changed: every link and tag the bullet already held stays the link it
+  is), `newBullet`, `move` (a bullet in or out, as Tab and Shift-Tab), `remove` (a bullet, with those under it), `tag` (a tag
+  put on, or taken off where it is on), `status` and `todoStatus` (a task's status).
+- `setValue`: a property's value: a set choice or a node picked, words, a number, a day (its journal page made if there is
+  none), a tick box turned over; asked to clear, it empties a property of any kind. A change the ground refuses because a value
+  has bullets written under it is answered in the plugin's words, with what to do.
+- `todoAdd`: a task at the end of today's journal; a day said in its words becomes its Deadline.
+- `append`: a bullet at the end of a page. `note`: a note from outside at the end of today's journal, of the page open in
+  Logseq or of a page by its name (made if there is none), with the tag picked and the person's own words under it.
+- `add`: files put into the graph as Logseq puts a dropped file (a node of its own, the file copied into the graph's `assets`
+  folder), at the end of today's journal, of the open page or of a page by its name; a file already in the graph is refused,
+  or linked instead where asked. `unadd` deletes again the bullets an `add` made.
+
+Every change answers the node read afresh and how many steps of Logseq's Undo it took. `undo` (and Todo's `todoUndo`) takes
+back only what Alfred changed last on the node it names, in as many steps as that change took, and refuses, taking nothing
+back, once anything else has changed in the graph: Logseq's Undo would then take back that later change. A day typed as words
+("nov 18", "2026-11-18", "tomorrow") is read by `core/days.js`; what it cannot read is refused, never guessed. The part can
+be switched off in the plugin's settings like any other.
 
 ## What it writes
 
-Only what you do: in Ontology a tag moved, merged, renamed or deleted, properties merged or renamed, a property put on a tag or taken off, the tags a property's values must have, and values moved; a status set from a line, a node deleted from a line's menu, a task added in Todo, a sure value on leaving a bullet, and what is changed from Alfred (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a tag, a status). Each is one of Logseq's own editor calls, so
-**Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page. The plugin keeps a list of folded lists in the
-window's local storage, and the export window's choices in the plugin's settings. Export writes nothing to the graph; the only
-file it writes is the one you save.
+Only what you do, where you do it. Into the graph:
+
+- **On a line, in any list** (Relations, Search, Todo): a task's status, from its circle or its right-click; a tag put on or
+  taken off with **Tags…**; a bullet deleted, or a page sent to Logseq's Recycle once the question is answered; the value asked for by "no Topic?"; a node dragged onto another list's head given
+  that list's property.
+- **A list of Relations**: the + on its head makes a node with its tag and the list's property, as a bullet (on today's
+  journal, this page or a page chosen) or as a page (a page of that name lying in the Recycle is brought back instead). The
+  bar of Pick nodes: Set tag, Set property, Clear a property, Take out this page, Change this page, Make it… and Delete.
+- **Logseq's tables**: a node's cell under Tags puts a tag on or takes it off, or makes a new tag.
+- **Todo**: a task at the end of today's journal, its Deadline the day its words say; a task's priority and deadline from its
+  right-click.
+- **Search and the corner**: a page made (Cmd-Enter in Search; New page… in the corner, and words no command has); a bullet at
+  the end of today's journal (Option-Enter, Add to Today).
+- **A page's place**: a page's tag changed from the path at its title; a tag put under another from its Parent line.
+- **While you write**: the sure values, on leaving a bullet; a web address typed without http:// made a link in the bullet's
+  own words; a new tag put under another, and a new page given a tag, from the two questions.
+- **Ontology**: a new tag; a tag moved (Tab, Shift-Tab, Move up a level, Move under…, Move to the top); tags or properties
+  merged, renamed or deleted (a merge of tags also changes the links to the merged tag, in values and in words, and moves the
+  bullets on its page to the kept tag's page); a property put on a tag or taken off, and the tags a property's values must
+  have.
+- **Move values**: values copied or moved from one property into another, a new property made for them where one is asked
+  for, and that property taken away again by the move's Undo.
+- **The Recycle list**: a page brought back, or deleted for good.
+- **Alfred**: the changes under Alfred above (a bullet's words, a new bullet, a bullet moved or deleted, a property's value, a
+  tag, a status, a task, a note, a bullet at the end of a page, files and the bullets made for them).
+- A day's journal page, made where a day is written and the graph has no page for it yet (a date given as a value, a bullet or
+  a task added to today), and a page named as the place for a note or files from Alfred, made if there is none.
+
+Each is made through Logseq's own calls, so **Undo is Logseq's own Undo** (Cmd-Z), the same as on the node's own page, with
+these exceptions: Delete for good and Delete all in the Recycle list cannot be taken back; a property deleted, and a tag deleted
+with nodes, child tags or bullets that go with it, cannot be taken back either, and the question before it says so ("This cannot
+be undone."); and Move values is taken back with the Undo on the line of the move, the plugin's own, which lasts until Done,
+Logseq closed and opened again. Export writes nothing to the graph; the only file it writes is the one you save.
+
+Outside the graph, the plugin keeps:
+
+- **In the plugin's settings** (which Logseq keeps for the plugin, outside the graph): each part switched on or off, the two
+  keys the plugin takes (Cmd-K, Cmd-Shift-P), each of Logseq's screens quieted or not, the hidden menu items, and the export
+  window's choices.
+- **In Logseq's window, on this Mac** (its local storage): the lists and groups you fold, and the Relations you fold on a page;
+  what each property's list was set to in its menu (grouped, sorted, its timeline, its day and where the day stands), how a
+  property reads back, the lists hidden where they point, and the order of a page's lists; when each page was last opened, for
+  "2 new"; the tags folded in every outline of tags, Ontology's among them; Ontology's History, for 30 days; the lines of Move
+  values, with what each node held before the move, until Done; how Todo is grouped and sorted, the statuses it leaves out and
+  where a task's day stands; where a result's day stands in Search; the order your graphs were last opened in, for the graph
+  switcher; and, for one minute while Update plugins reloads this plugin, what to say once it is back.
+- **Only while Logseq runs**: the tab and the order of the table each place of Ontology was left on, and what Alfred changed
+  last.
 
 A bullet added while another is being written (from Todo, a list's + line, the corner or Alfred) leaves that one for a moment and
 opens it again, the caret where it was: Logseq 2.0.2 would otherwise make a tag named by an id out of a #tag in it.
