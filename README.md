@@ -151,8 +151,12 @@ a node it points at is opened under it, is under "An opened node, and digging" b
   edge, one shadow; a window in the middle of the screen is on the page's paper with a hairline.
 - A key is told only where it is not a common one, as the Mac writes it, with no box. The one exception is the key sheet,
   where keys are what is read: there each stands in a small box.
-- An opened node rolls out of its line in one short move, and so do a list's fold, a group's fold, **Show more** and
-  **Show fewer**. A tick box on a line shows under the pointer and stays once ticked (no list has tick boxes yet).
+- An opened node rolls out of its line in one short move, with what points at it already in it, and rolls back up into
+  its line when it is closed (the arrow, Escape, Left); nothing under it moves before the roll. So do a list's fold (its
+  head's second line with its rows), a group's fold, **Show more** and **Show fewer**, after which the list's own Show
+  more stands where the press was made. A node dug into rolls out under its value the same way. A node opened at the
+  window's foot, and the line the + opens, are brought into view. A row whose node no longer belongs to the list leaves
+  in the one move of closing. A tick box on a line shows under the pointer and stays once ticked (no list has tick boxes yet).
 - Three corners (a small one, one for what floats, the round of a press), the sizes of text, and the box a mark stands in
   with the gap after it (16 and 4) are named once in `ground/look.js`.
 

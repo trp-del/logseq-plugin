@@ -79,7 +79,13 @@ function mount(holder, uuid, from = '', bare = false) {   // bare: without what 
   const sized = view.ResizeObserver ? new view.ResizeObserver(() => place()) : null;
   sized?.observe(page);
   holder.lkPlace = place;
-  const whole = G.touch.editor.whole(page, () => { holder.dataset.whole = '1'; place(); holder.parentElement?.closest('.lk-open')?.lkPlace?.(); });
+  /* Whole: Logseq's editor has come to rest and the lists of what points at the node have been drawn once, so the node rolls
+     out with them in it and nothing arrives later to push the page down (a wait of 1.2 s at the most for the lists). */
+  let edited = false, listed = bare;
+  const ready = () => { if (!edited || !listed) return; holder.dataset.whole = '1'; place(); holder.parentElement?.closest('.lk-open')?.lkPlace?.(); };
+  const whole = G.touch.editor.whole(page, () => { edited = true; ready(); });
+  const drawn = () => { listed = true; ready(); }, cap = bare ? 0 : view.setTimeout(drawn, 1200);
+  if (!bare) rel.addEventListener('lk-drawn', drawn, { once: true });
   const offEditor = G.touch.editor.show(page, uuid), offLists = bare ? () => {} : lists(rel, uuid, from);
   const undig = value => { const dug = dugs.get(value); if (!dug) return; dugs.delete(value); sized?.unobserve(dug); dug.lkOff?.(); dug.remove(); place(); };
   holder.lkDig = value => {
@@ -88,9 +94,9 @@ function mount(holder, uuid, from = '', bare = false) {   // bare: without what 
     holder.insertBefore(dug, bare ? null : head); dugs.set(value, dug);
     mount(dug, value, uuid, bare); dug.lkClose = () => undig(value);
     sized?.observe(dug); place(); within = dug;
-    view.setTimeout(() => { if (dug.isConnected && !dug.dataset.whole) { dug.dataset.whole = '1'; place(); } }, 800);
+    view.setTimeout(() => { if (dug.isConnected && !dug.dataset.whole) { dug.dataset.whole = '1'; place(); } }, 1500);
   };
-  holder.lkOff = () => { whole(); sized?.disconnect(); for (const dug of dugs.values()) dug.lkOff?.(); dugs.clear(); offEditor(); offLists(); };
+  holder.lkOff = () => { whole(); view.clearTimeout(cap); sized?.disconnect(); for (const dug of dugs.values()) dug.lkOff?.(); dugs.clear(); offEditor(); offLists(); };
 }
 /* An opened node rolls out of its line: from the line's height to its own, in one short move, and nothing is held once it is
    there (the owner's pages of 25 November 2026: "Rolls out of its line"). Not where the person asks for less motion. */
@@ -105,8 +111,9 @@ function roll(holder, from) {
   holder.style.transition = 'height .16s ease-out'; holder.style.height = `${full}px`;
   holder.addEventListener('transitionend', done);
 }
-// The same motion back up, before a thing is taken away. Answers once it is up (at once where less motion is asked for).
-function rollUp(holder) {
+// The same motion back up, before a thing is taken away: to nothing, or to a height (an opened node rolls up to its line's).
+// Answers once it is up (at once where less motion is asked for).
+function rollUp(holder, to = 0) {
   const view = holder.ownerDocument.defaultView, full = holder.offsetHeight;
   if (!full || view.matchMedia('(prefers-reduced-motion: reduce)').matches) return Promise.resolve();
   return new Promise(done => {
@@ -114,7 +121,7 @@ function rollUp(holder) {
     const cap = view.setTimeout(end, 400);
     holder.style.height = `${full}px`; holder.style.overflow = 'hidden';
     void holder.offsetHeight;
-    holder.style.transition = 'height .16s ease-out'; holder.style.height = '0px';
+    holder.style.transition = 'height .16s ease-out'; holder.style.height = `${to}px`;
     holder.addEventListener('transitionend', end);
   });
 }
@@ -171,6 +178,16 @@ function moved(root, change) {
 /* keys: the row was opened by a key or a press on its own line. Its line goes out of sight once the node is shown, and the keys
    would fall to the page; they are put on the opened node instead, so the key that closes it (Left, node handle below) still
    reaches it. Once the person goes into the node the keys are Logseq's, and Escape is the way out. */
+// The place that scrolls a thing: the nearest one above it that does, else the window's own.
+const scroller = el => { const view = el.ownerDocument.defaultView; for (let at = el.parentElement; at; at = at.parentElement) { const flow = view.getComputedStyle(at).overflowY; if ((flow === 'auto' || flow === 'scroll') && at.scrollHeight > at.clientHeight + 1) return at; } return el.ownerDocument.scrollingElement; };
+/* A thing opened at the foot of what scrolls it is brought into view as far as that holds it: its top stays in view, and as much
+   of its height as fits comes in, in the same short move. */
+function reveal(el, height) {
+  const doc = el.ownerDocument, port = scroller(el), at = el.getBoundingClientRect();
+  const frame = port === doc.scrollingElement ? { top: 0, bottom: doc.defaultView.innerHeight } : port.getBoundingClientRect();
+  const over = at.top + height + 12 - frame.bottom, room = at.top - Math.max(frame.top, 48) - 12;   // Logseq's top 48 are its header's
+  if (over > 0 && room > 0) port.scrollBy({ top: Math.min(over, room), behavior: still(el) ? 'auto' : 'smooth' });
+}
 const rest = holder => {   // the node can hold the keys only until they leave it: a press inside it then lands where it always did
   holder.tabIndex = -1; holder.focus({ preventScroll: true });
   holder.addEventListener('blur', () => holder.removeAttribute('tabindex'), { once: true });
@@ -181,7 +198,7 @@ function open(row, keys = false) {
   row.appendChild(holder); row.dataset.open = 'soon';
   mount(holder, row.dataset.uuid);
   // Logseq fills the node in over a few frames (a link's name, a property's value): it is shown once it has come to rest.
-  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') { const line = row.querySelector(':scope > .lk-line'), from = line?.offsetHeight || 28, had = keys && (doc.activeElement === line || doc.activeElement === doc.body || !doc.activeElement); row.dataset.open = '1'; roll(holder, from); if (had) rest(holder); } } });
+  const shown = new (row.ownerDocument.defaultView.MutationObserver)(() => { if (holder.dataset.whole) { shown.disconnect(); if (row.dataset.open === 'soon') { const line = row.querySelector(':scope > .lk-line'), from = line?.offsetHeight || 28, had = keys && (doc.activeElement === line || doc.activeElement === doc.body || !doc.activeElement); row.dataset.open = '1'; holder.lkFrom = from; const full = holder.offsetHeight; roll(holder, from); if (keys) reveal(row, full); if (had) rest(holder); } } });
   shown.observe(holder, { attributes: true, attributeFilter: ['data-whole'] });
   holder.lkClose = () => close(row, true);
   row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Close');
@@ -196,14 +213,28 @@ function peek(holder, uuid, shut) {
   watchKeys(holder.ownerDocument);
   return () => holder.lkOff?.();
 }
+/* focus: closed by the person's own hand (the arrow, Escape, Left): the node rolls back up into its line as it rolled out, and
+   the line has the keys again. Taken away by the plugin (a list that goes), it goes at once. A row whose node no longer belongs
+   to the list (lkLeft, set where the list is drawn: it stayed only because it was open) leaves in this same move, the whole row
+   rolling up, and its list with it where the list held nothing else. */
 function close(row, focus = false) {
   const holder = row.querySelector(':scope > .lk-open');
-  if (!holder) return;
-  for (const inner of holder.querySelectorAll('.lk-open')) inner.lkOff?.();
-  holder.lkOff?.(); holder.remove(); delete row.dataset.open;
-  row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true }));   // its line is read again at once: what was written in it shows without a wait
-  row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Open');
-  if (focus) row.querySelector(':scope > .lk-line')?.focus({ preventScroll: true });
+  if (!holder || holder.lkClosing) return;
+  const end = () => {
+    for (const inner of holder.querySelectorAll('.lk-open')) inner.lkOff?.();
+    holder.lkOff?.(); holder.remove(); delete row.dataset.open;
+    row.dispatchEvent(new (row.ownerDocument.defaultView.CustomEvent)('lk-closed', { bubbles: true }));   // its line is read again at once: what was written in it shows without a wait
+    row.querySelector(':scope > .lk-fold')?.setAttribute('aria-label', 'Open');
+    if (focus) row.querySelector(':scope > .lk-line')?.focus({ preventScroll: true });
+  };
+  if (!focus || row.dataset.open !== '1' || still(holder)) return end();
+  holder.lkClosing = true;
+  const box = row.closest('.lk-list'), leaving = row.lkLeft ? (box?.lkLeft ? box : row) : null;
+  rollUp(leaving || holder, leaving ? 0 : holder.lkFrom || 28).then(() => {
+    const next = leaving && (row.nextElementSibling || row.previousElementSibling);
+    end();
+    if (leaving) { leaving.remove(); next?.querySelector?.(':scope > .lk-line')?.focus({ preventScroll: true }); }
+  });
 }
 const toggle = row => row.dataset.open ? close(row, true) : open(row, true);
 /* One step back in a place: closes the opened node the person is in there (else the one opened last), a node dug into before
@@ -367,13 +398,14 @@ function sync(parent, wanted, keyOf, make, update, stays = child => !!child.data
     const key = keyOf(item);
     let child = have.get(key);
     if (child) have.delete(key); else { child = make(item); child.dataset.key = key; }
+    child.lkLeft = false;
     update(child, item);
     let next = prev ? prev.nextElementSibling : parent.firstElementChild;
     while (next && next !== child && kept.has(next)) next = next.nextElementSibling;   // past what stays open in its place
     if (next !== child) parent.insertBefore(child, next);
     prev = child;
   }
-  for (const child of have.values()) if (!kept.has(child)) child.remove();
+  for (const child of have.values()) { if (kept.has(child)) child.lkLeft = true; else child.remove(); }   // lkLeft: it stays only while it is open, and goes when it is closed
 }
 /* A list that is no longer wanted while one of its rows is open: the list stays with that row (and with it the node being
    written in), and everything else of it goes. It is taken away when the row is closed, at the reading that follows. */
@@ -527,21 +559,39 @@ function handle(state, event) {
     event.preventDefault(); event.stopPropagation(); foldList(state, head.parentElement); return;
   }
   if (event.type === 'click' && target.closest('.lk-more')?.dataset.next && state.next) { state.rolls = true; state.next(target.closest('.lk-list').lkList); return; }   // the rows that wait are brought by the place, and roll out as it draws them
-  if (event.type === 'click' && target.closest('.lk-more')) { const key = target.closest('.lk-more').dataset.gkey || target.closest('.lk-list').dataset.key; if (target.closest('.lk-more').dataset.fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); } moved(state.el, state.redraw); return; }
+  if (event.type === 'click' && target.closest('.lk-more')) {
+    const more = target.closest('.lk-more'), box = more.closest('.lk-list'), gkey = more.dataset.gkey || '', key = gkey || box.dataset.key, fewer = !!more.dataset.fewer, was = more.getBoundingClientRect().top;
+    if (fewer) { state.all.delete(key); state.view?.all.delete(key); } else { state.all.add(key); state.view?.all.add(key); }
+    moved(state.el, state.redraw);
+    // After Show fewer the list's own Show more stands where the press was made, the rows above it coming down to it: the list
+    // the person was in stays in the window (the page had shrunk under the view, which was left on the next list or on nothing).
+    if (fewer) pin(() => [...box.querySelectorAll('.lk-more')].find(one => (one.dataset.gkey || '') === gkey && !one.dataset.fewer), was);
+    return;
+  }
   if (event.type === 'keydown' && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && target.matches('.lk-line, .lk-list-head')) {
     const stops = [...state.el.querySelectorAll('.lk-line, .lk-list-head')].filter(el => el.closest('.lk-rel') === state.el && el.offsetParent);
     const next = stops[stops.indexOf(target) + (event.key === 'ArrowDown' ? 1 : -1)];
     if (next) { event.preventDefault(); event.stopPropagation(); next.focus(); }
   }
 }
+// A piece kept at one height in the window while what is above it rolls: what scrolls it follows, frame by frame, for the roll's time.
+function pin(find, top) {
+  const first = find(); if (!first) return;
+  const view = first.ownerDocument.defaultView, port = scroller(first), until = view.performance.now() + G.look.MOTION.roll + 140;
+  const step = () => { const el = find(); if (el?.isConnected) { const off = el.getBoundingClientRect().top - top; if (Math.abs(off) > .5) port.scrollTop += off; } if (view.performance.now() < until) view.requestAnimationFrame(step); };
+  step();
+}
 // A list folds: its lines roll up and then it is shut; opened, they roll out. A folded list keeps no kind chosen.
+/* One move: where the head has two lines (its name, then its kinds and days), the second line goes and comes with the rows,
+   over the same time, and the room under the head with them (it was taken away in one frame, 80 px, before the rows rolled). */
 function foldList(state, box) {
-  const key = box.dataset.key, rows = box.querySelector(':scope > .lk-rows');
+  const key = box.dataset.key, rows = box.querySelector(':scope > .lk-rows'), head = box.firstElementChild, second = head.querySelector(':scope > .lk-list-via:not(:empty) ~ .lk-list-name');
+  const parts = [rows, ...(second ? [second] : [])];
   const flip = () => { folded.flip(key); state.view?.kinds.delete(key); state.redraw(); };
   if (box.lkShutting) return;
-  if (folded.has(key)) { flip(); roll(rows, 0); return; }
-  box.lkShutting = true; box.firstElementChild.setAttribute('aria-expanded', 'false');
-  rollUp(rows).then(() => { box.lkShutting = false; flip(); for (const name of ['height', 'overflow', 'transition']) rows.style.removeProperty(name); });
+  if (folded.has(key)) { flip(); for (const part of parts) roll(part, 0); return; }
+  box.lkShutting = true; head.dataset.rolling = '1'; head.setAttribute('aria-expanded', 'false');
+  Promise.all(parts.map(part => rollUp(part))).then(() => { box.lkShutting = false; delete head.dataset.rolling; flip(); for (const part of parts) for (const name of ['height', 'overflow', 'transition']) part.style.removeProperty(name); });
 }
 /* A line that adds: one field at the head of a place's list. Enter hands its words to add(words), which answers the uuid of what
    it made, or { uuid, steps }: the steps of Logseq's Undo it made, 0 where the thing was there already. The list then moves to
@@ -604,7 +654,7 @@ G.node.CSS = `
 .lk-list-via { flex: 1 1 0; min-width: 0; display: flex; align-items: flex-start; min-height: 24px; }
 /* A property's list: the arrow and the property's name on the first line, the kinds under the name (one head for every list). */
 .lk-list-head:has(> .lk-list-via:not(:empty)) > .lk-list-name { flex: 0 0 100%; padding-left: calc(var(--lk-mark-box) + var(--lk-mark-gap)); }
-.lk-list-head[aria-expanded="false"]:has(> .lk-list-via:not(:empty)) > .lk-list-name { display: none; }   /* closed: one line, its name */
+.lk-list-head[aria-expanded="false"]:not([data-rolling]):has(> .lk-list-via:not(:empty)) > .lk-list-name { display: none; }   /* closed: one line, its name (while it rolls shut the second line is still there, rolling up with the rows) */
 .lk-list-head[aria-expanded="false"]:has(> .lk-list-via:not(:empty)) { padding-bottom: 0; }
 .lk-list-via > .lk-prop { color: var(--lk-text); font-size: var(--lk-line-size); line-height: 24px; }   /* what the list is: the property, in the ink, at the size of the lines it heads */
 .lk-list-via:empty { display: none; }
@@ -627,7 +677,7 @@ G.node.CSS = `
 .lk-list[data-viewed] > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:not(:empty)) + .lk-row:has(> .lk-line > .lk-dayin:empty) { margin-top: 10px; }
 .lk-list[data-viewed]:has(> .lk-rows > .lk-row > .lk-line > .lk-dayin) > .lk-rows > .lk-row:has(> .lk-line > .lk-dayin:empty) > .lk-open { padding-left: 0; }
 .lk-list[data-viewed] > .lk-rows > .lk-row[data-open="1"]::before { content: ""; position: absolute; left: 23px; top: 11px; width: 6px; height: 6px; border-radius: 50%; background: var(--lk-line); z-index: 1; }
-.lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; }
+.lk-list-head[data-thin] { padding-bottom: 6px; align-items: flex-start; transition: padding-bottom .16s ease-out; }   /* the room under the head goes and comes with the fold, in its time */
 .lk-list-head[data-thin] > .lk-list-name { align-items: baseline; }
 .lk-list-head[data-thin] > .lk-fold { opacity: 1 !important; }   /* the one arrow, in the quiet grey every arrow has, never fainter */
 .lk-list-head[data-thin]:hover > .lk-fold { color: var(--lk-text); }

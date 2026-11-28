@@ -164,6 +164,7 @@ function start(state, box, group = null) {
   ];
   d.off = () => { for (const off of offs) off(); };
   state.redraw(); focus(d);
+  d.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });   // the line is made at the list's end, which may be far under the window: it is brought into view, so the name is seen while it is typed
 }
 // The line begun from a list's own + stands at the list's end, after "Show more".
 function keep(state, box, list) {

@@ -173,7 +173,7 @@ G.line.CSS = `
 .lk-day-end > :where(.lk-rows) > .lk-row > .lk-line { grid-column: 2 / -1; grid-row: 1; align-self: baseline; padding-right: calc(var(--lk-daycol, 0px) + 6px); }
 .lk-day-end > :where(.lk-rows) > .lk-row > .lk-open { grid-column: 2 / -1; }
 .lk-row[data-open="1"] > .lk-line { display: none; }
-.lk-row[data-open="soon"] > .lk-open { height: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole */
+.lk-row[data-open="soon"] > .lk-open { height: 0; padding-top: 0; padding-bottom: 0; overflow: hidden; visibility: hidden; }   /* Logseq is still filling it in: the line stays until it is whole, and the node takes no room at all until it rolls out (its own 6 of room under it pushed every row below down for a third of a second) */
 .lk-fold { display: inline-flex; align-items: center; justify-content: center; width: var(--lk-mark-box); height: 24px; margin-top: 2px; padding: 0; border: 0; background: none; color: var(--lk-off); cursor: pointer; opacity: 0; }
 .lk-fold svg { width: 14px; height: 14px; transition: transform var(--lk-fade); }
 .lk-row:hover > .lk-fold, .lk-row:has(:focus-visible) > .lk-fold, .lk-row[data-open] > .lk-fold, .lk-list-head .lk-fold { opacity: 1; }
