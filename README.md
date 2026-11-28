@@ -200,9 +200,10 @@ As the plugin drew them before the rebuild; each can be switched off on its own 
   for you and left out), then its Relations; its name in the section's head is a link that opens the page. Every line of
   it starts on one edge, about as far from the sidebar's left edge as the right ends are from its right, and the marks (a fold arrow, a list's mark, the + of Add property, a
   value's bullet) stand in the gutter before that edge.
-- Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; each tool says what
-  it does in a word beside its icon, and where the views and the tools do not fit on one line the tools go under the views;
-  a tag's own table leaves out its Tags column.
+- Logseq's tables: no ground under the column names, no lines between columns, a hairline under each row; the tools are
+  Logseq's own icons without words, on one line with the views (the owner's choice of 28 November 2026, in place of a word on
+  each tool), and only where even the icons do not fit beside the views do they go under them; a tag's own table leaves out
+  its Tags column.
 - A notice, Logseq's own or the plugin's, is a small capsule of words at the bottom centre of the window, where Logseq draws
   a large card under the toolbar at the top right; more than one peek above it. Every notice goes after four seconds, a
   failure too, and stays while the pointer or the keys are on it; its × closes it at once.

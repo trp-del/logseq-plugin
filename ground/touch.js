@@ -2025,8 +2025,8 @@ ${SIDE_PAGE} .sidebar-panel-content { container: lk-side / inline-size; }
   ${PLAIN_SIDE} .ls-sidebar-page-properties .properties-panel { overflow: visible !important; }   /* Logseq clips the panel at its edge, which would hide a value's bullet in the gutter */
 }`,
   /* Logseq's tables: the page's own ground under the column names, no lines between columns, a hairline under each row, the
-     wash under the pointer; the words in the plugin's greys; a link as a link is everywhere; what each tool does said in a
-     word beside its icon; the view's name a word with a short bar under the one in force. */
+     wash under the pointer; the words in the plugin's greys; a link as a link is everywhere; each tool Logseq's own icon; the
+     view's name a word with a short bar under the one in force. */
   table: `
 ${AREA} .ls-table-header { background: var(--lk-paper) !important; border-top-color: transparent !important; border-bottom-color: var(--lk-hair) !important; }
 ${AREA} .ls-table-header-cell, ${AREA} .ls-table-rows .border-r { border-right-color: transparent !important; }
@@ -2060,27 +2060,16 @@ ${AREA} .ls-view-head .views button[data-view-tab-id] > :is(.ls-icon-color-wrap,
 ${AREA} .ls-view-head .views button[title="Add new view"] { width: auto !important; height: auto !important; padding: 3px 8px 6px !important; opacity: 1 !important; color: var(--lk-quiet) !important; font-size: var(--lk-small); font-weight: 400; }
 ${AREA} .ls-view-head .views button[title="Add new view"] > :is(.ui__icon, svg) { display: none !important; }
 ${AREA} .ls-view-head .views button[title="Add new view"]::after { content: "+ New view"; }
-${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item) { width: auto !important; height: 24px !important; padding: 0 6px !important; gap: 4px; border-radius: var(--lk-corner-round) !important; font-size: var(--lk-small); font-weight: 400; color: var(--lk-text) !important; opacity: 1 !important; }
+/* The tools are Logseq's own icons, without words, on one line (the owner, 28 November 2026, choosing from pictures: "B. Icons
+   only, one line", in place of the word on each of 16 November): Logseq's own size and gaps, in the plugin's grey, the wash
+   under the pointer. Logseq lays a page out as a grid that grows with the longest line in it, so where even the icons do not
+   fit beside the views (both sidebars open) the line gives way inside the page instead of widening it. */
+${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item) { border-radius: var(--lk-corner-round) !important; color: var(--lk-text) !important; opacity: 1 !important; }
 ${AREA} .ls-view-head .view-actions :is(button.as-ghost, .view-action-type .select-item):hover { background: var(--lk-wash) !important; }
 ${AREA} .ls-view-head .view-actions :is(.ui__icon, svg) { width: 15px; height: 15px; }
-/* With a word on each, the buttons' line is longer than Logseq's row of icons, and Logseq lays a page out as a grid that grows
-   with the longest line in it: a tag's page at 700 with the left sidebar open stood 50 past its place, its table and its
-   buttons cut at the window's edge. So the line gives way inside the page: where the views and the buttons do not both fit,
-   the buttons go under the views, at the right end as before; where the buttons alone do not fit, they go on to a line more,
-   and so do the views' names. */
 ${AREA} .ls-view-head { flex-wrap: wrap !important; row-gap: 2px; }
 ${AREA} .ls-view-head .views { flex-wrap: wrap; row-gap: 2px; }
-${AREA} .ls-view-head .view-actions { gap: 2px !important; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
-${AREA} .ls-view-head .view-action-type, ${AREA} .ls-view-head .view-action-type :is(.property-value-inner, .jtrigger) { width: auto !important; flex: none !important; }
-${AREA} .ls-view-head .view-action-type .select-item { display: inline-flex; align-items: center; white-space: nowrap; }
-${AREA} .ls-view-head .view-actions > button:has(.ls-icon-arrows-up-down)::after { content: "Sort"; }
-${AREA} .ls-view-head .view-actions > button:has(.ls-icon-filter)::after { content: "Filter"; }
-${AREA} .ls-view-head .view-action-search > div > button:first-child::after { content: "Find"; }
-${AREA} .ls-view-head .view-action-search:has(input) > div > button:first-child::after { content: none; }
-${AREA} .ls-view-head .view-action-type:has(.ls-icon-table) .select-item::after { content: "Table"; }
-${AREA} .ls-view-head .view-action-type:has(.ls-icon-list) .select-item::after { content: "List"; }
-${AREA} .ls-view-head .view-action-type:has(.ls-icon-layout-grid) .select-item::after { content: "Gallery"; }
-${AREA} .ls-view-head .view-actions > button:has(.ls-icon-plus)::after { content: "New"; }
+${AREA} .ls-view-head .view-actions { flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 ${[1, 2, 3, 4, 5, 6, 7, 8].map(n => `${AREA} .ls-table[data-lk-less="${n}"] :is(.ls-table-header, .ls-table-row) > .flex-row:not(.sticky-columns) > :nth-child(${n})`).join(', ')} { display: none !important; }`,
   /* The left sidebar as words alone (the owner, on "A Leaner Logseq", 26 November 2026): no picture before Journals, Pages, a
      favourite or a recent page; no word over the top rows, a gap between the groups instead; the graph’s
