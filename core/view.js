@@ -13,11 +13,14 @@
    offers(rows)             { groups: [name], dates: [name], sorts: [name] }   what its View can be set to
    parse(words, today)      { words, upTo, said }   "chen on Oct 7", "up to 7 Oct", "until 2026-10-07": the words, and the day to turn back to
    shape(list, view, find, today)   what the list shows:
-     { tabs, more, rows, groups, since, count, of, from, to, said, fresh }
+     { tabs, more, rows, groups, since, count, of, from, to, said, fresh, shared }
      tabs    [{ kind, word, n, on }] the kinds a head names (All first, then the three most held), more: how many kinds beside them
      rows    the rows shown, in order, each with dayShown; groups: [{ key, name, rows, tag }] when a grouping is in force, else null
      since   the rows dated after the day turned back to (shown faint under a line); count, of: "8", "Consultations"
-     from, to: the span of the shown rows' days; said: the settings that are not the default, as words; fresh: how many are new */
+     from, to: the span of the shown rows' days; said: the settings that are not the default, as words; fresh: how many are new
+     shared  [title] the tags every row of the list holds (row.tags: [{ id, title }]), to be said once on its head: of a list
+             of two or more, never a tag that is some row's own kind (row.tag: the head counts those already), and never Task
+             for a row with a status, whose circle says it. Of the whole list, whatever it is narrowed to */
 (function (root) {
 const D = typeof module !== 'undefined' && module.exports ? require('./days.js') : root.PluginDoor.days;
 const L = typeof module !== 'undefined' && module.exports ? require('./lists.js') : root.PluginDoor.lists;
@@ -57,6 +60,13 @@ const holds = (row, want) => {
   const day = row.day ? `${MONTHS[Math.floor(row.day / 100) % 100 - 1].toLowerCase()} ${row.day % 100} ${Math.floor(row.day / 10000)}` : '';
   return want.every(word => own.includes(word) || tag.includes(word) || day.split(' ').some(part => part.startsWith(word)) || values.some(value => value.includes(word)));
 };
+// The tags a row can be said to hold: their names, Task left out where the row's status circle already says it.
+const sayable = row => (row.tags || []).map(tag => tag && tag.title).filter(title => title && !(title === 'Task' && row.status));
+function sharedBy(rows) {
+  if (rows.length < 2) return [];
+  const kindsHere = new Set(rows.map(row => row.tag));
+  return sayable(rows[0]).filter((title, i, all) => all.indexOf(title) === i && !kindsHere.has(title) && rows.every(row => sayable(row).includes(title)));
+}
 function shape(list, view = {}, find = {}, today = 0) {
   const all = list.rows || [], own = list.own || 0, since = view.since || 0, quiet = new Set(list.hidden || []);
   const every = kinds(all), isNew = row => !!since && (row.made || 0) > since;
@@ -119,7 +129,7 @@ function shape(list, view = {}, find = {}, today = 0) {
   if (view.date) said.push(view.date === 'none' ? 'No date' : view.date);
   if (view.sort) said.push(view.sort === 'changed' ? 'Last changed first' : view.sort === 'name' ? 'By name' : 'By tag');
   return { tabs, more: every.length === 4 ? 0 : Math.max(0, every.length - 3), one: oneTag, rows, groups, since: later, count: rows.length, of: oneTag ? (rows.length === 1 ? oneTag : plural(oneTag)) : (rows.length === 1 ? 'node' : 'nodes'),
-    from: from !== to ? from : 0, to: from !== to ? to : 0, said, fresh, total: all.length,
+    from: from !== to ? from : 0, to: from !== to ? to : 0, said, fresh, total: all.length, shared: sharedBy(all),
     dots: timed.filter(row => row.goesBy).map(row => ({ day: row.goesBy, uuid: row.uuid, title: String(row.plain ?? row.words ?? ''), off: !(inSpan(row) && inLane(row)), row })).sort((a, b) => a.day - b.day) };
 }
 // The lists of a page in the order the person gave them: the named ones first in that order, the rest as they came.

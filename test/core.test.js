@@ -760,3 +760,26 @@ test('next week is its Monday, one answer for the words typed and for the menu',
   assert.deepEqual([20261125, 20261129, 20261130, 20261231].map(day => todo.nextWeek(day)), [20261130, 20261130, 20261207, 20270104]);   // a Wednesday, a Sunday, a Monday, the year's last Thursday
   assert.equal(todo.dayIn('Book the dentist next week', 20261231).day, todo.nextWeek(20261231));
 });
+
+// ---- a tag every row of a list holds is said once, on the list's head (F124, 27 November 2026)
+test('a list answers the tags all its rows hold, beside the kinds its head counts, and never Task for a row with a status', () => {
+  const row = (uuid, tag, tags, more = {}) => ({ uuid, words: uuid, tag, tags: tags.map((title, id) => ({ id, title })), day: 0, ...more });
+  const shared = rows => view.shape({ rows }, {}, {}, 20261127).shared;
+  // Three Bill payments, all Urgent: Urgent once; Bill payment is the kind the head counts already.
+  assert.deepEqual(shared([row('a', 'Bill payment', ['Bill payment', 'Urgent']), row('b', 'Bill payment', ['Urgent', 'Bill payment']), row('c', 'Bill payment', ['Bill payment', 'Urgent', 'Shared account'])]), ['Urgent']);
+  // One of the three is not Urgent: it stays on the rows that hold it.
+  assert.deepEqual(shared([row('a', 'Bill payment', ['Bill payment', 'Urgent']), row('b', 'Bill payment', ['Bill payment']), row('c', 'Bill payment', ['Bill payment', 'Urgent'])]), []);
+  // Two kinds, both Urgent: neither kind is said again, Urgent is.
+  assert.deepEqual(shared([row('a', 'Bill payment', ['Bill payment', 'Urgent']), row('b', 'Income', ['Income', 'Urgent'])]), ['Urgent']);
+  // A tag that is some row's own kind is one the head counts: not said a second time, though every row holds it.
+  assert.deepEqual(shared([row('a', 'Urgent', ['Urgent']), row('b', 'Bill payment', ['Bill payment', 'Urgent'])]), []);
+  // Tasks with their status circle: Task is not said; a task without a status does not make it shared either.
+  assert.deepEqual(shared([row('a', 'Project', ['Task', 'Project', 'Home'], { status: 'Todo' }), row('b', 'Project', ['Project', 'Task', 'Home'], { status: 'Doing' })]), ['Home']);
+  assert.deepEqual(shared([row('a', 'Project', ['Task', 'Project'], { status: 'Todo' }), row('b', 'Project', ['Project', 'Task'])]), []);
+  assert.deepEqual(shared([row('a', 'Project', ['Project', 'Task']), row('b', 'Project', ['Project', 'Task'])]), ['Task']);
+  // A list of one node says its tags on the row; rows with no tags read, or none at all, share nothing.
+  assert.deepEqual(shared([row('a', 'Bill payment', ['Bill payment', 'Urgent'])]), []);
+  assert.deepEqual([shared([{ uuid: 'a', words: 'a', tag: 'Visit' }, { uuid: 'b', words: 'b', tag: 'Visit' }]), shared([])], [[], []]);
+  // Narrowing the list to a kind or to words does not change what all its rows hold.
+  assert.deepEqual(view.shape({ rows: [row('a', 'Bill payment', ['Bill payment', 'Urgent']), row('b', 'Income', ['Income', 'Urgent'])] }, { kind: 'Income' }, { words: 'b' }, 20261127).shared, ['Urgent']);
+});
