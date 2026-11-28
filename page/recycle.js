@@ -1,5 +1,7 @@
 /* PAGE: the Recycle list. Logseq's Recycle as a plain list on a page of the plugin's own (Relations: the Recycle list, in
-   Logseq's command list): what was deleted, newest first, a bullet with the page it came from. Each line has Restore, which
+   Logseq's command list): the deleted pages, newest first. In Logseq 2.0.2 only a page lies in the Recycle (a deleted bullet is
+   gone from the graph); should a later Logseq keep a bullet there, its line is marked "bullet", with the page it came from, and
+   is handled as a page is. Each line has Restore, which
    is Logseq's own restore, and Delete, which asks under the line first, with the shared question (node/ask.js: a red yes and
    Cancel, the keyboard waiting on Cancel), and then deletes for good: nothing brings that back. Delete all asks once for every
    line. A line is said to be back, or gone, only when it is: by Logseq's answer, and where Logseq answers nothing, by the
@@ -7,7 +9,7 @@
 (function () {
 const G = window.PluginDoor;
 G.part({
-  key: 'recycle', title: 'The Recycle list', about: 'Logseq’s Recycle as a plain list: bring a page or a bullet back, or delete it for good.',
+  key: 'recycle', title: 'The Recycle list', about: 'Logseq’s Recycle as a plain list: bring a deleted page back, or delete it for good.',
   start(base) {
     base.style('recycle', `
 .lk-recycle { max-width: 46rem; margin: 0 auto; padding: 24px 16px 64px; }
@@ -22,8 +24,9 @@ G.part({
     const draw = async el => {
       const rows = await G.read.recycled().catch(() => []);
       const said = row => row.words || (row.isPage ? 'A page with no name' : 'A bullet with no words');
-      el.innerHTML = `<div class="lk-recycle"><div class="lk-row"><div class="lk-recycle-top"><span>${rows.length ? `${rows.length} deleted ${rows.length === 1 ? 'thing' : 'things'} Logseq still keeps` : 'Logseq’s Recycle is empty'}</span>${rows.length > 1 ? '<button type="button" class="lk-btn lk-low lk-going-btn lk-i-bin" data-do="all">Delete all</button>' : ''}</div></div><div class="lk-recycle-rows">${rows.map(row =>
-        `<div class="lk-row"><div class="lk-recycle-row" data-uuid="${G.esc(row.uuid)}"><span class="lk-bul" aria-hidden="true"></span><span class="lk-recycle-words">${G.esc(said(row))}<span class="lk-recycle-from">${row.isPage ? 'page' : row.from ? `from ${G.esc(row.from)}` : 'bullet'}</span></span><button type="button" class="lk-btn lk-low lk-i-undo" data-do="restore">Restore</button><button type="button" class="lk-btn lk-low lk-going-btn lk-i-bin" data-do="delete">Delete</button></div></div>`).join('')}</div></div>`;
+      const kind = rows.every(row => row.isPage) ? 'page' : 'thing';   // every line is a page, said once above them; a bullet is the exception, marked on its line
+      el.innerHTML = `<div class="lk-recycle"><div class="lk-row"><div class="lk-recycle-top"><span>${rows.length ? `${rows.length} deleted ${kind}${rows.length === 1 ? '' : 's'} Logseq still keeps` : 'Logseq’s Recycle is empty'}</span>${rows.length > 1 ? '<button type="button" class="lk-btn lk-low lk-going-btn lk-i-bin" data-do="all">Delete all</button>' : ''}</div></div><div class="lk-recycle-rows">${rows.map(row =>
+        `<div class="lk-row"><div class="lk-recycle-row" data-uuid="${G.esc(row.uuid)}"><span class="lk-bul" aria-hidden="true"></span><span class="lk-recycle-words">${G.esc(said(row))}${row.isPage ? '' : `<span class="lk-recycle-from">bullet${row.from ? ` from ${G.esc(row.from)}` : ''}</span>`}</span><button type="button" class="lk-btn lk-low lk-i-undo" data-do="restore">Restore</button><button type="button" class="lk-btn lk-low lk-going-btn lk-i-bin" data-do="delete">Delete</button></div></div>`).join('')}</div></div>`;
       // Whether Logseq did it is read from its answer, and where it answers nothing from the Recycle itself, read afresh: what is
       // no longer kept there is back, or gone.
       const still = async list => { const now = await G.read.recycled().catch(() => null); return now ? list.filter(row => now.some(one => one.uuid === row.uuid)) : list; };

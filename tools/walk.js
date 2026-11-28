@@ -742,6 +742,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       // Logseq refusing once: the call answers nothing and does nothing, as Logseq's own answer for a restore it did not make.
       const refuseOnce = call => box.frame().evaluate(name => { const write = window.PluginDoor.write, was = write[name]; write[name] = async () => { write[name] = was; return null; }; }, call);
       await goto(CHEN); await page.keyboard.press('Meta+Shift+p'); await wait(700); await page.keyboard.type('the Recycle list', { delay: 20 }); await wait(700); await page.keyboard.press('Enter'); await wait(2000);
+      const named = [await line('Zzrecycle one').locator('.lk-recycle-words').innerText(), /^\d+ deleted pages? Logseq still keeps$/.test((await page.locator('.lk-recycle-top > span').innerText()).trim())];   // every line is a page: said once above them, not after every name
       await refuseOnce('restore'); await line('Zzrecycle one').locator('[data-do="restore"]').click(); await wait(1500);
       const refused = [await said('“Zzrecycle one” was not brought back') > 0, await said('“Zzrecycle one” is back'), await line('Zzrecycle one').count(), await held()];
       await line('Zzrecycle one').locator('[data-do="restore"]').click(); await wait(1500);
@@ -752,7 +753,7 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       const gone = [await line('Zzrecycle two').count(), await held()];
       await box.frame().evaluate(async () => { const page = await logseq.Editor.getPage('Zzrecycle one'); await logseq.Editor.deletePage('Zzrecycle one'); if (page?.uuid) await logseq.Editor.deleteRecycledPagePermanently(page.uuid); }); await wait(800);   // the graph as it was
       await goto(CHEN);
-      return is([refused, back, kept, gone], [[true, 0, 1, [[], ['Zzrecycle one', 'Zzrecycle two']]], [true, 0, [['Zzrecycle one'], ['Zzrecycle two']]], [true, 1, [['Zzrecycle one'], ['Zzrecycle two']]], [0, [['Zzrecycle one'], []]]]);
+      return is([named, refused, back, kept, gone], [['Zzrecycle one', true], [true, 0, 1, [[], ['Zzrecycle one', 'Zzrecycle two']]], [true, 0, [['Zzrecycle one'], ['Zzrecycle two']]], [true, 1, [['Zzrecycle one'], ['Zzrecycle two']]], [0, [['Zzrecycle one'], []]]]);
     });
     {
     // ---- Beside: two pages side by side (the owner chose the old feature, 26 November 2026)
