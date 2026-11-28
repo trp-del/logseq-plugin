@@ -597,13 +597,11 @@ const FATIGUE = '1a000000-0000-4000-8000-000000000013', CHEN = '1a000000-0000-40
       await page.locator('.lk-ontology .lk-field').hover(); await wait(400);
       return is([one, await count('.lk-joins')], [[true, true, 1], 1]);
     });
-    await step('a tag\'s menu shows its nodes in Search and offers to put it under another tag', async () => {
+    await step('a tag\'s menu offers to put it under another tag, and has no line "Show its nodes"', async () => {   // the owner, 24 November 2026, of this menu: "remove: tick, show its nodes"
       await page.locator('.lk-ontology .lk-row', { hasText: /^Consultation/ }).first().locator('.lk-line').click({ button: 'right' }); await wait(500);
       const items = await page.locator('.lk-menu .lk-item').allInnerTexts();
-      await page.locator('.lk-menu .lk-item', { hasText: 'Show its nodes' }).click(); await wait(1500);
-      const piece = await page.locator('.lk-search .lk-search-piece').innerText().catch(() => '');
-      for (let i = 0; i < 3; i++) { await page.keyboard.press('Escape'); await wait(250); }
-      return is([items.includes('Show its nodes'), items.includes('Move under…'), piece], [true, true, 'Consultation']);
+      await page.keyboard.press('Escape'); await wait(300);
+      return is([items.includes('Show its nodes'), items.includes('Move under…'), await count('.lk-menu')], [false, true, 0]);
     });
     /* Found by hand, 26 November 2026: a merge is many writes, and its one Undo is that many steps of Logseq's own; a step
        miscounted leaves part of the merge, or takes back an earlier change. Tick two tags, merge, Undo: all of it is back. */

@@ -12,7 +12,16 @@
    filled(tags, pairs, byTag, held)  ident -> { on: [tag id], filled, of }: the tags that give each property (byTag: tag id ->
                        [ident]), the one with the most nodes first; of: the nodes of those tags (and of the tags below them), summed
                        over the tags; filled: how many of them hold something under it (held: ident -> [node id]). A property
-                       no tag gives: on [], of 0, filled the nodes that hold it. */
+                       no tag gives: on [], of 0, filled the nodes that hold it.
+   step(id, tags, out) one step in or out for a tag, as Tab and Shift-Tab do in any outline, worked out from the tags and never
+                       from what is drawn: in, under the tag just above it at its own level; out, under the tag its own
+                       sits under. Answers the id of the tag it goes under, 0 for the top, null where there is nowhere to go
+   going(things, nodes) the question before tags or properties are deleted, counting what truly goes. things: [{ kind: 'tag'
+                       or 'property', title, nodes, kids, bullets }]: nodes, how many hold it (a tag: itself, not the tags
+                       below it; a property: a value under it); kids, a tag's child tags that are not deleted with it;
+                       bullets, the bullets written on its page. nodes: how many nodes together, where the caller counted a
+                       node once that holds two of them. Answers { words, note, yes, whole }; whole: nothing goes with it,
+                       so an Undo brings back all that went (never so for a property: its Undo brings back another item) */
 (function (root) {
 function path(id, tags) {
   const out = [], seen = new Set();
@@ -89,7 +98,30 @@ function found(list, hit) {
   }
   return out;
 }
-const api = { path, above, tree, under, folds, found, counts, filled };
+function step(id, tags, out) {
+  const list = tree(tags), at = list.findIndex(row => row.tag.id === id);
+  if (at < 0) return null;
+  const depth = list[at].depth;
+  // The nearest tag above in the outline at a depth: the one beside it (its own depth), the one its own sits under (two less).
+  const up = want => { for (let i = at - 1; i >= 0; i--) { if (list[i].depth === want) return list[i].tag.id; if (list[i].depth < want) return null; } return null; };
+  if (!out) return up(depth);
+  if (!depth) return null;
+  return depth > 1 ? up(depth - 2) ?? 0 : 0;
+}
+function going(things, nodes = things.reduce((n, one) => n + (one.nodes || 0), 0)) {
+  const kind = things[0]?.kind === 'property' ? 'property' : 'tag', one = things.length === 1, sum = name => things.reduce((n, thing) => n + (thing[name] || 0), 0);
+  const kids = kind === 'tag' ? sum('kids') : 0, bullets = sum('bullets'), whole = kind === 'tag' && !nodes && !kids && !bullets;
+  const it = one ? 'it' : 'them', its = one ? 'its' : 'their', said = [];
+  if (kind === 'tag') {
+    if (nodes) said.push(`${nodes} ${nodes === 1 ? 'node holds' : 'nodes hold'} ${it}. ${one ? 'It is' : 'They are'} taken off ${nodes === 1 ? 'that node' : 'every one of them'}.`);
+    if (kids) said.push(`${one ? 'Its' : 'Their'} ${kids === 1 ? 'child tag stays' : `${kids} child tags stay`}, without ${it} as ${kids === 1 ? 'its parent' : 'their parent'}.`);
+  } else said.push(nodes ? `${nodes} ${nodes === 1 ? 'node holds' : 'nodes hold'} a value under ${it}. ${nodes === 1 && one ? 'That value is' : 'Those values are'} deleted with ${it}, for good.` : `No node holds a value under ${it}.`);
+  if (bullets) said.push(`The ${bullets === 1 ? 'bullet written on' : `${bullets} bullets written on`} ${its} ${one ? 'page' : 'pages'} ${bullets === 1 ? 'is' : 'are'} deleted with ${it}, for good.`);
+  if (whole) said.push(`No node holds ${it}, ${one ? 'it has' : 'they have'} no child tags and nothing is written on ${its} ${one ? 'page' : 'pages'}.`);
+  const name = one ? `the ${kind} “${things[0].title}”` : `${things.length} ${kind === 'tag' ? 'tags' : 'properties'}`;
+  return { words: `Delete ${name}?${whole ? '' : ' This cannot be undone.'}`, note: said.join(' '), yes: one ? `Delete the ${kind}` : `Delete ${name}`, whole };
+}
+const api = { path, above, tree, under, folds, found, counts, filled, step, going };
 if (typeof module !== 'undefined' && module.exports) module.exports = api;
 else (root.PluginDoor ||= {}).tags = api;
 })(typeof window !== 'undefined' ? window : globalThis);

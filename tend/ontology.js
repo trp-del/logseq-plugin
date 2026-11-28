@@ -1,13 +1,19 @@
-/* TENDING: Ontology. Your tags as an outline, each under the tag it sits under, and your properties by name, in a section of
-   the right sidebar. A tag and a property are nodes like any other, so each row is the one line (node/line.js) and opens in
-   place as Logseq's own page for it: its name is renamed there, the tag it sits under is changed there (Extends), a property's
-   kind and what it takes are set there, all with Logseq's own controls and Logseq's own Undo.
+/* TENDING: Ontology. Your tags as an outline, each under the tag it sits under, and your properties in a table, on a page of
+   their own and in a section of the right sidebar. A tag and a property are nodes like any other, so each row is the one line
+   (node/line.js). Nothing opens under a row (the owner, 25 November 2026: "don't show the whole tag page in ontology under a
+   tag nor property page"): a press on a name goes to its page, Shift in the sidebar, Enter too, where a property's kind and
+   what it takes are set with Logseq's own controls; a press beside the name, or the arrow keys, selects the row, which shows
+   a tag's lines.
    Three tabs, as before the rebuild (the owner, 26 November 2026, "As before" and then "yes" to the old row of actions, tick
    boxes and tabs): Tags, Properties and History. Every row has a tick box; the row of actions under the tabs says what can be
    done with the ticked rows and waits faintly until it can be: for tags Merge…, Move up a level, Move under…, Rename and
-   Delete (empty tags only), for properties Merge… and Rename. Each is written at once, through ground/write.js, and Logseq's
-   own Undo takes it back (the faded arrow). History lists what was changed here, newest first, kept on this computer for 30
-   days.
+   Delete, for properties Merge… and Rename. Each is written at once, through ground/write.js, and Logseq's own Undo takes it
+   back (the faded arrow), counted in the steps the writes answer; where Logseq refuses one write of several, what was written
+   before it keeps its arrow and its line in History. A delete asks first, in red, counting what goes with the tag or the
+   property (one question from the row of actions and from a row's menu), and offers no Undo where Undo would not bring all
+   of it back. History lists what was changed here, newest first, kept on this computer for 30 days; its newest line carries
+   the Undo arrow while that change is still the last change to the graph (the library's arrow, which goes at the next change
+   as every arrow does). No older line has an Undo: that would be a second set of writes of the plugin's own.
    Properties are the table they were before the rebuild (the owner, 26 November 2026, "I like before version"; node/table.js):
    Property, On tags (▾ puts it on a tag or takes it off), Holds (▾ changes the tags a node value must have), Filled ("2 of 6"),
    sorted by a press on a column's name, least filled first at the start. */
@@ -22,11 +28,11 @@ const sortOf = { page: { key: 'filled', dir: 1 }, side: { key: 'filled', dir: 1 
 const KIND = { date: 'a date', datetime: 'a date', number: 'a number', checkbox: 'yes or no', url: 'a link' };
 // What was changed here, by graph, newest first; each line its words as parts: [kind, text], kind '' (words), 'tag' or 'prop'.
 const history = {
-  all() { try { return JSON.parse(G.host().defaultView.localStorage.getItem(HISTORY) || '{}') || {}; } catch (error) { return {}; } },
+  all() { const all = G.touch.kept(HISTORY, {}).get(); return all && typeof all === 'object' ? all : {}; },
   read(graph) { const now = Date.now(); return (this.all()[graph] || []).filter(one => now - one.when < DAYS30); },
-  add(graph, said) {
-    const all = this.all(); all[graph] = [{ when: Date.now(), said }, ...this.read(graph)].slice(0, 300);
-    try { G.host().defaultView.localStorage.setItem(HISTORY, JSON.stringify(all)); } catch (error) { /* kept for this sitting only */ }
+  add(graph, said, when = Date.now()) {
+    const all = this.all(); all[graph] = [{ when, said }, ...this.read(graph)].slice(0, 300);
+    G.touch.kept(HISTORY, {}).set(all);
     for (const heard of listeners) heard();
   },
 };
@@ -37,6 +43,7 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 G.part({
   key: 'ontology', title: 'Ontology', about: 'Your tags and properties, on a page of their own and as an outline in the right sidebar. A press on a name goes to its page; a press beside it shows the tag’s lines; a line at the top makes a new tag.',
   start(base) {
+    base.style('box', G.changeBox.CSS);   // the box a merge is shown in, which is Move values' too: here whether or not that part runs
     base.style('ontology', `
 .lk-ontology { padding: 4px 4px 16px 22px; }
 .lk-ontology > .lk-rel { position: relative; }
@@ -72,9 +79,10 @@ G.part({
 /* The tabs, as before the rebuild: an icon and a word each, the one in force in the ink with a line under it (the library's tab). */
 .lk-onto-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; margin: 0 0 14px; font-size: var(--lk-line-size); }
 .lk-onto-tabs > .lk-tab { display: inline-flex; align-items: center; gap: 6px; padding: 3px 0 7px; line-height: 1.35; }
-.lk-onto-tabs > .lk-tab svg, .lk-onto-acts .lk-btn svg { width: 16px; height: 16px; flex: none; }
+.lk-onto-tabs > .lk-tab svg, .lk-onto-acts .lk-btn svg { width: var(--lk-mark-box); height: var(--lk-mark-box); flex: none; }   /* a mark before a word: the library's box for one */
 .lk-map > .lk-onto-tabs { order: 0; flex: 0 0 100%; }
-.lk-ontology:not([data-tab="tags"]) > .lk-add { display: none; }
+.lk-ontology[data-tab="history"] > .lk-add { display: none; }   /* the one line to type in: New tag on Tags, Find a property on Properties */
+.lk-ontology .lk-trow > .lk-ask-gone { grid-column: 1 / -1; }   /* the question before a delete, under the whole of a table's row */
 .lk-ontology[data-tab="history"] > :is(.lk-values, .lk-side, .lk-rel, .lk-onto-acts, .lk-ask) { display: none; }
 .lk-ontology:not([data-tab="history"]) > .lk-history { display: none; }
 /* The row of actions: what the ticked rows can take, each press waiting faintly until it can be pressed (disabled). */
@@ -82,8 +90,6 @@ G.part({
 .lk-map > .lk-onto-acts { order: 4; flex: 0 0 100%; margin-left: -8px; }
 .lk-onto-acts > .lk-said { margin: 0 8px; white-space: nowrap; }
 .lk-onto-acts > .lk-btn { gap: 8px; }
-.lk-onto-acts > .lk-onto-del { color: var(--lk-going); }
-.lk-onto-acts > .lk-pick-x { padding: 4px 6px; }
 /* A tick box on every row, in one column at the area's left edge whatever the row's depth, faint until ticked or pointed at
    (as before the rebuild: the owner, 17 November 2026, found nothing on the map looked tickable when the boxes were hidden). */
 .lk-ontology .lk-rows > .lk-row { position: relative; }
@@ -109,6 +115,8 @@ G.part({
 .lk-history-when { flex: none; min-width: 7.5em; color: var(--lk-quiet); font-variant-numeric: tabular-nums; }
 .lk-history .lk-tag { font-family: var(--lk-tag-face); }
 .lk-history .lk-prop { color: var(--lk-text); }
+.lk-history-line > .lk-line { display: block; padding: 0; border-radius: 0; line-height: inherit; }   /* the newest line's words, held as the Undo arrow needs them (node/undo.js stands only in a line): placed as every other line of History, none of a row's own room */
+.lk-history-line > .lk-line > .lk-words { cursor: auto; }
 /* The table of properties: across the page's whole width, its tick boxes on the same left edge as the tags' (node/table.js). */
 .lk-ontology[data-tab="props"] > .lk-rel { display: block; padding-left: 0; }
 .lk-ontology:not(.lk-map)[data-tab="props"] > .lk-rel { padding-right: 0; }
@@ -116,24 +124,51 @@ G.part({
 .lk-ontology .lk-table a.lk-prop:hover { text-decoration-color: currentColor; }
 .lk-trow.lk-renaming > .lk-td:first-of-type > .lk-words { display: none; }
 .lk-trow .lk-td > .lk-rename { flex: 1 1 auto; box-sizing: border-box; width: auto; min-width: 0; height: 22px; margin: 0; padding: 0; border: 0; border-bottom: 1px solid var(--lk-text); border-radius: 0; background: none; box-shadow: none; outline: 0; color: var(--lk-text); font-family: var(--lk-prop-face); font-size: var(--lk-line-size); }`);
+    // What was changed is told to History once, whichever place it was changed in; Move values tells its moves here too.
+    /* uuid: the node the Undo arrow was just set after for this change. Its line of History carries the arrow too, while it is
+       the newest line and the arrow stands; a change heard later lets the line go (the arrow itself goes by the library's own
+       hearing, and another part may since have set one for the same node). */
+    const graph = () => G.read.graph().catch(() => '');
+    let standing = null;   // { uuid, when, set }: the line of History the arrow that stands belongs to
+    const did = async (said, uuid = '') => { const when = Date.now(); standing = uuid ? { uuid: String(uuid).toLowerCase(), when, set: when } : standing; history.add(await graph(), said, when); };
+    base.onStop(G.touch.changed(() => { if (standing && Date.now() - standing.set > 2000) standing = null; }));
+    G.tending = { did: said => did(said) };
     /* One drawing for both places. In the sidebar: one outline. On the page: every top tag an area of its own, side by side,
-       so the lines between tags run in the gaps and over the band above the areas. */
+       so the lines between tags run in the gaps and over the band above the areas. A drawing that fails is said in the console
+       and left empty: the ground would otherwise try it again at every change of the page. */
     const draw = (holder, wide) => {
+      try { return drawing(holder, wide); }
+      catch (error) { console.error('Logseq Plugin: Ontology could not be drawn', error); holder.replaceChildren(); return () => {}; }
+    };
+    const drawing = (holder, wide) => {
       const doc = holder.ownerDocument;
       holder.classList.add('lk-ontology'); holder.classList.toggle('lk-map', wide);
       const place = wide ? 'page' : 'side';
       holder.dataset.tab = tabOf[place];
       holder.innerHTML = `<div class="lk-onto-tabs" role="tablist"></div><div class="lk-onto-acts"></div><div class="lk-rel"></div><div class="lk-history"></div>`;
       const tabsEl = holder.firstElementChild, acts = tabsEl.nextElementSibling, history_ = holder.lastElementChild;
-      // A new tag is made at the top; opened in place, Logseq's own page for it puts it under another.
+      /* A new tag is made at the top. A name that exists is shown instead of made twice: nothing was written, so the line that
+         adds is answered no steps and sets no Undo arrow (an arrow there would take back the last change made anywhere). */
       const offAdd = G.node.adder(holder, 'New tag', async name => {
+        if (holder.dataset.tab !== 'tags') return '';
         const there = [...(await G.read.tags()).values()].find(tag => tag.title.trim().toLowerCase() === name.toLowerCase());
-        return there ? there.uuid : G.write.newTag(name);
+        if (!there) return G.write.newTag(name);
+        showTag(there);
+        return { uuid: there.uuid, steps: 0 };
       }, 'The tag could not be made');
+      /* On Properties the same line finds a property by its name: what is typed narrows the table, and Enter adds nothing. */
+      const field = holder.querySelector(':scope > .lk-add .lk-field');
+      let finding = '';
+      const LINE = { tags: 'New tag', props: 'Find a property' };
+      const lineFor = tab => { if (!field) return; field.value = ''; finding = ''; const words = LINE[tab] || ''; field.placeholder = words; field.setAttribute('aria-label', words); };
+      const onFind = () => { if (holder.dataset.tab !== 'props') return; const words = field.value.trim().toLowerCase(); if (words !== finding) { finding = words; list.again(); } };
+      const onFindKey = event => { if (holder.dataset.tab !== 'props') return; if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); } else if (event.key === 'Escape') holder.ownerDocument.defaultView.setTimeout(onFind, 0); };   // Escape empties the line (the line's own doing): the table is whole again
+      field?.addEventListener('input', onFind);
+      field?.parentElement.addEventListener('keydown', onFindKey, true);
       const plain = node => ({ ...node, tag: '', tagShown: false, dayShown: 0, day: 0 });
       const rel = holder.querySelector(':scope > .lk-rel');
       tabsEl.after(holder.querySelector(':scope > .lk-add'));   // the line that adds stands under the tabs
-      G.moving.last(holder);   // the line of the last move of values, until it is let go
+      G.moving?.last(holder);   // the lines of the moves of values not let go; none where Move values is switched off
       // A tag moved under another, or to the top: written at once; Logseq's own Undo takes it back. The row keeps the keys.
       /* One move at a time: a second Tab pressed before the outline has been drawn anew would be worked out from where the tag
          stood, not from where it stands (found by hand, 25 November 2026: Tab then Shift-Tab in quick succession left a tag under
@@ -150,16 +185,15 @@ G.part({
           const tags = await G.read.tags(), tag = [...tags.values()].find(one => one.uuid === uuid);
           if (!tag || to === uuid) { done(); return; }
           rel.addEventListener('lk-drawn', shown);
-          G.undo.mark(uuid, await G.write.moveTag(uuid, to, tag.parents.map(id => tags.get(id)?.uuid).filter(Boolean)));   // the faded arrow beside the tag takes the whole move back
+          const steps = await G.write.moveTag(uuid, to, tag.parents.map(id => tags.get(id)?.uuid).filter(Boolean));
+          if (!steps) { done(); return; }   // it stood there already: nothing was written, so no arrow and no line in History
+          G.undo.mark(uuid, steps);   // the faded arrow beside the tag takes the whole move back
           const under = [...tags.values()].find(one => one.uuid === to);
-          did(under ? [['', 'Moved '], ['tag', tag.title], ['', ' under '], ['tag', under.title]] : [['', 'Moved '], ['tag', tag.title], ['', ' to the top']]);
+          did(under ? [['', 'Moved '], ['tag', tag.title], ['', ' under '], ['tag', under.title]] : [['', 'Moved '], ['tag', tag.title], ['', ' to the top']], uuid);
           writing = false;
-        } catch (error) { done(); G.say(`The tag could not be moved: ${error?.message || 'Logseq refused'}`, 'warning'); }
+        } catch (error) { done(); if (error?.steps) G.undo.mark(uuid, error.steps); G.write.refused('The tag could not be moved', error); }
       };
       const isTag = row => row.closest('.lk-list')?.dataset.face === 'tag';
-      const depthOf = row => Number(row.style.getPropertyValue('--lk-depth')) || 0;
-      // The nearest row above at a depth: the row's sibling (its own depth), its parent (one less), its parent's parent (two less).
-      const above = (row, want) => { for (let at = row.previousElementSibling; at; at = at.previousElementSibling) { const d = depthOf(at); if (d === want) return at; if (d < want) return null; } return null; };
       /* The lines between tags, drawn as the released Ontology drew them (the owner, 25 November 2026: "I prefer the style of
          the connecting lines of the old ontology"). A tag is joined to another when its nodes hold, under one of your
          properties, nodes of the other. Each pair is one hairline of its own, in the quiet grey, from the edge of one area at
@@ -223,18 +257,32 @@ G.part({
       const onFocus = event => { const row = event.target.closest?.('.lk-rows > .lk-row'); if (row && row.closest('.lk-rel') === rel) select(row); };
       rel.addEventListener('focusin', onFocus);
       rel.addEventListener('lk-drawn', () => { const row = lit && rel.querySelector(`.lk-row[data-uuid="${lit}"]`); if (row) row.classList.add('lk-chosen'); lines(); });
-      // One step in or out for a tag, worked out from where its row stands now.
+      /* One step in or out for a tag, worked out from the tags as last read (core/tags.js), never from the rows drawn: on the
+         page a top tag is the first row of an area of its own, and Tab still puts it under the top tag before it, as in the
+         sidebar. */
       const step = (uuid, out) => {
-        const row = rel.querySelector(`.lk-list[data-face="tag"] > .lk-rows > .lk-row[data-uuid="${uuid}"]`);
-        if (!row) return;
-        const d = depthOf(row);
-        if (!out) { const to = above(row, d); if (to) move(uuid, to.dataset.uuid); }
-        else if (d > 0) move(uuid, d > 1 ? above(row, d - 2)?.dataset.uuid || '' : '');
+        const id = ids.get(uuid), to = id == null ? null : G.tags.step(id, tagIndex, out);
+        if (to == null) return;
+        const under = to ? tagIndex.get(to)?.uuid : '';
+        if (under != null) move(uuid, under);
+      };
+      // A tag that is there already, shown: the tags it sits under unfolded and its row selected (the line that adds brings it into view).
+      const showTag = tag => {
+        const view = doc.defaultView;
+        for (const one of G.tags.path(tag.id, tagIndex).slice(1)) if (G.folds.shut(one.title)) G.folds.set(one.title, false);
+        const find = (tries = 0) => {
+          const row = rel.querySelector(`.lk-list[data-face="tag"] > .lk-rows > .lk-row[data-uuid="${tag.uuid}"]`);
+          if (row) select(row);
+          else if (tries < 10 && holder.isConnected) view.setTimeout(() => find(tries + 1), 150);
+        };
+        list.again(); find();
       };
       // ---- what each tab lists, and the rows ticked in it
       const picked = { tags: new Set(), props: new Set() };
-      const SHUT = 'lk.ontology-folded', shut = new Set((() => { try { return JSON.parse(doc.defaultView.localStorage.getItem(SHUT) || '[]'); } catch (error) { return []; } })());   // the tags folded, by uuid
-      let info = new Map();   // uuid -> { title, id, count, depth, parents, kids } of each row drawn, as last read
+      /* The tags folded are the ones folded in every list of tags (G.folds, by name): one memory. What Ontology kept for itself
+         before (by a tag's id, under a name of its own) is handed to it once, when the tags are first read, and let go. */
+      let folds = G.touch.kept('lk.ontology-folded', null);
+      let info = new Map();   // uuid -> { title, id, count, own, nodes, depth, parents, kids, kidIds } of each row drawn, as last read
       const pickedNow = () => holder.dataset.tab === 'props' ? picked.props : picked.tags;
       const read = async () => {
         const tab = holder.dataset.tab;
@@ -244,17 +292,30 @@ G.part({
         const [tagNodes, pairs] = await Promise.all([G.read.byUuids(tree.map(row => row.tag.uuid)), G.read.tagPairs()]);
         const depth = new Map(tree.map(row => [row.tag.uuid, row.depth])), counts = G.tags.counts(tags, pairs);
         joins = await G.read.relations();
-        const hasKids = new Set([...tags.values()].flatMap(one => one.parents));
+        const kidsOf = new Map(), own = new Map();   // a tag's child tags; the nodes that hold the tag itself
+        for (const one of tags.values()) for (const parent of one.parents) { if (!kidsOf.has(parent)) kidsOf.set(parent, []); kidsOf.get(parent).push(one.id); }
+        for (const [tag, node] of pairs) { if (!tags.has(tag)) continue; if (!own.has(tag)) own.set(tag, new Set()); own.get(tag).add(node); }
+        if (folds) { const was = folds.get(); if (Array.isArray(was)) for (const row of tree) if (was.includes(row.tag.uuid)) G.folds.set(row.tag.title, true); folds.drop(); folds = null; }
         let cut = Infinity;   // a folded tag hides the tags under it, as a folded bullet hides its children
-        const tagRows = tagNodes.map(node => ({ ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(ids.get(node.uuid)) || 0, shutHere: shut.has(node.uuid) && hasKids.has(ids.get(node.uuid)) }))
+        const tagRows = tagNodes.map(node => { const tag = tags.get(ids.get(node.uuid)); return { ...plain(node), depth: depth.get(node.uuid) || 0, count: counts.get(tag?.id) || 0, shutHere: !!tag && kidsOf.has(tag.id) && G.folds.shut(tag.title) }; })
           .filter(row => { if (row.depth <= cut) cut = Infinity; if (row.depth > cut) return false; if (row.shutHere) cut = row.depth; return true; });
-        info = new Map(tree.map(({ tag, depth: d }) => [tag.uuid, { title: tag.title, id: tag.id, count: counts.get(tag.id) || 0, depth: d, parents: tag.parents, kids: [...tags.values()].some(one => one.parents.includes(tag.id)) }]));
+        info = new Map(tree.map(({ tag, depth: d }) => [tag.uuid, { title: tag.title, id: tag.id, count: counts.get(tag.id) || 0, own: own.get(tag.id)?.size || 0, nodes: own.get(tag.id) || new Set(), depth: d, parents: tag.parents, kids: kidsOf.has(tag.id), kidIds: kidsOf.get(tag.id) || [] }]));
         for (const uuid of [...picked.tags]) if (!info.has(uuid)) picked.tags.delete(uuid);
         if (!wide) return tagRows.length ? [{ key: 'ontology:tags', kind: 'group', name: '', tag: '', face: 'tag', rows: tagRows }] : [];
         const areas = [];   // each top tag with the tags under it
         for (const row of tagRows) { if (!row.depth || !areas.length) areas.push([]); areas[areas.length - 1].push(row); }
         return areas.map(rows => ({ key: `ontology:area:${rows[0].uuid}`, kind: 'group', name: '', tag: '', face: 'tag', rows }));
       };
+      /* What Ontology adds to a row's right-click menu. Move values… only where that part runs. more.gone is the one delete of
+         this place, for the menu's own Delete… to call (node/line.js), so the menu and the row of actions ask the same question. */
+      const more = (row, at) => {
+        const uuid = row.dataset.uuid, values = take => G.moving ? [{ word: 'Move values…', take }] : [];
+        if (!isTag(row)) { const lines = values(async () => { const prop = [...(await G.read.properties()).values()].find(one => one.uuid.toLowerCase() === uuid); if (prop) G.moving?.ask(holder, { from: prop.ident }); }); return lines.length ? [{ gap: true }, ...lines] : []; }
+        return [{ gap: true }, ...values(async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.moving?.ask(holder, { tag: { id: tag.id, title: tag.title } }); }),
+          { word: 'Move under…', take: () => under(at, [uuid]) },   // the same word and the same list as the row of actions
+          ...((info.get(uuid)?.depth || 0) > 0 ? [{ word: 'Move to the top', take: () => move(uuid, '') }] : [])];
+      };
+      more.gone = row => removing([row.dataset.uuid]);
       const opts = { few: 2000,
         ticks: { on: () => holder.dataset.tab !== 'history', has: uuid => pickedNow().has(uuid), flip(uuid, row, on) { if (on) pickedNow().add(uuid); else pickedNow().delete(uuid); bar(); } },
         press(row, event) {
@@ -272,14 +333,7 @@ G.part({
           if (moving) waiting = [row.dataset.uuid, event.shiftKey]; else step(row.dataset.uuid, event.shiftKey);
           return true;
         },
-        more(row, at) {
-          if (!isTag(row)) return [{ gap: true }, { word: 'Move values…', take: async () => { const prop = [...(await G.read.properties()).values()].find(one => one.uuid.toLowerCase() === row.dataset.uuid); if (prop) G.moving.ask(holder, { from: prop.ident }); } }];
-          const uuid = row.dataset.uuid;
-          return [{ gap: true }, { word: 'Show its nodes', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.arrive.search(tag.id); } },
-            { word: 'Move values…', take: async () => { const tag = [...(await G.read.tags()).values()].find(one => one.uuid === uuid); if (tag) G.moving.ask(holder, { tag: { id: tag.id, title: tag.title } }); } },
-            { word: 'Move under…', take: () => under(at, [uuid]) },   // the same word and the same list as the row of actions
-            ...(depthOf(row) > 0 ? [{ word: 'Move to the top', take: () => move(uuid, '') }] : [])];
-        } };
+        more };
       const NONE = { tags: 'No tags of your own yet', props: 'No properties of your own yet', history: '' };
       // ---- the table of properties
       const tagLink = id => { const tag = tagIndex.get(id); return tag ? `<a class="lk-tag" data-to="${G.esc(String(tag.uuid).toLowerCase())}">${G.esc(tag.title)}</a>` : ''; };
@@ -291,9 +345,11 @@ G.part({
         tagIndex = tags;
         const fill = G.tags.filled(tags, pairs, byTag, held);
         const rows = [...props.values()].map(prop => { const f = fill.get(prop.ident) || { on: [], filled: 0, of: 0 }; return { uuid: String(prop.uuid).toLowerCase(), ident: prop.ident, title: prop.title, type: prop.type, range: prop.range.filter(id => tags.has(id)), choice: (choices.get(prop.ident) || []).length > 0, on: f.on, filled: f.filled, of: f.of, held: new Set(held.get(prop.ident) || []).size }; });
-        info = new Map(rows.map(row => [row.uuid, { title: row.title, count: row.held, row }]));
+        info = new Map(rows.map(row => [row.uuid, { title: row.title, count: row.held, own: row.held, row }]));
         for (const uuid of [...picked.props]) if (!info.has(uuid)) picked.props.delete(uuid);
-        return rows;
+        const found = finding ? rows.filter(row => finding.split(/\s+/).every(word => row.title.toLowerCase().includes(word))) : rows;
+        tableOpts.none = rows.length && !found.length ? `No property has “${finding}” in its name` : NONE.props;
+        return found;
       };
       // A ▾ in a cell: the tags, as an outline, with a tick at each one that carries the property (On tags) or that its node values
       // must have (Holds). A press puts the tag in or takes it out, written at once; Logseq's own Undo takes it back.
@@ -306,13 +362,13 @@ G.part({
           if (!prop) return;
           const off = now.props.includes(prop.id);
           await G.undo.after(uuid, G.write.tagProperties(tag.uuid, off ? now.props.filter(id => id !== prop.id) : [...now.props, prop.id]));
-          did(off ? [['', 'Took '], ['prop', row.title], ['', ' off '], ['tag', tag.title]] : [['', 'Put '], ['prop', row.title], ['', ' on '], ['tag', tag.title]]);
+          did(off ? [['', 'Took '], ['prop', row.title], ['', ' off '], ['tag', tag.title]] : [['', 'Put '], ['prop', row.title], ['', ' on '], ['tag', tag.title]], uuid);
         }) }))], { find: 'A tag' });
       };
       const nodeTags = async (at, uuid) => {
         const row = info.get(uuid)?.row;
         if (!row || row.type !== 'node') return;
-        const has = new Set(row.range), set = (ids, said) => once_(`${row.title} could not be changed`, async () => { await G.undo.after(uuid, G.write.range(uuid, ids)); did(said); });
+        const has = new Set(row.range), set = (ids, said) => once_(`${row.title} could not be changed`, async () => { await G.undo.after(uuid, G.write.range(uuid, ids)); did(said, uuid); });
         G.menu(at, [{ group: `What ${row.title} holds` }, { word: 'Any node', on: !has.size, take: () => { if (has.size) set([], [['', 'Let '], ['prop', row.title], ['', ' hold any node']]); } }, { gap: true },
           ...G.tags.tree(tagIndex).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: has.has(tag.id), take: () => has.has(tag.id)
             ? set(row.range.filter(id => id !== tag.id), [['', 'Let '], ['prop', row.title], ['', ' hold nodes of '], ...(row.range.length > 1 ? names(row.range.filter(id => id !== tag.id).map(id => tagIndex.get(id)?.title || ''), 'tag') : [['', 'any tag']])])
@@ -324,20 +380,23 @@ G.part({
         { key: 'holds', word: 'Holds', width: 'minmax(110px, 1.5fr)', min: 110, by: row => holdsWords(row).toLowerCase(), cell: row => `<span class="lk-words">${holds(row)}</span>${row.type === 'node' ? `<button type="button" class="lk-change" data-cell="holds" aria-label="What ${G.esc(row.title)} holds" title="Node tags of ${G.esc(row.title)}…"></button>` : ''}` },
         { key: 'filled', word: 'Filled', width: 'minmax(84px, 100px)', min: 84, end: true, by: row => row.of ? row.filled / row.of : 0, cell: row => row.of ? `${row.filled} of ${row.of}` : plural(row.held, 'node') },
       ];
-      const table = () => G.table(rel, { columns: COLUMNS, read: readProps, face: 'prop', none: NONE.props, sort: sortOf[place], sorted: sort => { sortOf[place] = sort; }, tie: row => row.title,
+      const tableOpts = { columns: COLUMNS, read: readProps, face: 'prop', none: NONE.props, sort: sortOf[place], sorted: sort => { sortOf[place] = tableOpts.sort = sort; }, tie: row => row.title,   // none: what the table says with no rows, set at each reading
         ticks: { has: uuid => picked.props.has(uuid), flip(uuid, row, on) { if (on) picked.props.add(uuid); else picked.props.delete(uuid); bar(); } },
-        key: (row, event) => opts.key(row, event), more: (row, at) => opts.more(row, at),
-        press(row, event) { const cell = event.target.closest('.lk-change[data-cell]'); if (!cell) return false; (cell.dataset.cell === 'on' ? onTags : nodeTags)(cell, row.dataset.uuid); return true; } });
+        key: (row, event) => opts.key(row, event), more,
+        press(row, event) { const cell = event.target.closest('.lk-change[data-cell]'); if (!cell) return false; (cell.dataset.cell === 'on' ? onTags : nodeTags)(cell, row.dataset.uuid); return true; } };
+      const table = () => G.table(rel, tableOpts);
       const mount = tab => tab === 'props' ? table() : G.node.listing(rel, read, { ...opts, none: NONE[tab] });
+      lineFor(holder.dataset.tab);
       let list = mount(holder.dataset.tab);
       // Folding a tag, kept on this Mac: a press on its arrow, or Cmd-Up and Cmd-Down on its row.
-      const fold = (uuid, on = !shut.has(uuid)) => {
-        if (on) shut.add(uuid); else shut.delete(uuid);
-        try { doc.defaultView.localStorage.setItem(SHUT, JSON.stringify([...shut])); } catch (error) { /* kept for this run only */ }
+      const fold = (uuid, on) => {
+        const title = info.get(uuid)?.title;
+        if (!title) return;
+        G.folds.set(title, on ?? !G.folds.shut(title));
         list.again();
         doc.defaultView.setTimeout(() => rel.querySelector(`.lk-row[data-uuid="${uuid}"] > .lk-line`)?.focus({ preventScroll: true }), 120);
       };
-      const marks = () => { for (const row of rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows > .lk-row')) { const one = info.get(row.dataset.uuid); row.dataset.kids = one?.kids ? '1' : ''; row.dataset.shut = shut.has(row.dataset.uuid) ? '1' : ''; } };
+      const marks = () => { for (const row of rel.querySelectorAll('.lk-list[data-face="tag"] > .lk-rows > .lk-row')) { const one = info.get(row.dataset.uuid); row.dataset.kids = one?.kids ? '1' : ''; row.dataset.shut = one && G.folds.shut(one.title) ? '1' : ''; } };
       rel.addEventListener('lk-drawn', marks);
       rel.addEventListener('click', event => {
         const row = event.target.closest?.('.lk-fold')?.closest('.lk-row');
@@ -353,6 +412,7 @@ G.part({
       const show = tab => {
         if (tab === holder.dataset.tab) return;
         tabOf[place] = holder.dataset.tab = tab;
+        lineFor(tab);
         holder.querySelector(':scope > .lk-merge')?.remove();
         tabs(); list.off(); list = mount(tab); lit = ''; lines(); bar(); past();
       };
@@ -365,10 +425,10 @@ G.part({
         const tab = holder.dataset.tab, set = pickedNow(), n = set.size;
         let html = '';
         if (tab === 'tags') {
-          const rows = [...set].map(uuid => info.get(uuid)).filter(Boolean), top = rows.every(one => !one.parents.length), empty = n > 0 && rows.every(one => !one.count && !one.kids);
+          const rows = [...set].map(uuid => info.get(uuid)).filter(Boolean), top = rows.every(one => !one.depth);
           html = `<b class="lk-said">${n ? `${plural(n, 'tag')} picked` : 'Tick tags, then'}</b>` + press('merge', 'Merge…', n > 1, n > 1 ? '' : 'Tick two or more to merge them')
             + press('up', 'Move up a level', n > 0 && !top, n && top ? 'Already at the top' : '') + press('under', 'Move under…', n > 0)
-            + press('rename', 'Rename', n === 1) + press('delete', 'Delete', empty, n && !empty ? 'Only a tag with no nodes and no child tags can be deleted: merge the others' : '', ' lk-onto-del');
+            + press('rename', 'Rename', n === 1) + press('delete', 'Delete', n > 0, '', ' lk-going-btn');   // the library's red for a press that takes away
         } else if (tab === 'props') {
           html = `<b class="lk-said">${n ? `${plural(n, 'property', 'properties')} picked` : 'Tick properties, then'}</b>` + press('merge', 'Merge…', n > 1, n > 1 ? '' : 'Tick two or more to merge them') + press('rename', 'Rename', n === 1);
         }
@@ -376,45 +436,60 @@ G.part({
         if (acts.lkHtml !== html) { acts.innerHTML = html; acts.lkHtml = html; }
       };
       const clear = () => { pickedNow().clear(); for (const row of rel.querySelectorAll('.lk-picked')) { row.classList.remove('lk-picked'); const tick = row.querySelector(':scope > .lk-tick'); if (tick) tick.checked = false; } bar(); };
-      const graph = () => G.read.graph().catch(() => '');
-      const did = async said => history.add(await graph(), said);
+      /* One change at a time, made of one write or of many. work(made) counts as it goes: made.steps, the steps of Logseq's
+         Undo written so far (a write that answers its steps is added as answered); made.at, the row the Undo arrow stands
+         after; made.said(), the line for History, said of what was written; made.undo, false where Undo would not bring back
+         all that went. Where Logseq refuses one write of several, what was written before it still gets its arrow and its
+         line in History, and the refusal says so. */
       let busy = false;
       const once_ = async (what, work) => {
         if (busy) return;
         busy = true; acts.toggleAttribute('data-busy', true);
-        try { await work(); } catch (error) { G.say(`${what}: ${error?.message || 'Logseq refused'}`, 'warning'); }
+        const made = { steps: 0, at: '', said: null, undo: true };
+        let failed = null;
+        try { await work(made); } catch (error) { failed = error; made.steps += Number(error?.steps) || 0; }
+        if (made.steps > 0) {
+          const arrow = made.undo && made.at;
+          if (arrow) G.undo.mark(made.at, made.steps); else G.undo.clear();   // no arrow where it would not bring all of it back, nor an older one left standing
+          const said = made.said?.();
+          if (said) did(said, arrow ? made.at : '');
+        }
+        if (failed) G.write.refused(what, failed, made.steps > 0 && made.undo && !failed.left ? 'What was written before that stays: the Undo arrow takes it back.' : '');
         busy = false; acts.removeAttribute('data-busy'); G.read.forget(); list.again();
       };
+      // The words of a line of History for several things, the last of them only begun where a write was refused part of the way.
+      const partly = (verb, done, part, kind, tail) => !done.length && !part ? null : [['', `${verb} `], ...names(done, kind), ...(part ? [['', done.length ? ' and part of ' : 'part of '], [kind, part]] : []), ...tail];
       const fresh = async () => { G.read.forget(); const tags = await G.read.tags(); return { tags, byUuid: new Map([...tags.values()].map(tag => [tag.uuid, tag])) }; };
       // Up one level: from under its tag to under that tag's own, or to the top.
-      const up = uuids => once_('It could not be moved', async () => {
-        const { tags, byUuid } = await fresh();
-        let steps = 0, last = '';
-        const moved = [];
+      // The tag a tag sits under is the one the outline shows it under (core/tags.js), where it has several.
+      const up = uuids => once_('The tags could not all be moved', async made => {
+        const { tags, byUuid } = await fresh(), moved = [];
+        made.said = () => moved.length ? [['', 'Moved '], ...names(moved, 'tag'), ['', ' up a level']] : null;
         for (const uuid of uuids) {
-          const tag = byUuid.get(uuid), parent = tag && tags.get(tag.parents[0]);
-          if (!parent) continue;
-          const to = parent.parents[0] ? tags.get(parent.parents[0])?.uuid || '' : '';
-          steps += await G.write.moveTag(uuid, to, tag.parents.map(id => tags.get(id)?.uuid).filter(Boolean)); last = uuid; moved.push(tag.title);
+          const tag = byUuid.get(uuid), to = tag ? G.tags.step(tag.id, tags, true) : null;
+          if (to == null) continue;
+          if (!made.at) made.at = uuid;   // where the arrow stands, should this very move be refused with steps left written
+          const steps = await G.write.moveTag(uuid, to ? tags.get(to).uuid : '', tag.parents.map(id => tags.get(id)?.uuid).filter(Boolean));
+          if (steps) { made.steps += steps; made.at = uuid; moved.push(tag.title); }
         }
         clear();
-        if (!steps) return;
-        G.undo.mark(last, steps);
-        did([['', 'Moved '], ...names(moved, 'tag'), ['', ' up a level']]);
       });
       // Under a tag chosen from the whole tree, or to the top. The picked tags, and the tags under them, are not offered.
       const under = async (at, uuids) => {
         const { tags, byUuid } = await fresh(), moving_ = uuids.map(uuid => byUuid.get(uuid)).filter(Boolean);
         if (!moving_.length) return;
         const below = new Set(moving_.flatMap(tag => [...G.tags.under(tag.id, tags)])), others = new Map([...tags].filter(([id]) => !below.has(id)));
-        const to = target => once_('It could not be moved', async () => {
-          const now = await fresh();
-          let steps = 0, last = '';
-          for (const tag of moving_) { const was = now.byUuid.get(tag.uuid); if (!was || (target ? was.parents.length === 1 && now.tags.get(was.parents[0])?.uuid === target.uuid : !was.parents.length)) continue; steps += await G.write.moveTag(tag.uuid, target?.uuid || '', was.parents.map(id => now.tags.get(id)?.uuid).filter(Boolean)); last = tag.uuid; }
+        const to = target => once_('The tags could not all be moved', async made => {
+          const now = await fresh(), moved = [];
+          made.said = () => moved.length ? [['', 'Moved '], ...names(moved, 'tag'), ...(target ? [['', ' under '], ['tag', target.title]] : [['', ' to the top']])] : null;
+          for (const tag of moving_) {
+            const was = now.byUuid.get(tag.uuid);
+            if (!was || (target ? was.parents.length === 1 && now.tags.get(was.parents[0])?.uuid === target.uuid : !was.parents.length)) continue;
+            if (!made.at) made.at = tag.uuid;
+            const steps = await G.write.moveTag(tag.uuid, target?.uuid || '', was.parents.map(id => now.tags.get(id)?.uuid).filter(Boolean));
+            if (steps) { made.steps += steps; made.at = tag.uuid; moved.push(tag.title); }
+          }
           clear();
-          if (!steps) return;
-          G.undo.mark(last, steps);
-          did(target ? [['', 'Moved '], ...names(moving_.map(tag => tag.title), 'tag'), ['', ' under '], ['tag', target.title]] : [['', 'Moved '], ...names(moving_.map(tag => tag.title), 'tag'), ['', ' to the top']]);
         });
         const one = moving_.length === 1 ? moving_[0] : null;
         G.menu(at, [{ group: one ? `Move ${one.title} under` : `Move ${moving_.length} picked tags under` }, ...G.tags.tree(others).map(({ tag, depth }) => ({ word: tag.title, depth, face: 'tag', on: !!one && one.parents.includes(tag.id), take: () => to(tag) })),
@@ -437,23 +512,41 @@ G.part({
           const name = field.value.trim();
           leave();
           if (!name || name === was) return;
-          once_('It could not be renamed', async () => { await G.undo.after(uuid, G.write.rename(uuid, name)); clear(); did([['', 'Renamed '], [kind, was], ['', ' to '], [kind, name]]); });
+          once_('It could not be renamed', async made => { made.at = uuid; made.said = () => [['', 'Renamed '], [kind, was], ['', ' to '], [kind, name]]; await G.write.rename(uuid, name); made.steps = 1; clear(); });
         });
         for (const type of ['click', 'mousedown', 'contextmenu']) field.addEventListener(type, event => event.stopPropagation());
         field.addEventListener('blur', leave);
       };
-      // Deleted after a red yes: only tags with no nodes and no child tags, which take nothing with them.
-      const remove = uuids => {
-        const rows = uuids.map(uuid => [uuid, info.get(uuid)]).filter(([, one]) => one && !one.count && !one.kids), row = rows[0] && rel.querySelector(`.lk-rows > .lk-row[data-uuid="${rows[0][0]}"]`);
+      /* The one way a tag or a property is deleted here, from the row of actions and from a row's menu: a red question under
+         the row that counts what truly goes (core/tags.js going): the nodes that hold a tag itself, its child tags, the bullets
+         written on its page; for a property the nodes that hold a value under it. Logseq deletes a tag's and a property's page
+         for good, with what is written on it, and its Undo brings back another item that nothing points at (found by hand, 26
+         November 2026): so the Undo arrow is offered only after tags that took nothing with them, and the question says
+         before the yes where there is no way back. */
+      const remove = async uuids => {
+        const rows = uuids.map(uuid => [uuid, info.get(uuid)]).filter(([, one]) => one), row = rows[0] && rel.querySelector(`:is(.lk-rows > .lk-row, .lk-trow)[data-uuid="${rows[0][0]}"]`);
         if (!row) return;
-        G.ask.gone(row, { words: rows.length === 1 ? `Delete ${rows[0][1].title}?` : `Delete ${rows.length} tags?`, note: rows.length === 1 ? 'It has no nodes and no child tags.' : 'They have no nodes and no child tags.', yes: 'Delete',
-          take: () => once_('It could not be deleted', async () => {
-            let steps = 0;
-            for (const [uuid] of rows) { await G.write.remove(uuid, true); steps++; }
-            clear(); G.undo.mark(rows[0][0], steps);
-            did([['', 'Deleted '], ...names(rows.map(([, one]) => one.title), 'tag')]);
+        const kind = isTag(row) ? 'tag' : 'property', going = new Set(rows.map(([, one]) => one.id));
+        // The bullets on its page, at any depth, empty ones left out; where the page's outline answers nothing, the bullets the graph says stand on it.
+        const written = async (uuid, one) => {
+          const lines = await G.read.outline(uuid, true);
+          if (lines.length) return lines.filter(line => line.words.trim()).length;
+          const id = one.id ?? (await G.read.node(uuid))?.id;
+          return id ? (await G.read.reach(id)).bullets.length : 0;
+        };
+        const bullets = await Promise.all(rows.map(([uuid, one]) => written(uuid, one)));
+        const things = rows.map(([, one], i) => ({ kind, title: one.title, nodes: one.own || 0, kids: kind === 'tag' ? one.kidIds.filter(id => !going.has(id)).length : 0, bullets: bullets[i] }));
+        const asks = G.tags.going(things, kind === 'tag' ? new Set(rows.flatMap(([, one]) => [...one.nodes])).size : undefined), face = kind === 'tag' ? 'tag' : 'prop';
+        G.ask.gone(row, { words: asks.words, note: asks.note, yes: asks.yes,
+          take: () => once_(rows.length === 1 ? 'It could not be deleted' : 'They could not all be deleted', async made => {
+            const gone = [];
+            made.at = rows[0][0]; made.undo = asks.whole;
+            made.said = () => gone.length ? [['', 'Deleted '], ...names(gone, face)] : null;
+            for (const [uuid, one] of rows) { await G.write.remove(uuid, true); made.steps++; gone.push(one.title); }
+            clear();
           }) });
       };
+      const removing = uuids => remove(uuids).catch(error => G.write.refused('What a delete would take with it could not be read', error, 'Nothing was deleted.'));
       acts.addEventListener('click', event => {
         const at = event.target.closest('[data-act]');
         if (!at || at.disabled || busy) return;
@@ -462,8 +555,8 @@ G.part({
         else if (act === 'up') up(uuids);
         else if (act === 'under') under(at, uuids);
         else if (act === 'rename') rename(uuids[0]);
-        else if (act === 'delete') remove(uuids);
-        else if (act === 'merge') (tab === 'props' ? mergeProps : mergeTags)(uuids).catch(error => G.say(`The merge could not be read: ${error?.message || 'Logseq refused'}`, 'warning'));
+        else if (act === 'delete') removing(uuids);
+        else if (act === 'merge') (tab === 'props' ? mergeProps : mergeTags)(uuids).catch(error => G.write.refused('The merge could not be read', error, 'Nothing was changed.'));
       });
 
       // ---- a merge, said once before it is made (the owner, 24 November 2026, of the box before: "Confusing")
@@ -495,42 +588,48 @@ G.part({
 ${nodes.length ? `<div class="lk-ask-rows">${nodes.map(node => `<div class="lk-ask-line"><span class="lk-merge-node">${G.esc(say(node))}</span> <span class="lk-tag lk-going">${G.esc(goneOf(node.uuid)?.title || '')}</span> <span class="lk-tag lk-coming">${G.esc(kept.title)}</span></div>`).join('')}</div>` : ''}
 <div class="lk-ask-note">${plural(n, 'node')} · links to the ${gone.length === 1 ? 'tag follow' : 'tags follow'}</div>${answers('Merge', true, chosen.length === 2 ? 'Keep the other name' : 'Keep another name…')}`, {
             other: at => { if (chosen.length === 2) { kept = chosen.find(tag => tag !== kept); draw_(); } else G.menu(at, chosen.map(tag => ({ word: tag.title, face: 'tag', on: tag === kept, take: () => { kept = tag; draw_(); } }))); },
-            yes: () => { close(); once_('The tags could not all be merged', async () => {
-              let steps = 0;
-              for (const tag of gone) steps += await mergeTag(tag, kept);
-              clear(); G.undo.mark(kept.uuid, steps);
-              did([['', 'Merged '], ...names(gone.map(one => one.title), 'tag'), ['', ' into '], ['tag', kept.title]]);
+            yes: () => { close(); once_('The tags could not all be merged', async made => {
+              const done = []; let part = '';
+              made.at = kept.uuid; made.said = () => partly('Merged', done, part, 'tag', [['', ' into '], ['tag', kept.title]]);
+              for (const tag of gone) {
+                const before = made.steps;
+                try { await mergeTag(tag, kept, made); } catch (error) { if (made.steps > before) part = tag.title; throw error; }
+                done.push(tag.title);
+              }
+              clear();
             }); },
           });
         };
         await draw_();
       };
-      // One tag merged into another; answers how many steps of Logseq's Undo it took.
-      const mergeTag = async (gone, kept) => {
-        let steps = 0;
+      // One tag merged into another. Each write is counted as it is made (made.steps), so a merge refused part of the way
+      // still knows how many steps of Logseq's Undo take back what it wrote.
+      const mergeTag = async (gone, kept, made) => {
         const { props } = await G.read.schema(), r = await G.read.reach(gone.id), link = new RegExp(`\\[\\[${gone.uuid}\\]\\]`, 'gi');
-        for (const one of r.named) { const words = one.words.replace(link, `[[${kept.uuid}]]`); if (words !== one.words) { await G.write.setWords(one.uuid, words); steps++; } }   // links in the words follow
-        for (const one of r.held) { const raws = [...new Set(one.raws.map(raw => raw === gone.id ? kept.id : raw))], prop = props.get(one.ident); await G.write.setValues(one.uuid, one.ident, raws, { ref: true, many: !!prop?.many }); steps += raws.length ? 2 : 1; }
-        for (const one of r.ranges) { await G.write.range(one.uuid, [...new Set(one.ids.map(id => id === gone.id ? kept.id : id))]); steps++; }
+        for (const one of r.named) { const words = one.words.replace(link, `[[${kept.uuid}]]`); if (words !== one.words) { await G.write.setWords(one.uuid, words); made.steps++; } }   // links in the words follow
+        for (const one of r.held) { const raws = [...new Set(one.raws.map(raw => raw === gone.id ? kept.id : raw))], prop = props.get(one.ident); made.steps += await G.write.setValues(one.uuid, one.ident, raws, { ref: true, many: !!prop?.many }); }
+        for (const one of r.ranges) { await G.write.range(one.uuid, [...new Set(one.ids.map(id => id === gone.id ? kept.id : id))]); made.steps++; }
         G.read.forget();
         const now = await G.read.reach(gone.id), has = new Set((await G.read.reach(kept.id)).tagged);
-        for (const uuid of now.tagged) { if (!has.has(uuid)) { await G.write.tag(uuid, kept.uuid); steps++; } await G.write.untag(uuid, gone.uuid); steps++; }
-        const keptProps = (await G.read.reach(kept.id)).props, more = now.props.filter(id => !keptProps.includes(id));
-        if (more.length) { await G.write.tagProperties(kept.uuid, [...keptProps, ...more]); steps++; }
+        for (const uuid of now.tagged) { if (!has.has(uuid)) { await G.write.tag(uuid, kept.uuid); made.steps++; } await G.write.untag(uuid, gone.uuid); made.steps++; }
+        const keptProps = (await G.read.reach(kept.id)).props, more_ = now.props.filter(id => !keptProps.includes(id));
+        if (more_.length) { await G.write.tagProperties(kept.uuid, [...keptProps, ...more_]); made.steps++; }
         G.read.forget();
         const tags = await G.read.tags(), keptTag = tags.get(kept.id), goneTag = tags.get(gone.id);
         for (const kid of [...tags.values()].filter(one => one.parents.includes(gone.id))) {
-          if (kid.id === kept.id) steps += await G.write.moveTag(kept.uuid, goneTag.parents[0] && goneTag.parents[0] !== kept.id ? tags.get(goneTag.parents[0])?.uuid || '' : '', [gone.uuid]);   // the kept tag stood under the other: it takes its place
-          else steps += await G.write.moveTag(kid.uuid, kid.parents.includes(kept.id) || G.tags.under(kid.id, tags).has(kept.id) ? '' : keptTag.uuid, [gone.uuid]);
+          if (kid.id === kept.id) made.steps += await G.write.moveTag(kept.uuid, goneTag.parents[0] && goneTag.parents[0] !== kept.id ? tags.get(goneTag.parents[0])?.uuid || '' : '', [gone.uuid]);   // the kept tag stood under the other: it takes its place
+          else made.steps += await G.write.moveTag(kid.uuid, kid.parents.includes(kept.id) || G.tags.under(kid.id, tags).has(kept.id) ? '' : keptTag.uuid, [gone.uuid]);
         }
-        for (const uuid of now.bullets) { await G.write.toPage(uuid, kept.uuid); steps++; }
-        await G.write.remove(gone.uuid, true); steps++;
-        return steps;
+        for (const uuid of now.bullets) { await G.write.toPage(uuid, kept.uuid); made.steps++; }
+        await G.write.remove(gone.uuid, true); made.steps++;
       };
-      // Properties: the one most nodes hold is kept unless another is chosen; the others' values go into it (a node it would give
-      // a second value to, where it takes one, keeps its own) and the tags that gave them give it. The merged property stays, empty,
-      // as before the rebuild: a property deleted and brought back by Logseq's Undo comes back as another item, and what pointed
-      // at it would not follow (found by hand, 26 November 2026).
+      /* Properties: the one most nodes hold is kept unless another is chosen; the others' values go into it and the tags that gave
+         them give it. The properties are decided together (core/move.js merge), each on what the kept one will hold once the
+         ones before it are in: a node that holds a value under two of them gets both, and no value is left under no property.
+         A node the kept property would give a second value to, where it takes one, keeps its own under the property it stood
+         under; so does a value that has bullets written under it; the box says how many of each. The merged property stays,
+         empty, as before the rebuild: a property deleted and brought back by Logseq's Undo comes back as another item, and what
+         pointed at it would not follow (found by hand, 26 November 2026). */
       const mergeProps = async uuids => {
         const [{ props: schema, byTag }, all] = await Promise.all([(G.read.forget(), G.read.schema()), G.read.properties()]);
         const chosen = uuids.map(uuid => [...all.values()].find(prop => prop.uuid === uuid)).filter(Boolean).map(prop => schema.get(prop.ident) && { ...schema.get(prop.ident), uuid: prop.uuid });
@@ -538,32 +637,37 @@ ${nodes.length ? `<div class="lk-ask-rows">${nodes.map(node => `<div class="lk-a
         const holders = new Map(await Promise.all(chosen.map(async prop => [prop.ident, await G.read.holders(prop.ident)])));
         chosen.sort((a, b) => holders.get(b.ident).length - holders.get(a.ident).length || a.title.localeCompare(b.title));
         let kept = chosen[0];
-        const planOf = gone => { const into = new Map(holders.get(kept.ident).map(node => [node.id, node.values])); return G.move.plan({ nodes: holders.get(gone.ident).map(node => ({ uuid: node.uuid, words: node.words, from: node.values, into: into.get(node.id) || [] })), from: gone, into: kept, remove: true }); };
         const draw_ = async () => {
-          const gone = chosen.filter(prop => prop !== kept), plans = gone.map(prop => [prop, planOf(prop)]), refused = plans.find(([, made]) => made.refused && made.rows.length === 0 && made.refused.includes('different'))?.[1].refused || '';
-          const rows = plans.flatMap(([prop, made]) => made.rows.filter(row => !row.skip).map(row => ({ prop, row }))), kept_ = plans.reduce((n, [, made]) => n + made.kept, 0);
+          const gone = chosen.filter(prop => prop !== kept), plans = G.move.merge({ kept, held: holders.get(kept.ident), gone: gone.map(prop => ({ prop, nodes: holders.get(prop.ident) })) });
+          const refused = plans.find(({ made }) => made.refused && made.rows.length === 0 && made.refused.includes('different'))?.made.refused || '';
+          const rows = plans.flatMap(({ prop, made }) => made.rows.filter(row => !row.skip).map(row => ({ prop, row }))), leftFor = why => plans.reduce((n, { made }) => n + (made.left.find(one => one.why === why)?.n || 0), 0);
+          const changed = new Set(rows.map(one => one.row.uuid)).size, own = leftFor('one'), under_ = leftFor('under'), keeps = n => `${plural(n, 'node')} ${n === 1 ? 'keeps its' : 'keep their'} own`;
           const nodes = await G.read.byUuids(rows.slice(0, 4).map(one => one.row.uuid)), say = await wordsOf(nodes), few = (values, cls) => values.map(value => `<span class="${cls}">${G.esc(value.text || '—')}</span>`).join(', ');
           const close = ask(`<div class="lk-ask-head">Merge ${saidHtml(names(gone.map(prop => prop.title), 'prop'))} into <span class="lk-prop">${G.esc(kept.title)}</span></div>
 ${!refused && rows.length ? `<div class="lk-ask-rows">${rows.slice(0, 4).map(({ prop, row }, i) => `<div class="lk-ask-row"><div class="lk-ask-words">${G.esc(nodes[i] ? say(nodes[i]) : row.words || 'Untitled')}</div><div><span class="lk-prop">${G.esc(prop.title)}</span> ${few(row.goes, 'lk-going')}</div><div><span class="lk-prop">${G.esc(kept.title)}</span> ${[few(row.stays, ''), few(row.comes, 'lk-coming')].filter(Boolean).join(', ') || '—'}</div></div>`).join('')}${rows.length > 4 ? `<div class="lk-ask-more">and ${rows.length - 4} more</div>` : ''}</div>` : ''}
-<div class="lk-ask-note">${refused ? G.esc(refused) : `${plural(rows.length, 'node')}${kept_ ? ` · ${plural(kept_, 'node')} ${kept_ === 1 ? 'keeps its' : 'keep their'} own, as ${G.esc(kept.title)} takes one value` : ''}`}</div>${answers('Merge', !refused, chosen.length === 2 ? 'Keep the other name' : 'Keep another name…')}`, {
+<div class="lk-ask-note">${refused ? G.esc(refused) : `${plural(changed, 'node')}${own ? ` · ${keeps(own)}, as ${G.esc(kept.title)} takes one value` : ''}${under_ ? ` · ${keeps(under_)}, as a value that has bullets written under it stays where it is` : ''}`}</div>${answers('Merge', !refused, chosen.length === 2 ? 'Keep the other name' : 'Keep another name…')}`, {
             other: at => { if (chosen.length === 2) { kept = chosen.find(prop => prop !== kept); draw_(); } else G.menu(at, chosen.map(prop => ({ word: prop.title, face: 'prop', on: prop === kept, take: () => { kept = prop; draw_(); } }))); },
-            yes: () => { if (refused) return; close(); once_('The properties could not all be merged', async () => {
-              let steps = 0;
-              const REF = kept.type === 'node' || kept.type === 'date', had = new Map(holders.get(kept.ident).map(node => [node.uuid, node.values.length]));
-              for (const [prop, made] of plans) {
-                for (const row of made.rows.filter(one => !one.skip)) {
-                  if (row.comes.length) { const fresh_ = !had.get(row.uuid); await G.write.setValues(row.uuid, kept.ident, [...row.stays, ...row.comes].map(value => value.raw), { ref: REF, many: kept.many, fresh: fresh_ }); steps += fresh_ ? 1 : 2; had.set(row.uuid, 1); }
-                  await G.write.setValues(row.uuid, prop.ident, [], {}); steps++;
-                }
-                // The tags that gave the merged property give the kept one.
-                for (const [tagId, idents] of byTag) if (idents.includes(prop.ident)) {
-                  const tag = tagIndex.get(tagId), now = (await G.read.reach(tagId)).props, keptId = (await G.read.node(kept.uuid))?.id, propId = (await G.read.node(prop.uuid))?.id;
-                  if (!tag || !keptId) continue;
-                  await G.write.tagProperties(tag.uuid, [...new Set(now.filter(id => id !== propId).concat(keptId))]); steps++;
-                }
+            yes: () => { if (refused) return; close(); once_('The properties could not all be merged', async made => {
+              const done = []; let part = '';
+              made.at = kept.uuid; made.said = () => partly('Merged', done, part, 'prop', [['', ' into '], ['prop', kept.title]]);
+              const REF = ['node', 'date', 'asset'].includes(kept.type);
+              for (const { prop, made: planned } of plans) {
+                const before = made.steps;
+                try {
+                  for (const row of planned.rows.filter(one => !one.skip)) {
+                    if (row.comes.length) made.steps += await G.write.setValues(row.uuid, kept.ident, [...row.stays, ...row.comes].map(value => value.raw), { ref: REF, many: kept.many });
+                    made.steps += await G.write.setValues(row.uuid, prop.ident, [], {});
+                  }
+                  // The tags that gave the merged property give the kept one.
+                  for (const [tagId, idents] of byTag) if (idents.includes(prop.ident)) {
+                    const tag = tagIndex.get(tagId), now = (await G.read.reach(tagId)).props, keptId = (await G.read.node(kept.uuid))?.id, propId = (await G.read.node(prop.uuid))?.id;
+                    if (!tag || !keptId) continue;
+                    await G.write.tagProperties(tag.uuid, [...new Set(now.filter(id => id !== propId).concat(keptId))]); made.steps++;
+                  }
+                } catch (error) { if (made.steps > before) part = prop.title; throw error; }
+                done.push(prop.title);
               }
-              clear(); G.undo.mark(kept.uuid, steps);
-              did([['', 'Merged '], ...names(gone.map(one => one.title), 'prop'), ['', ' into '], ['prop', kept.title]]);
+              clear();
             }); },
           });
         };
@@ -575,21 +679,25 @@ ${!refused && rows.length ? `<div class="lk-ask-rows">${rows.slice(0, 4).map(({ 
         if (holder.dataset.tab !== 'history') return;
         const lines = history.read(await graph()), today = G.days.number(new Date());
         const when = ms => { const at = new Date(ms), day = G.days.number(at); return `${day === today ? 'Today' : G.days.short(day, today)}, ${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`; };
-        history_.innerHTML = lines.length ? lines.map(one => `<div class="lk-history-line"><span class="lk-history-when">${G.esc(when(one.when))}</span><span>${saidHtml(one.said)}</span></div>`).join('') : '<div class="lk-none">Nothing has been changed yet.</div>';
+        // The newest line, where it is the change the Undo arrow stands for: its words held as a line, so the library's arrow stands after them.
+        const at = lines.length && standing && standing.when === lines[0].when ? standing.uuid : '';
+        history_.innerHTML = lines.length ? lines.map((one, i) => `<div class="lk-history-line"${at && !i ? ` data-uuid="${G.esc(at)}"` : ''}><span class="lk-history-when">${G.esc(when(one.when))}</span>${at && !i ? `<span class="lk-line"><span class="lk-words">${saidHtml(one.said)}</span></span>` : `<span>${saidHtml(one.said)}</span>`}</div>`).join('') : '<div class="lk-none">Nothing has been changed yet.</div>';
+        const newest = at && history_.firstElementChild;
+        if (newest) G.undo.dress(newest);   // drawn only while that arrow stands
       };
       listeners.add(past);
-      G.tending = { did };   // Move values tells its moves here too
       tabs(); bar(); past();
       rel.addEventListener('lk-drawn', bar);
       let offSide = null;
       if (wide) {   // the outline beside a page you are reading: one press away
         const side = doc.createElement('button'); side.type = 'button'; side.className = 'lk-btn lk-side'; side.textContent = 'In the sidebar';
-        const values = doc.createElement('button'); values.type = 'button'; values.className = 'lk-btn lk-values'; values.textContent = 'Move values…';
-        const open = () => section.open(), ask = () => G.moving.ask(holder, {});
-        side.addEventListener('click', open); values.addEventListener('click', ask); (holder.querySelector(':scope > .lk-add') || holder.firstElementChild).after(values, side);
-        offSide = () => { side.removeEventListener('click', open); values.removeEventListener('click', ask); side.remove(); values.remove(); };
+        const values = G.moving ? doc.createElement('button') : null;   // only where Move values runs
+        if (values) { values.type = 'button'; values.className = 'lk-btn lk-values'; values.textContent = 'Move values…'; }
+        const open = () => section.open(), ask_ = () => G.moving?.ask(holder, {});
+        side.addEventListener('click', open); values?.addEventListener('click', ask_); (holder.querySelector(':scope > .lk-add') || holder.firstElementChild).after(...(values ? [values, side] : [side]));
+        offSide = () => { side.removeEventListener('click', open); values?.removeEventListener('click', ask_); side.remove(); values?.remove(); };
       }
-      return () => { sized?.disconnect(); offSide?.(); offAdd(); list.off(); listeners.delete(past); };
+      return () => { sized?.disconnect(); offSide?.(); field?.removeEventListener('input', onFind); field?.parentElement.removeEventListener('keydown', onFindKey, true); offAdd(); list.off(); listeners.delete(past); };
     };
     const section = G.touch.section('lk-ontology', 'Ontology', holder => draw(holder, false), TREE);
     const page = G.touch.page('lk-ontology', 'Ontology', holder => draw(holder, true));
